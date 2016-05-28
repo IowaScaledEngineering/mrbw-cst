@@ -1,0 +1,4 @@
+schematics mrbw-cst.sch
+output-name ../pcb/mrbw-cst
+skip-m4
+elements-dir ../../../footprints
