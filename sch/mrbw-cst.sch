@@ -539,7 +539,7 @@ refdes=SW4
 T 71500 43350 5 10 1 1 0 6 1
 device=25LB10-Q
 T 70700 49500 5 10 0 0 0 0 1
-footprint=GRAYHILL_25L
+footprint=TBD-female-header
 T 71500 42450 5 10 1 1 0 8 1
 description=Throttle
 }
@@ -550,7 +550,7 @@ refdes=SW5
 T 66100 43350 5 10 1 1 0 6 1
 device=25LB30-Q
 T 65300 49500 5 10 0 0 0 0 1
-footprint=GRAYHILL_25L
+footprint=TBD-female-header
 T 66100 42450 5 10 1 1 0 8 1
 description=Reverser
 }
@@ -1380,3 +1380,6 @@ HCT version has VIH=2V, which is compatible with 3.3V logic.
 Each input pin at 3.3V results in up to 144uA additional IDD.
 The LCD control lines should idle low to minimize IDD.
 The LCD control lines MUST be low when 5V is disabled.
+V 43200 59100 1100 3 0 0 0 -1 -1 0 -1 -1 -1 -1 -1
+T 41700 60000 9 10 1 0 0 0 1
+Terminal block or battery holder?
