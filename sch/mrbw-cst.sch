@@ -978,7 +978,7 @@ device=HEADER2
 T 43100 59600 5 10 1 1 0 6 1
 refdes=J1
 T 43500 58700 5 10 0 0 0 0 1
-footprint=TBD_BATTERY
+footprint=KEYSTONE_2462
 }
 C 63200 54900 1 0 0 mrbw-cst-lcd.sym
 {
