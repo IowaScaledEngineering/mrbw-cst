@@ -452,7 +452,7 @@ refdes=SW4
 T 71500 43350 5 10 1 1 0 6 1
 device=25LB10-Q
 T 70700 49500 5 10 0 0 0 0 1
-footprint=TBD-female-header
+footprint=25LB10-Q-SOCKETED
 T 71500 42450 5 10 1 1 0 8 1
 description=Throttle
 }
@@ -463,7 +463,7 @@ refdes=SW5
 T 66100 43350 5 10 1 1 0 6 1
 device=25LB30-Q
 T 65300 49500 5 10 0 0 0 0 1
-footprint=TBD-female-header
+footprint=25LB10-Q-SOCKETED
 T 66100 42450 5 10 1 1 0 8 1
 description=Reverser
 }
@@ -1161,7 +1161,7 @@ C 70000 50300 1 0 0 r204-1.sym
 T 70300 57300 5 10 0 0 0 0 1
 footprint=CK_R
 T 72100 51050 5 10 1 1 0 1 1
-refdes=SW7
+refdes=SW6
 T 71000 51050 5 10 1 1 0 4 1
 device=R20407RN02Q
 }
