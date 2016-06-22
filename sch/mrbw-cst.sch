@@ -381,7 +381,7 @@ refdes=SW1
 T 43900 54200 5 10 1 1 0 5 1
 device=PVA1 OA H4 1.2N V2
 T 43400 54500 5 10 0 0 0 0 1
-footprint=CK_D6
+footprint=CK_PVA1
 T 42300 54500 5 10 1 1 0 7 1
 description=Horn
 }
@@ -394,7 +394,7 @@ refdes=SW2
 T 43900 53200 5 10 1 1 0 5 1
 device=PVA1 OA H2 1.2N V2
 T 43400 53500 5 10 0 0 0 0 1
-footprint=CK_D6
+footprint=CK_PVA1
 T 42300 53500 5 10 1 1 0 7 1
 description=Dynamic Brake
 }
@@ -405,7 +405,7 @@ refdes=SW3
 T 43900 52200 5 10 1 1 0 5 1
 device=PVA1 EE H2 1.2NV2
 T 43400 52500 5 10 0 0 0 0 1
-footprint=CK_D6
+footprint=CK_PVA1
 T 42300 52500 5 10 1 1 0 7 1
 description=Bell
 }
