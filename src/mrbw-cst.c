@@ -162,13 +162,13 @@ ISR(TIMER0_COMPA_vect)
 
 		if (newQuadrature == quadratureUp[throttleQuadrature & 0x03])
 		{
-			if (throttlePosition < 7)
-				throttlePosition++;
+			if (throttlePosition > 0)
+				throttlePosition--;
 		}
 		else if (newQuadrature == quadratureDown[throttleQuadrature & 0x03])
 		{
-			if (throttlePosition > 0)
-				throttlePosition--;
+			if (throttlePosition < 8)
+				throttlePosition++;
 		}
 		else
 			throttlePosition = 0;	
@@ -223,7 +223,14 @@ int main(void)
 
 
 		lcd_gotoxy(0,0);
-		lcd_putc('0' + throttlePosition);
+		if(0 == throttlePosition)
+		{
+			lcd_putc('I');
+		}
+		else
+		{
+			lcd_putc('0' + throttlePosition);
+		}
 		lcd_putc(' ');		
 		
 		lcd_putc((PIND & _BV(PD3))?'1':'0');
