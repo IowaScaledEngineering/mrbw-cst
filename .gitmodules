@@ -1,0 +1,3 @@
+[submodule "src/mrbus"]
+	path = src/mrbus
+	url = https://github.com/IowaScaledEngineering/mrbus.git
