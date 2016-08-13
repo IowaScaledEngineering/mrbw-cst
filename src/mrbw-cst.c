@@ -178,6 +178,31 @@ ISR(TIMER0_COMPA_vect)
 
 }
 
+const uint8_t Bell[8] =
+{
+	0b00000100,
+	0b00001110,
+	0b00001110,
+	0b00001110,
+	0b00011111,
+	0b00000000,
+	0b00000100,
+	0b00000000
+};
+
+const uint8_t Horn[8] =
+{
+	0b00000000,
+	0b00000001,
+	0b00010011,
+	0b00011111,
+	0b00010011,
+	0b00000001,
+	0b00000000,
+	0b00000000
+};
+
+
 int main(void)
 {
 	uint8_t funcButtons = 0;
@@ -189,11 +214,13 @@ int main(void)
 	lcdEnable();
 	lcdBacklightEnable();
 
+	lcd_setup_custom(0, Bell);
+	lcd_setup_custom(1, Horn);
 
 	wdt_reset();
 
 	sei();
-	led = LED_RED_FASTBLINK;	
+	led = LED_RED_SLOWBLINK;	
 	lcd_init(LCD_DISP_ON);
 	wdt_reset();	
 
@@ -213,7 +240,7 @@ int main(void)
 	buttonsEnable();
 	while(1)
 	{
-		led = LED_GREEN_FASTBLINK;
+		led = LED_OFF;
 		wdt_reset();
 		if (status & STATUS_READ_SWITCHES)
 		{
@@ -233,17 +260,67 @@ int main(void)
 		}
 		lcd_putc(' ');		
 		
-		lcd_putc((PIND & _BV(PD3))?'1':'0');
-		lcd_putc((PIND & _BV(PD2))?'1':'0');
+//		lcd_putc((PIND & _BV(PD3))?'1':'0');
+//		lcd_putc((PIND & _BV(PD2))?'1':'0');
 
-		lcd_gotoxy(4,0);
-		printHex(brakePot);
-		printHex(reverserPot);
+		lcd_gotoxy(2,0);
+		if(brakePot >= 160)
+		{
+			lcd_putc('E');
+			lcd_putc('M');
+			lcd_putc('R');
+			lcd_putc('G');
+		}
+		else
+		{
+			int brakePcnt;
+			if(brakePot < 96)
+				brakePcnt = 0;
+			else
+				brakePcnt = 100 * (brakePot - 96) / 64;
+			lcd_putc(' ');
+			printDec2Dig(brakePcnt);
+//			lcd_putc('0' + brakePcnt / 10);
+//			lcd_putc('0' + brakePcnt % 10);
+			lcd_putc('%');
+		}
+//		printHex(brakePot);
+
+		lcd_gotoxy(7,0);
+//		printHex(reverserPot);
+		if(reverserPot < 0x30)
+		{
+			lcd_putc('R');
+		}
+		else if(reverserPot < 0x70)
+		{
+			lcd_putc('N');
+		}
+		else
+		{
+			lcd_putc('F');
+		}
 
 
 
 		lcd_gotoxy(0, 1);
-		printHex(frontLightPot);
+//		printHex(frontLightPot);
+		if(frontLightPot < 20)
+		{
+			lcd_putc('*');
+		}
+		else if(frontLightPot < 60)
+		{
+			lcd_putc('B');
+		}
+		else if(frontLightPot < 106)
+		{
+			lcd_putc('D');
+		}
+		else
+		{
+			lcd_putc('-');
+		}
 		/*
 		switch(frontLight)
 		{
@@ -263,10 +340,12 @@ int main(void)
 		}*/
 		
 
-		lcd_putc((funcButtons & 0x01)?' ':'H');
+		lcd_gotoxy(2, 1);
 		lcd_putc((funcButtons & 0x02)?' ':'D');
-		lcd_putc((funcButtons & 0x04)?' ':'B');
+		lcd_putc((funcButtons & 0x04)?' ': 0);
+		lcd_putc((funcButtons & 0x01)?' ': 1);
 
+		lcd_gotoxy(5, 1);
 		if (!(funcButtons & 0x10))
 			lcd_putc('1');
 		else if (!(funcButtons & 0x20))
@@ -279,8 +358,25 @@ int main(void)
 			lcd_putc(' ');			
 
 		
-		lcd_gotoxy(6, 1);
-		printHex(rearLightPot);
+		lcd_gotoxy(7, 1);
+//		printHex(rearLightPot);
+		if(rearLightPot < 20)
+		{
+			lcd_putc('*');
+		}
+		else if(rearLightPot < 60)
+		{
+			lcd_putc('B');
+		}
+		else if(rearLightPot < 106)
+		{
+			lcd_putc('D');
+		}
+		else
+		{
+			lcd_putc('-');
+		}
+
 /*		switch(rearLight)
 		{
 			case LIGHT_OFF:

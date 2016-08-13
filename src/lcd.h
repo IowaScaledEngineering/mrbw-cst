@@ -255,6 +255,7 @@ extern void lcd_data(uint8_t data);
 #define lcd_puts_P(__s)         lcd_puts_p(PSTR(__s))
 
 void lcd_putc_big(uint8_t position, uint8_t digit);
+void lcd_setup_custom(uint8_t charNum, const uint8_t* charDefinition);
 void lcd_setup_bigdigits();
 void printHex(uint8_t val);
 void printDec2Dig(uint8_t val);
