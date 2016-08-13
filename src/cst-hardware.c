@@ -196,7 +196,8 @@ ISR(ADC_vect)
 			case ADC_STATE_READ_VLIGHT_F:
 				ADMUX  = _BV(REFS0) | ANALOG_VLIGHT_R;
 				state = ADC_STATE_START_VLIGHT_R;
-				frontLightPot = (accumulator >> 9);
+//				frontLightPot = (accumulator >> 9);
+				frontLightPot = ( ((accumulator >> 9) - (int16_t)frontLightPot) >> 4) + (int16_t)frontLightPot;
 				if (frontLightPot > 96)
 					frontLight = LIGHT_OFF;
 				else if (frontLightPot > 64)
@@ -212,7 +213,8 @@ ISR(ADC_vect)
 				ADMUX  = _BV(REFS0) | ANALOG_VBATT;
 				disableLightSwitches();
 				state = ADC_STATE_START_VBATT;
-				rearLightPot = (accumulator >> 9);
+//				rearLightPot = (accumulator >> 9);
+				rearLightPot = ( ((accumulator >> 9) - (int16_t)rearLightPot) >> 4) + (int16_t)rearLightPot;
 				if (rearLightPot > 96)
 					rearLight = LIGHT_OFF;
 				else if (rearLightPot > 64)
