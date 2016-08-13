@@ -214,9 +214,6 @@ int main(void)
 	lcdEnable();
 	lcdBacklightEnable();
 
-	lcd_setup_custom(0, Bell);
-	lcd_setup_custom(1, Horn);
-
 	wdt_reset();
 
 	sei();
@@ -228,6 +225,9 @@ int main(void)
 	lcd_puts("MRBW-CST");
 	lcd_gotoxy(0, 1);
 	lcd_puts("TESTWARE");
+
+	lcd_setup_custom(0, Bell);
+	lcd_setup_custom(1, Horn);
 
 	for(i=0; i<5; i++)
 	{
