@@ -363,6 +363,10 @@ void ledUpdate()
 		case 10:
 			ledGreenOff();
 			ledRedOff();
+//			ledPhase = 0;
+			break;
+		
+		case 20:
 			ledPhase = 0;
 			break;
 

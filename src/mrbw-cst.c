@@ -30,6 +30,10 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
+#define VERSION_STRING "v0.2"
+
+#define LONG_PRESS_10MS_TICKS 200
+
 #define MRBUS_TX_BUFFER_DEPTH 4
 #define MRBUS_RX_BUFFER_DEPTH 4
 
@@ -51,10 +55,19 @@ MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 uint8_t mrbus_dev_addr = 0;
 
 #define STATUS_READ_SWITCHES 0x01
+
 volatile uint8_t ticks;
 volatile uint16_t decisecs = 0;
 volatile uint16_t update_decisecs = 10;
 volatile uint8_t status = 0;
+
+typedef enum
+{
+	MAIN_SCREEN = 0,
+	MRBUS_SCREEN,
+	DEBUG_SCREEN,
+	LAST_SCREEN
+} Screens;
 
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
@@ -269,7 +282,13 @@ int main(void)
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 	uint8_t controlsChanged = 0;
 	uint8_t brakePosition;
-	uint8_t brakePcnt;
+	uint8_t menuButton = 0;
+	uint8_t menuButtonPrevious = 0;
+	uint8_t menuButtonCount = 0;
+	
+	uint16_t locoAddress = 0;
+	
+	Screens screenState = MAIN_SCREEN;
 	
 	uint8_t i;
 
@@ -293,22 +312,25 @@ int main(void)
 	createVersionPacket(0xFF, txBuffer);
 	mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 
-	led = LED_RED;
+	led = LED_OFF;
 	lcd_init(LCD_DISP_ON);
 	wdt_reset();	
 
 	lcd_gotoxy(0, 0);
 	lcd_puts("MRBW-CST");
-	lcd_gotoxy(0, 1);
-	lcd_puts("TESTWARE");
+	lcd_gotoxy(2, 1);
+	lcd_puts(VERSION_STRING);
 
 	lcd_setup_custom(0, Bell);
 	lcd_setup_custom(1, Horn);
 
-	for(i=0; i<5; i++)
+	for(i=0; i<10; i++)
 	{
+		// Pause for the splash screen
+		// Also start debouncing the buttons so there are no startup artifacts when we actually start to use them
+		funcButtons = debounce(funcButtons, (PINB & (0xF7)));
 		wdt_reset();
-		_delay_ms(200);
+		_delay_ms(100);
 	}
 
 
@@ -321,119 +343,173 @@ int main(void)
 		wdt_reset();
 		if (status & STATUS_READ_SWITCHES)
 		{
+			// Read switches every 10ms
 			status &= ~STATUS_READ_SWITCHES;
 			funcButtons = debounce(funcButtons, (PINB & (0xF7)));
-		}
 
+			if (!(funcButtons & BUTTON_MENU))
+			{
+				// Menu button pressed
+				if(menuButtonCount > LONG_PRESS_10MS_TICKS)
+				{
+					if(menuButton < 255)
+						menuButton++;
+				}
+				else
+				{
+					if(menuButtonCount < 255)  // Shouldn't be needed with the LONG_PRESS_10MS_TICKS conditional above, but just in case
+						menuButtonCount++;     // Count how long we've been pressed
+					menuButton = 1;            // Indicate the menu button is active, but don't increase the value until long press has been detected
+				}
+			}
+			else
+			{
+				// Menu button not pressed
+				menuButton = 0;
+				menuButtonCount = 0;
+			}		}
 
-		lcd_gotoxy(0,0);
-		if(0 == throttlePosition)
-		{
-			lcd_putc('I');
-		}
-		else
-		{
-			lcd_putc('0' + throttlePosition);
-		}
-		lcd_putc(' ');		
-		
-//		lcd_putc((PIND & _BV(PD3))?'1':'0');
-//		lcd_putc((PIND & _BV(PD2))?'1':'0');
-
-		lcd_gotoxy(2,0);
 		if(brakePot >= 160)
 		{
 			brakePosition = 0x80;
-			lcd_putc('E');
-			lcd_putc('M');
-			lcd_putc('R');
-			lcd_putc('G');
 		}
 		else
 		{
 			if(brakePot < 96)
 			{
 				brakePosition = 0;
-				brakePcnt = 0;
 			}
 			else
 			{
-				brakePosition = (brakePot - 96) * 2;  // This works as long as the span has 64 ADC codes
-				brakePcnt = 100 * (brakePot - 96) / 64;
+				brakePosition = 128 * (brakePot - 96) / 64;
 			}
-			lcd_putc(' ');
-			printDec2Dig(brakePcnt);
-			lcd_putc('%');
 		}
-//		printHex(brakePot);
 
-		lcd_gotoxy(7,0);
-		switch(reverserPosition)
+		if(menuButton && !menuButtonPrevious)
 		{
-			case FORWARD:
-				lcd_putc('F');
-				break;
-			case NEUTRAL:
-				lcd_putc('N');
-				break;
-			case REVERSE:
-				lcd_putc('R');
-				break;
+			// Menu pressed, advance menu
+			lcd_clrscr();
+			screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
 		}
 
+		menuButtonPrevious = menuButton;
 
-		lcd_gotoxy(2, 1);
-		lcd_putc((funcButtons & BUTTON_DYNAMIC)?' ':'D');
-		lcd_gotoxy(3, 1);
-		lcd_putc((funcButtons & BUTTON_BELL)?' ': 0);
-		lcd_gotoxy(4, 1);
-		lcd_putc((funcButtons & BUTTON_HORN)?' ': 1);
+		switch(screenState)
+		{
+			case MAIN_SCREEN:
+				lcd_gotoxy(2,0);
+				lcd_puts("LOCO");
+				lcd_gotoxy(2,1);
+				printDec4DigWZero(locoAddress);
+				break;
 
-		lcd_gotoxy(5, 1);
-		if (!(funcButtons & BUTTON_MENU))
-			lcd_putc('M');
-		else if (!(funcButtons & BUTTON_SELECT))
-			lcd_putc('S');
-		else if (!(funcButtons & BUTTON_UP))
-			lcd_putc('+');
-		else if (!(funcButtons & BUTTON_DOWN))
-			lcd_putc('-');
-		else
-			lcd_putc(' ');			
+			case MRBUS_SCREEN:
+				lcd_gotoxy(0,0);
+				lcd_puts("MRB ADR");
+//				lcd_gotoxy(2,1);
+//				printDec4DigWZero(locoAddress);
+				break;
 
+			case DEBUG_SCREEN:
+				lcd_gotoxy(0,0);
+				if(0 == throttlePosition)
+				{
+					lcd_putc('I');
+				}
+				else
+				{
+					lcd_putc('0' + throttlePosition);
+				}
+				lcd_putc(' ');		
 		
-		lcd_gotoxy(0, 1);
-		switch(frontLight)
-		{
-			default:
-			case LIGHT_OFF:
-				lcd_putc('-');
-				break;
-			case LIGHT_DIM:
-				lcd_putc('D');
-				break;
-			case LIGHT_BRIGHT:
-				lcd_putc('B');
-				break;
-			case LIGHT_BRIGHT_DITCH:
-				lcd_putc('*');
-				break;
-		}
+				lcd_gotoxy(2,0);
+				if(brakePosition & 0x80)
+				{
+					lcd_putc('E');
+					lcd_putc('M');
+					lcd_putc('R');
+					lcd_putc('G');
+				}
+				else
+				{
+					uint8_t brakePcnt = 100 * brakePosition / 128;
+					lcd_putc(' ');
+					printDec2Dig(brakePcnt);
+					lcd_putc('%');
+				}
 
-		lcd_gotoxy(7, 1);
-		switch(rearLight)
-		{
-			case LIGHT_OFF:
-				lcd_putc('-');
+				lcd_gotoxy(7,0);
+				switch(reverserPosition)
+				{
+					case FORWARD:
+						lcd_putc('F');
+						break;
+					case NEUTRAL:
+						lcd_putc('N');
+						break;
+					case REVERSE:
+						lcd_putc('R');
+						break;
+				}
+
+				lcd_gotoxy(2, 1);
+				lcd_putc((funcButtons & BUTTON_DYNAMIC)?' ':'D');
+				lcd_gotoxy(3, 1);
+				lcd_putc((funcButtons & BUTTON_BELL)?' ': 0);
+				lcd_gotoxy(4, 1);
+				lcd_putc((funcButtons & BUTTON_HORN)?' ': 1);
+
+				lcd_gotoxy(5, 1);
+				if (!(funcButtons & BUTTON_MENU))
+					lcd_putc('M');
+				else if (!(funcButtons & BUTTON_SELECT))
+					lcd_putc('S');
+				else if (!(funcButtons & BUTTON_UP))
+					lcd_putc('+');
+				else if (!(funcButtons & BUTTON_DOWN))
+					lcd_putc('-');
+				else
+					lcd_putc(' ');			
+
+				lcd_gotoxy(0, 1);
+				switch(frontLight)
+				{
+					default:
+					case LIGHT_OFF:
+						lcd_putc('-');
+						break;
+					case LIGHT_DIM:
+						lcd_putc('D');
+						break;
+					case LIGHT_BRIGHT:
+						lcd_putc('B');
+						break;
+					case LIGHT_BRIGHT_DITCH:
+						lcd_putc('*');
+						break;
+				}
+
+				lcd_gotoxy(7, 1);
+				switch(rearLight)
+				{
+					case LIGHT_OFF:
+						lcd_putc('-');
+						break;
+					case LIGHT_DIM:
+						lcd_putc('D');
+						break;
+					case LIGHT_BRIGHT:
+						lcd_putc('B');
+						break;
+					case LIGHT_BRIGHT_DITCH:
+						lcd_putc('*');
+						break;
+				}
+
 				break;
-			case LIGHT_DIM:
-				lcd_putc('D');
-				break;
-			case LIGHT_BRIGHT:
-				lcd_putc('B');
-				break;
-			case LIGHT_BRIGHT_DITCH:
-				lcd_putc('*');
+
+			case LAST_SCREEN:
+				screenState = MAIN_SCREEN;
 				break;
 		}
 
@@ -511,7 +587,8 @@ int main(void)
 
 			txBuffer[15] = batteryVoltage;	
 			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-			decisecs = 0;		}
+			decisecs = 0;
+		}
 
 		if (mrbusPktQueueDepth(&mrbeeTxQueue))
 		{
