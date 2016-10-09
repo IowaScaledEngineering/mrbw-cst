@@ -115,9 +115,11 @@ typedef enum
 
 ISR(ADC_vect)
 {
-	static uint16_t accumulator=0;
-	static uint8_t count=0;
+	static uint16_t accumulator = 0;
+	static uint8_t count = 0;
 	static ADCState state=ADC_STATE_START_VREV;
+
+	int16_t delta = 0;
 
 	accumulator += ADC;
 
@@ -210,8 +212,12 @@ ISR(ADC_vect)
 			case ADC_STATE_READ_VLIGHT_F:
 				ADMUX  = _BV(REFS0) | ANALOG_VLIGHT_R;
 				state = ADC_STATE_START_VLIGHT_R;
-				accumulator >>= 9;
-				frontLightPot = ( ( ((int16_t)accumulator - (int16_t)frontLightPot) + ((int16_t)frontLightPot << 4) ) >> 4);
+				delta = (int16_t)(accumulator >> 9) - (int16_t)frontLightPot;
+				if(delta > 64)  // Rate-of-change clamping determined experimentally
+					delta = 64;
+				else if(delta < -32)
+					delta = -32;
+				frontLightPot = ((delta + ((int16_t)frontLightPot << 4)) >> 4);
 				if (frontLightPot > 106)
 					frontLight = LIGHT_OFF;
 				else if (frontLightPot > 60)
@@ -227,8 +233,12 @@ ISR(ADC_vect)
 				ADMUX  = _BV(REFS0) | ANALOG_VBATT;
 				disableLightSwitches();
 				state = ADC_STATE_START_VBATT;
-				accumulator >>= 9;
-				rearLightPot = ( ( ((int16_t)accumulator - (int16_t)rearLightPot) + ((int16_t)rearLightPot << 4) ) >> 4);
+				delta = (int16_t)(accumulator >> 9) - (int16_t)rearLightPot;
+				if(delta > 64)  // Rate-of-change clamping determined experimentally
+					delta = 64;
+				else if(delta < -32)
+					delta = -32;
+				rearLightPot = ((delta + ((int16_t)rearLightPot << 4)) >> 4);
 				if (rearLightPot > 106)
 					rearLight = LIGHT_OFF;
 				else if (rearLightPot > 60)
