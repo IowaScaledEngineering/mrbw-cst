@@ -33,8 +33,14 @@ LICENSE:
 #define MRBUS_TX_BUFFER_DEPTH 4
 #define MRBUS_RX_BUFFER_DEPTH 4
 
+#define XBEE_SLEEP_DDR  DDRA
+#define XBEE_SLEEP_PORT PORTA
+#define XBEE_SLEEP      4
+
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
+
+uint8_t mrbus_dev_addr = 0;
 
 #define STATUS_READ_SWITCHES 0x01
 volatile uint8_t ticks;
@@ -78,12 +84,50 @@ uint8_t throttleDebounce(uint8_t debouncedState, uint8_t newInputs)
 }
 
 
+void createVersionPacket(uint8_t destAddr, uint8_t *buf)
+{
+	buf[MRBUS_PKT_DEST] = destAddr;
+	buf[MRBUS_PKT_SRC] = mrbus_dev_addr;
+	buf[MRBUS_PKT_LEN] = 16;
+	buf[MRBUS_PKT_TYPE] = 'v';
+	buf[6]  = MRBUS_VERSION_WIRELESS;
+	// Software Revision
+	buf[7]  = 0xFF & ((uint32_t)(GIT_REV))>>16; // Software Revision
+	buf[8]  = 0xFF & ((uint32_t)(GIT_REV))>>8; // Software Revision
+	buf[9]  = 0xFF & (GIT_REV); // Software Revision
+	buf[10]  = HWREV_MAJOR; // Hardware Major Revision
+	buf[11]  = HWREV_MINOR; // Hardware Minor Revision
+	buf[12] = 'C';
+	buf[13] = 'S';
+	buf[14] = 'T';
+	buf[15] = ' ';
+}
+
+
+void setXbeeSleep()
+{
+	XBEE_SLEEP_PORT |= _BV(XBEE_SLEEP);
+}
+
+void setXbeeActive()
+{
+	// Unsleep the XBee
+	XBEE_SLEEP_PORT &= ~_BV(XBEE_SLEEP);
+}
+
+
+void setActivePortDirections()
+{
+	// Set XBee sleep control as output
+	XBEE_SLEEP_DDR |= _BV(XBEE_SLEEP);
+}
+
+
 void initialize100HzTimer(void)
 {
 	// Set up timer 0 for 100Hz interrupts
 	TCNT0 = 0;
-//	OCR0A = 0x6C;
-	OCR0A = 0x0C;
+	OCR0A = 0x6C;
 	ticks = 0;
 	decisecs = 0;
 	TCCR0A = _BV(WGM01);
@@ -105,6 +149,15 @@ void init(void)
 	wdt_reset();
 	wdt_disable();
 #endif	
+
+	// Initialize MRBus address from EEPROM
+	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
+	// Bogus addresses, fix to default address
+	if (0xFF == mrbus_dev_addr || 0x00 == mrbus_dev_addr)
+	{
+		mrbus_dev_addr = 0x30;
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
+	}
 
 	initPorts();
 	initADC();
@@ -210,14 +263,27 @@ int main(void)
 	uint8_t i;
 
 	init();
+
+	setXbeeActive();
 	
 	lcdEnable();
 	lcdBacklightEnable();
 
 	wdt_reset();
 
-	sei();
-	led = LED_RED_SLOWBLINK;	
+	// Initialize MRBus core
+	mrbusPktQueueInitialize(&mrbeeTxQueue, mrbusTxPktBufferArray, MRBUS_TX_BUFFER_DEPTH);
+	mrbusPktQueueInitialize(&mrbeeRxQueue, mrbusRxPktBufferArray, MRBUS_RX_BUFFER_DEPTH);
+	mrbeeInit();
+
+	sei();	
+
+	// Fire off initial reset version packet
+	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
+	createVersionPacket(0xFF, txBuffer);
+	mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+
+	led = LED_RED;
 	lcd_init(LCD_DISP_ON);
 	wdt_reset();	
 
@@ -238,9 +304,10 @@ int main(void)
 
 	lcd_clrscr();
 	buttonsEnable();
+
 	while(1)
 	{
-		led = LED_OFF;
+		led = LED_GREEN;
 		wdt_reset();
 		if (status & STATUS_READ_SWITCHES)
 		{
@@ -376,7 +443,6 @@ int main(void)
 		{
 			lcd_putc('-');
 		}
-
 /*		switch(rearLight)
 		{
 			case LIGHT_OFF:
@@ -392,141 +458,15 @@ int main(void)
 				lcd_putc('*');
 				break;
 		}*/
-	}
-	
-	
-	/*
-	// Application initialization
-	setActivePortDirections();
-	enableAddressSwitch();
-	init();
-	setXbeeActive();
-	sleepTimer = sleep_tmr_reset_value;
 
-	led = LED_OFF;
-
-	// Initialize a 100 Hz timer.
-	initialize100HzTimer();
-
-	// Initialize MRBus core
-	mrbusPktQueueInitialize(&mrbeeTxQueue, mrbusTxPktBufferArray, MRBUS_TX_BUFFER_DEPTH);
-	mrbusPktQueueInitialize(&mrbeeRxQueue, mrbusRxPktBufferArray, MRBUS_RX_BUFFER_DEPTH);
-	mrbeeInit();
-
-	sei();	
-
-	{
-		// Fire off initial reset version packet
-		uint8_t txBuffer[MRBUS_BUFFER_SIZE];
-		createVersionPacket(0xFF, txBuffer);
-		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-	}
-
-
-
-	while (1)
-	{
-		wdt_reset();
-
-		if (status & STATUS_READ_SWITCHES)
-		{
-			status &= ~STATUS_READ_SWITCHES;
-			funcButtons = debounce(funcButtons, PINC & (THROTTLE_DIR_MASK | _BV(THROTTLE_AUX_BUTTON_PC)));
-		}
-
-		switch (funcButtons & THROTTLE_DIR_MASK)
-		{
-			case THROTTLE_DIR_FORWARD:
-				dir = 1;
-				sleepTimer = sleep_tmr_reset_value;
-				break;
-			case THROTTLE_DIR_REVERSE:
-				dir = 2;
-				sleepTimer = sleep_tmr_reset_value;
-				break;
-			case THROTTLE_DIR_IDLE:
-			default:
-				dir = 0;
-				break;
-		}
-		
-		// Handle any packets that may have come in
-		if (mrbusPktQueueDepth(&mrbeeRxQueue))
-		{
-			pktTimeout = 100;
-			PktHandler();
-		}
-		
-		if (batteryVoltage >= (VBATT_OKAY/2))
-		{
-			if (0 == pktTimeout)
-				led = LED_GREEN;
-			else
-				led = LED_GREEN_FASTBLINK;
-		}
-		else if (batteryVoltage >= (VBATT_WARN/2))
-			led = LED_RED_FASTBLINK;
-		else
-			led = LED_RED;
-
-		
-		// Transmission criteria...
-		// > 2 decisec from last transmission and...
-		// current throttle reading is not the same as before and the direction is non-idle
-		// the function buttons changed
-		// *****  or *****
-		// it's been more than the transmission timeout
-		
-		if ((((((throttlePot != lastThrottlePot) && (0 != dir)) || funcButtons != lastFuncButtons) && decisecs > 1) || (decisecs >= update_decisecs))
-				&& !(mrbusPktQueueFull(&mrbeeTxQueue)))
-		{
-			uint8_t txBuffer[MRBUS_BUFFER_SIZE];
-
-			lastThrottlePot = throttlePot;
-			lastFuncButtons = funcButtons;
-			txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
-			txBuffer[MRBUS_PKT_DEST] = 0xFF;
-			txBuffer[MRBUS_PKT_LEN] = 10;
-			txBuffer[5] = 'C';
-			txBuffer[6] = dir;
-			// Don't send a speed if we're in neutral
-			if (0 == dir)
-				txBuffer[7] = 0;
-			else
-				txBuffer[7] = lastThrottlePot;
-			txBuffer[8] = ((funcButtons>>1) & 0x01) ^ 0x01;
-			txBuffer[9] = batteryVoltage;	
-			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-			decisecs = 0;
-		}
-			
 		if (mrbusPktQueueDepth(&mrbeeTxQueue))
 		{
 			mrbeeTransmit();
 		}
 
-		while (0 == sleepTimer)
-		{
-			// Time to nod off
-			led = LED_OFF;
-			// Disable internal power-sucking peripherals
-			ADCSRA &= ~_BV(ADEN);
-	
-			setXbeeSleep();
-			setSleepPortDirections();
 
-			while (THROTTLE_DIR_IDLE == (PINC & THROTTLE_DIR_MASK))
-				system_sleep(10);
+	}
 
-			sleepTimer = sleep_tmr_reset_value;
-			
-			// Re-enable chip internal bits (ADC, etc.)
-			ADCSRA |= _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
-
-			setActivePortDirections();
-			setXbeeActive();
-		}
-	}*/
 }
 
 

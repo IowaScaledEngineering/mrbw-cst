@@ -35,7 +35,7 @@ MRBUS_LIB=./mrbus/src/
 
 
 # ATmega164PA 11.0592MHz @ 3.3V
-DEVICE  = atmega164p
+DEVICE  = atmega1284p
 F_CPU   = 11059200  # Hz
 FUSE_L  = 0xFF
 FUSE_H  = 0xD9
@@ -45,7 +45,7 @@ GITREV := 'GIT_REV=0x$(shell git rev-parse --short=6 HEAD)L'
 # MRBus
 
 
-DEFINES := -DMRBEE -D$(GITREV) -DENABLE_WATCHDOG
+DEFINES := -DMRBEE -D$(GITREV) -DENABLE_WATCHDOG -DHWREV_MAJOR=1 -DHWREV_MINOR=0 -DMRBEE_IGNORE_FLOW
 SRCS = $(BASE_NAME).c lcd.c cst-hardware.c $(MRBUS_LIB)/mrbee-avr.c $(MRBUS_LIB)/mrbus-crc.c $(MRBUS_LIB)/mrbus-queue.c
 INCS = $(MRBUS_LIB)/mrbee.h $(MRBUS_LIB)/mrbee-avr.h lcd.h cst-hardware.h
 

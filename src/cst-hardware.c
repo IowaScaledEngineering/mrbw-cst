@@ -89,12 +89,14 @@ void initADC()
 	ADCSRA |= _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
 }
 
+/*
 void initThrottle()
 {
 	enableThrottle();
 	EICRA = _BV(ISC10) | _BV(ISC00);
 	EIMSK = _BV(INT1) | _BV(INT0);
 }
+*/
 
 typedef enum
 {
