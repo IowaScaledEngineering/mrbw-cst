@@ -229,7 +229,7 @@ void printDec3DigWZero(uint16_t val)
 	lcd_putc('0' + (val%10));
 }
 
-void printDec3Dig(uint8_t val)
+void printDec3Dig(uint16_t val)
 {
 	if (val >= 100)
 		lcd_putc('0' + ((val/100)%10));

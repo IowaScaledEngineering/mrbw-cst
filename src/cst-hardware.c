@@ -9,6 +9,7 @@
 #include "cst-hardware.h"
 
 volatile uint8_t reverserPot = 0;
+volatile ReverserPosition reverserPosition = NEUTRAL;
 volatile uint8_t throttlePot = 0;
 volatile uint8_t batteryVoltage = 0;
 volatile uint8_t brakePot = 0;
@@ -117,7 +118,6 @@ ISR(ADC_vect)
 	static uint16_t accumulator=0;
 	static uint8_t count=0;
 	static ADCState state=ADC_STATE_START_VREV;
-	uint8_t i;
 
 	accumulator += ADC;
 
@@ -184,6 +184,18 @@ ISR(ADC_vect)
 				enableBrakePot();
 				disableReverserPot();
 				reverserPot = accumulator >> 8;
+				if(reverserPot < 0x30)
+				{
+					reverserPosition = REVERSE;
+				}
+				else if(reverserPot < 0x70)
+				{
+					reverserPosition = NEUTRAL;
+				}
+				else
+				{
+					reverserPosition = FORWARD;
+				}
 				state = ADC_STATE_START_VBRAKE;
 				break;
 
@@ -198,13 +210,13 @@ ISR(ADC_vect)
 			case ADC_STATE_READ_VLIGHT_F:
 				ADMUX  = _BV(REFS0) | ANALOG_VLIGHT_R;
 				state = ADC_STATE_START_VLIGHT_R;
-//				frontLightPot = (accumulator >> 9);
-				frontLightPot = ( ((accumulator >> 9) - (int16_t)frontLightPot) >> 4) + (int16_t)frontLightPot;
-				if (frontLightPot > 96)
+				accumulator >>= 9;
+				frontLightPot = ( ( ((int16_t)accumulator - (int16_t)frontLightPot) + ((int16_t)frontLightPot << 4) ) >> 4);
+				if (frontLightPot > 106)
 					frontLight = LIGHT_OFF;
-				else if (frontLightPot > 64)
+				else if (frontLightPot > 60)
 					frontLight = LIGHT_DIM;
-				else if (frontLightPot > 32)
+				else if (frontLightPot > 20)
 					frontLight = LIGHT_BRIGHT;
 				else 
 					frontLight = LIGHT_BRIGHT_DITCH;
@@ -215,13 +227,13 @@ ISR(ADC_vect)
 				ADMUX  = _BV(REFS0) | ANALOG_VBATT;
 				disableLightSwitches();
 				state = ADC_STATE_START_VBATT;
-//				rearLightPot = (accumulator >> 9);
-				rearLightPot = ( ((accumulator >> 9) - (int16_t)rearLightPot) >> 4) + (int16_t)rearLightPot;
-				if (rearLightPot > 96)
+				accumulator >>= 9;
+				rearLightPot = ( ( ((int16_t)accumulator - (int16_t)rearLightPot) + ((int16_t)rearLightPot << 4) ) >> 4);
+				if (rearLightPot > 106)
 					rearLight = LIGHT_OFF;
-				else if (rearLightPot > 64)
+				else if (rearLightPot > 60)
 					rearLight = LIGHT_DIM;
-				else if (rearLightPot > 32)
+				else if (rearLightPot > 20)
 					rearLight = LIGHT_BRIGHT;
 				else 
 					rearLight = LIGHT_BRIGHT_DITCH;

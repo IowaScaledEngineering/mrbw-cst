@@ -260,7 +260,7 @@ void lcd_setup_bigdigits();
 void printHex(uint8_t val);
 void printDec2Dig(uint8_t val);
 void printDec2DigWZero(uint8_t val);
-void printDec3Dig(uint8_t val);
+void printDec3Dig(uint16_t val);
 void printDec3DigWZero(uint16_t val);
 void printDec4Dig(uint16_t val);
 void printDec4DigWZero(uint16_t val);

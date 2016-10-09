@@ -37,6 +37,14 @@ LICENSE:
 #define XBEE_SLEEP_PORT PORTA
 #define XBEE_SLEEP      4
 
+#define BUTTON_DYNAMIC 0x02
+#define BUTTON_BELL    0x04
+#define BUTTON_HORN    0x01
+#define BUTTON_MENU    0x20
+#define BUTTON_SELECT  0x10
+#define BUTTON_UP      0x40
+#define BUTTON_DOWN    0x80
+
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
@@ -44,8 +52,8 @@ uint8_t mrbus_dev_addr = 0;
 
 #define STATUS_READ_SWITCHES 0x01
 volatile uint8_t ticks;
-volatile uint16_t decisecs=0;
-volatile uint16_t update_decisecs=10;
+volatile uint16_t decisecs = 0;
+volatile uint16_t update_decisecs = 10;
 volatile uint8_t status = 0;
 
 
@@ -88,7 +96,7 @@ void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 {
 	buf[MRBUS_PKT_DEST] = destAddr;
 	buf[MRBUS_PKT_SRC] = mrbus_dev_addr;
-	buf[MRBUS_PKT_LEN] = 16;
+	buf[MRBUS_PKT_LEN] = 15;
 	buf[MRBUS_PKT_TYPE] = 'v';
 	buf[6]  = MRBUS_VERSION_WIRELESS;
 	// Software Revision
@@ -100,7 +108,6 @@ void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 	buf[12] = 'C';
 	buf[13] = 'S';
 	buf[14] = 'T';
-	buf[15] = ' ';
 }
 
 
@@ -259,7 +266,11 @@ const uint8_t Horn[8] =
 int main(void)
 {
 	uint8_t funcButtons = 0;
-	uint8_t throttleButtons = 0;
+	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
+	uint8_t controlsChanged = 0;
+	uint8_t brakePosition;
+	uint8_t brakePcnt;
+	
 	uint8_t i;
 
 	init();
@@ -279,7 +290,6 @@ int main(void)
 	sei();	
 
 	// Fire off initial reset version packet
-	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 	createVersionPacket(0xFF, txBuffer);
 	mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 
@@ -333,6 +343,7 @@ int main(void)
 		lcd_gotoxy(2,0);
 		if(brakePot >= 160)
 		{
+			brakePosition = 0x80;
 			lcd_putc('E');
 			lcd_putc('M');
 			lcd_putc('R');
@@ -340,55 +351,58 @@ int main(void)
 		}
 		else
 		{
-			int brakePcnt;
 			if(brakePot < 96)
+			{
+				brakePosition = 0;
 				brakePcnt = 0;
+			}
 			else
+			{
+				brakePosition = (brakePot - 96) * 2;  // This works as long as the span has 64 ADC codes
 				brakePcnt = 100 * (brakePot - 96) / 64;
+			}
 			lcd_putc(' ');
 			printDec2Dig(brakePcnt);
-//			lcd_putc('0' + brakePcnt / 10);
-//			lcd_putc('0' + brakePcnt % 10);
 			lcd_putc('%');
 		}
 //		printHex(brakePot);
 
 		lcd_gotoxy(7,0);
-//		printHex(reverserPot);
-		if(reverserPot < 0x30)
+		switch(reverserPosition)
 		{
-			lcd_putc('R');
-		}
-		else if(reverserPot < 0x70)
-		{
-			lcd_putc('N');
-		}
-		else
-		{
-			lcd_putc('F');
+			case FORWARD:
+				lcd_putc('F');
+				break;
+			case NEUTRAL:
+				lcd_putc('N');
+				break;
+			case REVERSE:
+				lcd_putc('R');
+				break;
 		}
 
 
+		lcd_gotoxy(2, 1);
+		lcd_putc((funcButtons & BUTTON_DYNAMIC)?' ':'D');
+		lcd_gotoxy(3, 1);
+		lcd_putc((funcButtons & BUTTON_BELL)?' ': 0);
+		lcd_gotoxy(4, 1);
+		lcd_putc((funcButtons & BUTTON_HORN)?' ': 1);
 
-		lcd_gotoxy(0, 1);
-//		printHex(frontLightPot);
-		if(frontLightPot < 20)
-		{
-			lcd_putc('*');
-		}
-		else if(frontLightPot < 60)
-		{
-			lcd_putc('B');
-		}
-		else if(frontLightPot < 106)
-		{
-			lcd_putc('D');
-		}
-		else
-		{
+		lcd_gotoxy(5, 1);
+		if (!(funcButtons & BUTTON_MENU))
+			lcd_putc('M');
+		else if (!(funcButtons & BUTTON_SELECT))
+			lcd_putc('S');
+		else if (!(funcButtons & BUTTON_UP))
+			lcd_putc('+');
+		else if (!(funcButtons & BUTTON_DOWN))
 			lcd_putc('-');
-		}
-		/*
+		else
+			lcd_putc(' ');			
+
+		
+		lcd_gotoxy(0, 1);
 		switch(frontLight)
 		{
 			default:
@@ -404,46 +418,10 @@ int main(void)
 			case LIGHT_BRIGHT_DITCH:
 				lcd_putc('*');
 				break;
-		}*/
-		
+		}
 
-		lcd_gotoxy(2, 1);
-		lcd_putc((funcButtons & 0x02)?' ':'D');
-		lcd_putc((funcButtons & 0x04)?' ': 0);
-		lcd_putc((funcButtons & 0x01)?' ': 1);
-
-		lcd_gotoxy(5, 1);
-		if (!(funcButtons & 0x10))
-			lcd_putc('1');
-		else if (!(funcButtons & 0x20))
-			lcd_putc('2');
-		else if (!(funcButtons & 0x40))
-			lcd_putc('3');
-		else if (!(funcButtons & 0x80))
-			lcd_putc('4');
-		else
-			lcd_putc(' ');			
-
-		
 		lcd_gotoxy(7, 1);
-//		printHex(rearLightPot);
-		if(rearLightPot < 20)
-		{
-			lcd_putc('*');
-		}
-		else if(rearLightPot < 60)
-		{
-			lcd_putc('B');
-		}
-		else if(rearLightPot < 106)
-		{
-			lcd_putc('D');
-		}
-		else
-		{
-			lcd_putc('-');
-		}
-/*		switch(rearLight)
+		switch(rearLight)
 		{
 			case LIGHT_OFF:
 				lcd_putc('-');
@@ -457,10 +435,87 @@ int main(void)
 			case LIGHT_BRIGHT_DITCH:
 				lcd_putc('*');
 				break;
-		}*/
+		}
+
+
+		// Transmission criteria...
+		// > 2 decisec from last transmission and...
+		// current throttle reading is not the same as before and the direction is non-idle
+		// the function buttons changed
+		// *****  or *****
+		// it's been more than the transmission timeout
+		
+		wdt_reset();
+		controlsChanged = 0;  // FIXME
+		
+		if (( (controlsChanged && decisecs > 1) || (decisecs >= update_decisecs))
+				&& !(mrbusPktQueueFull(&mrbeeTxQueue)))
+		{
+			controlsChanged = 0;
+//			lastThrottlePosition = throttlePosition;  // FIXME: more last = current
+			txBuffer[MRBUS_PKT_DEST] = 0xFF;
+			txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
+			txBuffer[MRBUS_PKT_LEN] = 16;
+			txBuffer[5] = 'S';
+
+			switch(reverserPosition)
+			{
+				case FORWARD:
+					txBuffer[6] = 0x02;
+					break;
+				case NEUTRAL:
+					txBuffer[6] = 0x00;
+					break;
+				case REVERSE:
+					txBuffer[6] = 0x03;
+					break;
+			}
+
+			uint16_t throttleTemp = throttlePosition * 32;
+			txBuffer[7] = (throttleTemp > 255) ? 255 : throttleTemp;
+
+			txBuffer[8] = 0x7F & brakePosition;
+			txBuffer[9] = brakePosition;
+
+			switch(frontLight)
+			{
+				case LIGHT_OFF:
+					txBuffer[13] = 0x00;
+					break;
+				case LIGHT_DIM:
+					txBuffer[13] = 0x01;
+					break;
+				case LIGHT_BRIGHT:
+					txBuffer[13] = 0x02;
+					break;
+				case LIGHT_BRIGHT_DITCH:
+					txBuffer[13] = 0x82;
+					break;
+			}
+
+			switch(rearLight)
+			{
+				case LIGHT_OFF:
+					txBuffer[14] = 0x00;
+					break;
+				case LIGHT_DIM:
+					txBuffer[14] = 0x01;
+					break;
+				case LIGHT_BRIGHT:
+					txBuffer[14] = 0x02;
+					break;
+				case LIGHT_BRIGHT_DITCH:
+					txBuffer[14] = 0x82;
+					break;
+			}
+
+			txBuffer[15] = batteryVoltage;	
+			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+			decisecs = 0;		}
 
 		if (mrbusPktQueueDepth(&mrbeeTxQueue))
 		{
+			wdt_reset();
 			mrbeeTransmit();
 		}
 

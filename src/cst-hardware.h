@@ -21,6 +21,13 @@ void initPorts();
 
 typedef enum
 {
+	NEUTRAL = 0,
+	FORWARD,
+	REVERSE
+} ReverserPosition;
+
+typedef enum
+{
 	LIGHT_OFF = 0,
 	LIGHT_DIM = 1,
 	LIGHT_BRIGHT = 2,	
@@ -48,6 +55,7 @@ extern volatile LEDStatus led;
 extern volatile uint8_t batteryVoltage;
 extern volatile uint8_t brakePot;
 extern volatile uint8_t reverserPot;
+volatile ReverserPosition reverserPosition;
 extern volatile LightPosition frontLight;
 extern volatile LightPosition rearLight;
 extern volatile uint8_t frontLightPot;
