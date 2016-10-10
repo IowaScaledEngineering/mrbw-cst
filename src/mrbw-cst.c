@@ -229,7 +229,9 @@ void processFuncButtons(uint8_t funcButtons)
 	}
 	else
 	{
+		// Reset the counters
 		button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
+		ticks_autoincrement = button_autoincrement_10ms_ticks;
 	}
 }
 
@@ -581,23 +583,11 @@ int main(void)
 				}
 
 				lcd_gotoxy(2, 1);
-				lcd_putc((funcButtons & BUTTON_DYNAMIC)?' ':'D');
-				lcd_gotoxy(3, 1);
-				lcd_putc((funcButtons & BUTTON_BELL)?' ': 0);
+				lcd_puts((funcButtons & BUTTON_DYNAMIC)?"  ":"DB");
 				lcd_gotoxy(4, 1);
-				lcd_putc((funcButtons & BUTTON_HORN)?' ': 1);
-
+				lcd_putc((funcButtons & BUTTON_BELL)?' ': 0);
 				lcd_gotoxy(5, 1);
-				if (!(funcButtons & BUTTON_MENU))
-					lcd_putc('M');
-				else if (!(funcButtons & BUTTON_SELECT))
-					lcd_putc('S');
-				else if (!(funcButtons & BUTTON_UP))
-					lcd_putc('+');
-				else if (!(funcButtons & BUTTON_DOWN))
-					lcd_putc('-');
-				else
-					lcd_putc(' ');			
+				lcd_putc((funcButtons & BUTTON_HORN)?' ': 1);
 
 				lcd_gotoxy(0, 1);
 				switch(frontLight)
