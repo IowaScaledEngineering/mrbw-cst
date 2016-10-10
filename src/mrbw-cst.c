@@ -214,7 +214,7 @@ void processFuncButtons(uint8_t funcButtons)
 
 	if((previousButton == button) && (NO_BUTTON != button))
 	{
-		if(buttonCount > LONG_PRESS_10MS_TICKS)
+		if(buttonCount > LONG_PRESS_10MS_TICKS)  // Use greater than, so a long press can be caught as a single event in the menu handler code
 		{
 			if(button_autoincrement_10ms_ticks >= BUTTON_AUTOINCREMENT_ACCEL)
 				button_autoincrement_10ms_ticks -= BUTTON_AUTOINCREMENT_ACCEL;  // Progressively reduce the time delay
@@ -391,6 +391,7 @@ int main(void)
 	
 	uint16_t locoAddress = 250;
 	uint16_t newLocoAddress = locoAddress;
+	uint8_t newDevAddr = mrbus_dev_addr;
 	
 	Screens screenState = MAIN_SCREEN;
 	
@@ -470,11 +471,20 @@ int main(void)
 		}
 
 		// Process Menu button
-		if((MENU_BUTTON == button) && (MENU_BUTTON != previousButton))
+		if(MENU_BUTTON == button)
 		{
-			// Menu pressed, advance menu
-			lcd_clrscr();
-			screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
+			if(MENU_BUTTON != previousButton)
+			{
+				// Menu pressed, advance menu
+				lcd_clrscr();
+				screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
+				ticks_autoincrement = 0;
+			}
+			if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+			{
+				// Reset menu on long press
+				screenState = LAST_SCREEN;
+			}
 		}
 
 		switch(screenState)
@@ -538,6 +548,49 @@ int main(void)
 			case MRBUS_SCREEN:
 				lcd_gotoxy(0,0);
 				lcd_puts("MRB ADR");
+				lcd_gotoxy(2,1);
+				lcd_puts("0x");
+				printHex(newDevAddr);
+				switch(button)
+				{
+					case UP_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newDevAddr < 0xFE)
+								newDevAddr++;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case UP_SELECT_BUTTON:  // Fast
+						if(newDevAddr < 0xFE)
+							newDevAddr++;
+						break;
+					case DOWN_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newDevAddr > 0)
+								newDevAddr--;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case DOWN_SELECT_BUTTON:  // Fast
+						if(newDevAddr > 0)
+							newDevAddr--;
+						break;
+					case SELECT_BUTTON:
+						mrbus_dev_addr = newDevAddr;
+						lcd_clrscr();
+						lcd_gotoxy(1,0);
+						lcd_puts("SAVED!");
+						wait100ms(10);
+						screenState = LAST_SCREEN;
+						break;
+					case MENU_BUTTON:
+						newDevAddr = mrbus_dev_addr;  // Reset newDevAddr since no changes were commited
+						break;
+					case NO_BUTTON:
+						break;
+				}
 				break;
 
 			case DEBUG_SCREEN:
