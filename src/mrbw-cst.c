@@ -387,7 +387,13 @@ int main(void)
 	uint8_t funcButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 	uint8_t controlsChanged = 0;
-	uint8_t brakePosition;
+	uint8_t brakePosition = 0;
+
+	ReverserPosition lastReverserPosition = reverserPosition;
+	uint8_t lastThrottlePosition = throttlePosition;
+	uint8_t lastBrakePosition = brakePosition;
+	LightPosition lastFrontLight = frontLight;
+	LightPosition lastRearLight = rearLight;
 	
 	uint16_t locoAddress = 250;
 	uint16_t newLocoAddress = locoAddress;
@@ -497,7 +503,7 @@ int main(void)
 
 			case LOCO_SCREEN:
 				lcd_gotoxy(0,0);
-				lcd_puts("SET LOCO");
+				lcd_puts("GET LOCO");
 				lcd_gotoxy(2,1);
 				printDec4DigWZero(newLocoAddress);
 				switch(button)
@@ -534,7 +540,7 @@ int main(void)
 						lcd_puts("REQUEST");
 						lcd_gotoxy(0,1);
 						lcd_puts("SENT");
-						wait100ms(10);
+						wait100ms(7);
 						screenState = LAST_SCREEN;
 						break;
 					case MENU_BUTTON:
@@ -579,10 +585,11 @@ int main(void)
 						break;
 					case SELECT_BUTTON:
 						mrbus_dev_addr = newDevAddr;
+						// FIXME: write to EEPROM
 						lcd_clrscr();
 						lcd_gotoxy(1,0);
 						lcd_puts("SAVED!");
-						wait100ms(10);
+						wait100ms(7);
 						screenState = LAST_SCREEN;
 						break;
 					case MENU_BUTTON:
@@ -680,13 +687,13 @@ int main(void)
 				break;
 
 			case LAST_SCREEN:
+				// Clean up and reset
 				lcd_clrscr();
 				screenState = MAIN_SCREEN;
 				break;
 		}
 
 		previousButton = button;
-
 
 		// Transmission criteria...
 		// > 2 decisec from last transmission and...
@@ -696,13 +703,22 @@ int main(void)
 		// it's been more than the transmission timeout
 		
 		wdt_reset();
-		controlsChanged = 0;  // FIXME
+		controlsChanged =	(reverserPosition != lastReverserPosition) ||
+							(throttlePosition != lastThrottlePosition) ||
+							(brakePosition != lastBrakePosition) ||
+							(frontLight != lastFrontLight) ||
+							(rearLight != lastRearLight);
 		
 		if (( (controlsChanged && decisecs > 1) || (decisecs >= update_decisecs))
 				&& !(mrbusPktQueueFull(&mrbeeTxQueue)))
 		{
 			controlsChanged = 0;
-//			lastThrottlePosition = throttlePosition;  // FIXME: more last = current
+			lastReverserPosition = reverserPosition;
+			lastThrottlePosition = throttlePosition;
+			lastBrakePosition = brakePosition;
+			lastFrontLight = frontLight;
+			lastRearLight = rearLight;
+			
 			txBuffer[MRBUS_PKT_DEST] = 0xFF;
 			txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
 			txBuffer[MRBUS_PKT_LEN] = 16;
@@ -721,8 +737,10 @@ int main(void)
 					break;
 			}
 
-			uint16_t throttleTemp = throttlePosition * 32;
-			txBuffer[7] = (throttleTemp > 255) ? 255 : throttleTemp;
+			txBuffer[7] = reverserPot;
+
+/*			uint16_t throttleTemp = throttlePosition * 32;*/
+/*			txBuffer[7] = (throttleTemp > 255) ? 255 : throttleTemp;*/
 
 			txBuffer[8] = 0x7F & brakePosition;
 			txBuffer[9] = brakePosition;

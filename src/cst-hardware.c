@@ -10,7 +10,6 @@
 
 volatile uint8_t reverserPot = 0;
 volatile ReverserPosition reverserPosition = NEUTRAL;
-volatile uint8_t throttlePot = 0;
 volatile uint8_t batteryVoltage = 0;
 volatile uint8_t brakePot = 0;
 volatile LightPosition frontLight = LIGHT_OFF;
@@ -86,7 +85,6 @@ void initADC()
 	ADMUX  = _BV(REFS0); // AVCC reference, ADC7 channel
 	ADCSRA = _BV(ADATE) | _BV(ADIF) | _BV(ADPS2) | _BV(ADPS1); // 128 prescaler
 	ADCSRB = 0x00;
-	throttlePot = 0;
 	ADCSRA |= _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
 }
 
