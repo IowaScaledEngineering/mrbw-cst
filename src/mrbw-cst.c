@@ -32,8 +32,10 @@ LICENSE:
 
 #define VERSION_STRING "v0.2"
 
-#define LONG_PRESS_10MS_TICKS             200
+#define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
+#define BUTTON_AUTOINCREMENT_ACCEL         10
+#define BUTTON_AUTOINCREMENT_MINIMUM        5
 
 #define MRBUS_TX_BUFFER_DEPTH 4
 #define MRBUS_RX_BUFFER_DEPTH 4
@@ -76,17 +78,32 @@ typedef enum
 	LAST_SCREEN
 } Screens;
 
-uint8_t menuButton = 0;
-uint8_t menuButtonPrevious = 0;
-uint8_t selectButton = 0;
-uint8_t selectButtonPrevious = 0;
-uint8_t selectButtonCount = 0;
-uint8_t upButton = 0;
-uint8_t upButtonPrevious = 0;
-uint8_t upButtonCount = 0;
-uint8_t downButton = 0;
-uint8_t downButtonPrevious = 0;
-uint8_t downButtonCount = 0;
+typedef enum
+{
+	NO_BUTTON = 0,
+	MENU_BUTTON,
+	SELECT_BUTTON,
+	UP_BUTTON,
+	UP_SELECT_BUTTON,
+	DOWN_BUTTON,
+	DOWN_SELECT_BUTTON
+} Buttons;
+
+Buttons button = NO_BUTTON;
+Buttons previousButton = NO_BUTTON;
+uint8_t buttonCount = 0;
+
+/*uint8_t menuButton = 0;*/
+/*uint8_t menuButtonPrevious = 0;*/
+/*uint8_t selectButton = 0;*/
+/*uint8_t selectButtonPrevious = 0;*/
+/*uint8_t selectButtonCount = 0;*/
+/*uint8_t upButton = 0;*/
+/*uint8_t upButtonPrevious = 0;*/
+/*uint8_t upButtonCount = 0;*/
+/*uint8_t downButton = 0;*/
+/*uint8_t downButtonPrevious = 0;*/
+/*uint8_t downButtonCount = 0;*/
 
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
@@ -164,66 +181,55 @@ void setActivePortDirections()
 
 void processFuncButtons(uint8_t funcButtons)
 {
-	if (!(funcButtons & BUTTON_MENU))
+	// Called every 10ms
+	
+	if(!(funcButtons & BUTTON_MENU))
 	{
-		menuButton = 1;            // Indicate the MENU button is active, but don't increase the value until long press has been detected
+		button = MENU_BUTTON;
+	}
+	else if(!(funcButtons & BUTTON_SELECT) && (funcButtons & BUTTON_UP) && (funcButtons & BUTTON_DOWN))
+	{
+		button = SELECT_BUTTON;
+	}
+	else if(!(funcButtons & BUTTON_SELECT) && !(funcButtons & BUTTON_UP))
+	{
+		button = UP_SELECT_BUTTON;
+	}
+	else if(!(funcButtons & BUTTON_SELECT) && !(funcButtons & BUTTON_DOWN))
+	{
+		button = DOWN_SELECT_BUTTON;
+	}
+	else if(!(funcButtons & BUTTON_UP))
+	{
+		button = UP_BUTTON;
+	}
+	else if(!(funcButtons & BUTTON_DOWN))
+	{
+		button = DOWN_BUTTON;
 	}
 	else
 	{
-		menuButton = 0;
+		button = NO_BUTTON;
 	}
 
-	if (!(funcButtons & BUTTON_SELECT))
+	if((previousButton == button) && (NO_BUTTON != button))
 	{
-		selectButton = 1;            // Indicate the SELECT button is active, but don't increase the value until long press has been detected
-	}
-	else
-	{
-		selectButton = 0;
-	}
-
-	if (!(funcButtons & BUTTON_UP))
-	{
-		// UP button pressed
-		if(upButtonCount > LONG_PRESS_10MS_TICKS)
+		if(buttonCount > LONG_PRESS_10MS_TICKS)
 		{
-			if(upButton < 255)
-				upButton++;
+			if(button_autoincrement_10ms_ticks >= BUTTON_AUTOINCREMENT_ACCEL)
+				button_autoincrement_10ms_ticks -= BUTTON_AUTOINCREMENT_ACCEL;  // Progressively reduce the time delay
+			if(button_autoincrement_10ms_ticks < BUTTON_AUTOINCREMENT_MINIMUM)
+				button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_MINIMUM; // Clamp to some minimum value, otherwise it goes too fast to control
+			buttonCount = 0;
 		}
 		else
 		{
-			if(upButtonCount < 255)  // Shouldn't be needed with the LONG_PRESS_10MS_TICKS conditional above, but just in case
-				upButtonCount++;     // Count how long we've been pressed
-			upButton = 1;            // Indicate the UP button is active, but don't increase the value until long press has been detected
+			buttonCount++;
 		}
 	}
 	else
 	{
-		// UP button not pressed
-		upButton = 0;
-		upButtonCount = 0;
-	}
-
-	if (!(funcButtons & BUTTON_DOWN))
-	{
-		// DOWN button pressed
-		if(downButtonCount > LONG_PRESS_10MS_TICKS)
-		{
-			if(downButton < 255)
-				downButton++;
-		}
-		else
-		{
-			if(downButtonCount < 255)  // Shouldn't be needed with the LONG_PRESS_10MS_TICKS conditional above, but just in case
-				downButtonCount++;     // Count how long we've been pressed
-			downButton = 1;            // Indicate the DOWN button is active, but don't increase the value until long press has been detected
-		}
-	}
-	else
-	{
-		// DOWN button not pressed
-		downButton = 0;
-		downButtonCount = 0;
+		button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 	}
 }
 
@@ -335,9 +341,19 @@ ISR(TIMER0_COMPA_vect)
 			throttlePosition = 0;	
 	}
 	throttleQuadrature = newQuadrature & 0x03;	
-	
-
 }
+
+
+void wait100ms(uint16_t loops)
+{
+	uint16_t i;
+	for(i=0; i<loops; i++)
+	{
+		wdt_reset();
+		_delay_ms(100);
+	}
+}
+
 
 const uint8_t Bell[8] =
 {
@@ -372,6 +388,7 @@ int main(void)
 	uint8_t brakePosition;
 	
 	uint16_t locoAddress = 250;
+	uint16_t newLocoAddress = locoAddress;
 	
 	Screens screenState = MAIN_SCREEN;
 	
@@ -418,7 +435,6 @@ int main(void)
 		_delay_ms(100);
 	}
 
-
 	lcd_clrscr();
 	buttonsEnable();
 
@@ -426,6 +442,7 @@ int main(void)
 	{
 		led = LED_GREEN;
 		wdt_reset();
+
 		if (status & STATUS_READ_SWITCHES)
 		{
 			// Read switches every 10ms
@@ -450,54 +467,75 @@ int main(void)
 			}
 		}
 
-		if(menuButton && !menuButtonPrevious)
+		// Process Menu button
+		if((MENU_BUTTON == button) && (MENU_BUTTON != previousButton))
 		{
 			// Menu pressed, advance menu
 			lcd_clrscr();
 			screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
 		}
-		menuButtonPrevious = menuButton;
 
 		switch(screenState)
 		{
 			case MAIN_SCREEN:
-				lcd_gotoxy(2,0);
-				lcd_puts("LOCO");
-				lcd_gotoxy(2,1);
+				lcd_gotoxy(0,0);
+				lcd_puts("L:");
 				printDec4DigWZero(locoAddress);
 				break;
 
 			case LOCO_SCREEN:
-				lcd_gotoxy(0,1);
-				printHex(upButton);
-				lcd_gotoxy(6,1);
-				printHex(downButton);
-
-				if(upButton && (ticks_autoincrement >= button_autoincrement_10ms_ticks))
-				{
-					if(locoAddress < 0x9999)
-						locoAddress += upButton;
-					ticks_autoincrement = 0;
-					
-					// FIXME: if longpress detected, then start decrementing button_autoincrement_10ms_ticks, need if !upButton && !downButton then reset button_autoincrement_10ms_ticks
-				}
-				if(downButton && (ticks_autoincrement >= button_autoincrement_10ms_ticks))
-				{
-					if(locoAddress > 0)
-						locoAddress -= downButton;
-					ticks_autoincrement = 0;
-				}
 				lcd_gotoxy(0,0);
 				lcd_puts("SET LOCO");
 				lcd_gotoxy(2,1);
-				printDec4DigWZero(locoAddress);
+				printDec4DigWZero(newLocoAddress);
+				switch(button)
+				{
+					case UP_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newLocoAddress < 9999)
+								newLocoAddress++;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case UP_SELECT_BUTTON:  // Fast
+						if(newLocoAddress < 9999)
+							newLocoAddress++;
+						break;
+					case DOWN_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newLocoAddress > 0)
+								newLocoAddress--;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case DOWN_SELECT_BUTTON:  // Fast
+						if(newLocoAddress > 0)
+							newLocoAddress--;
+						break;
+					case SELECT_BUTTON:
+						// FIXME: This should really send a packet to request a new locomotive address and locoAddress is only updated once confirmation received
+						locoAddress = newLocoAddress;
+						lcd_clrscr();
+						lcd_gotoxy(0,0);
+						lcd_puts("REQUEST");
+						lcd_gotoxy(0,1);
+						lcd_puts("SENT");
+						wait100ms(10);
+						screenState = LAST_SCREEN;
+						break;
+					case MENU_BUTTON:
+						newLocoAddress = locoAddress;  // Reset newLocoAddress since no changes were commited
+						break;
+					case NO_BUTTON:
+						break;
+				}
 				break;
 
 			case MRBUS_SCREEN:
 				lcd_gotoxy(0,0);
 				lcd_puts("MRB ADR");
-//				lcd_gotoxy(2,1);
-//				printDec4DigWZero(locoAddress);
 				break;
 
 			case DEBUG_SCREEN:
@@ -599,9 +637,12 @@ int main(void)
 				break;
 
 			case LAST_SCREEN:
+				lcd_clrscr();
 				screenState = MAIN_SCREEN;
 				break;
 		}
+
+		previousButton = button;
 
 
 		// Transmission criteria...
