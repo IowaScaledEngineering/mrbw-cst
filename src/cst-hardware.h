@@ -8,16 +8,32 @@
 #define ENABLE_BRAKE    PC1
 #define ENABLE_LIGHTSWS PD5
 #define ENABLE_THROTTLE PD4
+
 #define ANALOG_VREV     PA0
 #define ANALOG_VBRAKE   PA1
-#define ANALOG_VLIGHT_F PA2
-#define ANALOG_VLIGHT_R PA3
+#define ANALOG_VLIGHT_R PA2
+#define ANALOG_VLIGHT_F PA3
 #define ANALOG_VBATT    PA7
+
 #define LED_RED_PIN     PD6
 #define LED_GREEN_PIN   PD7
 
-void initADC();
-void initPorts();
+// Define the ADC order
+// Must end with ADC_STATE_LAST
+typedef enum
+{
+	ADC_STATE_START_VREV = 0,
+	ADC_STATE_READ_VREV,
+	ADC_STATE_START_VBRAKE,
+	ADC_STATE_READ_VBRAKE,
+	ADC_STATE_START_VLIGHT_F,
+	ADC_STATE_READ_VLIGHT_F,
+	ADC_STATE_START_VLIGHT_R,
+	ADC_STATE_READ_VLIGHT_R,
+	ADC_STATE_START_VBATT,
+	ADC_STATE_READ_VBATT,
+	ADC_STATE_LAST  // Must be the last state
+} ADCState;
 
 typedef enum
 {
@@ -25,6 +41,10 @@ typedef enum
 	FORWARD,
 	REVERSE
 } ReverserPosition;
+
+extern ReverserPosition reverserPosition;
+
+extern uint8_t brakePosition;
 
 typedef enum
 {
@@ -34,6 +54,18 @@ typedef enum
 	LIGHT_BRIGHT_DITCH = 3,	
 
 } LightPosition;
+
+extern uint8_t frontLightPot;
+extern LightPosition frontLight;
+extern uint8_t rearLightPot;
+extern LightPosition rearLight;
+
+extern uint8_t batteryVoltage;
+
+void initADC();
+void processADC();
+
+void initPorts();
 
 typedef enum
 {
@@ -52,14 +84,6 @@ typedef enum
 
 extern volatile LEDStatus led;
 
-extern volatile uint8_t batteryVoltage;
-extern volatile uint8_t brakePot;
-extern volatile uint8_t reverserPot;
-extern volatile ReverserPosition reverserPosition;
-extern volatile LightPosition frontLight;
-extern volatile LightPosition rearLight;
-extern volatile uint8_t frontLightPot;
-extern volatile uint8_t rearLightPot;
 	//  PD6 - Output - LED Red
 	//  PD7 - Output - LED Green
 inline void ledGreenOff()

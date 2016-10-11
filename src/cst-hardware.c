@@ -8,17 +8,18 @@
 
 #include "cst-hardware.h"
 
-volatile uint8_t reverserPot = 0;
-volatile ReverserPosition reverserPosition = NEUTRAL;
-volatile uint8_t batteryVoltage = 0;
-volatile uint8_t brakePot = 0;
-volatile LightPosition frontLight = LIGHT_OFF;
-volatile LightPosition rearLight = LIGHT_OFF;
-volatile uint8_t frontLightPot = 0;
-volatile uint8_t rearLightPot = 0;
-
 volatile LEDStatus led;
 
+ReverserPosition reverserPosition = NEUTRAL;
+
+uint8_t brakePosition = 0;
+
+uint8_t frontLightPot = 0;
+LightPosition frontLight = LIGHT_OFF;
+uint8_t rearLightPot = 0;
+LightPosition rearLight = LIGHT_OFF;
+
+uint8_t batteryVoltage = 0;
 
 void initPorts()
 {
@@ -72,123 +73,70 @@ void initPorts()
 	//  PD7 - Output - LED Green
 	DDRD  = 0b11110000;
 	PORTD = 0b00000000;
-
-	DIDR0 = _BV(ANALOG_VREV) | _BV(ANALOG_VBRAKE) | _BV(ANALOG_VLIGHT_F) | _BV(ANALOG_VLIGHT_R) | _BV(ANALOG_VBATT);
-
 }
+
 
 void initADC()
 {
 	PRR0 &= ~_BV(PRADC);
+
+	// Disable digital buffer on analog ports
+	DIDR0 = _BV(ANALOG_VREV) | _BV(ANALOG_VBRAKE) | _BV(ANALOG_VLIGHT_F) | _BV(ANALOG_VLIGHT_R) | _BV(ANALOG_VBATT);
 	
 	// Setup ADC
 	ADMUX  = _BV(REFS0); // AVCC reference, ADC7 channel
 	ADCSRA = _BV(ADATE) | _BV(ADIF) | _BV(ADPS2) | _BV(ADPS1); // 128 prescaler
 	ADCSRB = 0x00;
-	ADCSRA |= _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
+	ADCSRA |= _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
 }
 
-/*
-void initThrottle()
-{
-	enableThrottle();
-	EICRA = _BV(ISC10) | _BV(ISC00);
-	EIMSK = _BV(INT1) | _BV(INT0);
-}
-*/
-
-typedef enum
-{
-	ADC_STATE_START_VREV  = 0,
-	ADC_STATE_READ_VREV,
-	ADC_STATE_START_VBRAKE,
-	ADC_STATE_READ_VBRAKE,
-	ADC_STATE_START_VLIGHT_F,
-	ADC_STATE_READ_VLIGHT_F,
-	ADC_STATE_START_VLIGHT_R,
-	ADC_STATE_READ_VLIGHT_R,
-	ADC_STATE_START_VBATT,
-	ADC_STATE_READ_VBATT
-} ADCState;
+volatile uint16_t adcAccumulator = 0;
+volatile uint8_t adcCount = 0;
 
 ISR(ADC_vect)
 {
-	static uint16_t accumulator = 0;
-	static uint8_t count = 0;
-	static ADCState state=ADC_STATE_START_VREV;
+	adcAccumulator += ADC;
+	adcCount++;
 
-	int16_t delta = 0;
-
-	accumulator += ADC;
-
-	switch(state)
+	if (adcCount >= 64)
 	{
-		// All of the "start" cases throw away the first conversion, as it starts
-		// with the wrong mux settings and therefore will
-		// actually be reading the wrong input
-		case ADC_STATE_START_VREV:
-			accumulator = 0;
-			count = 0;
-			state = ADC_STATE_READ_VREV;
-			return;
-
-		case ADC_STATE_START_VBRAKE:
-			accumulator = 0;
-			count = 0;
-			state = ADC_STATE_READ_VBRAKE;
-			return;
-
-		case ADC_STATE_START_VLIGHT_F:
-			accumulator = 0;
-			count = 0;
-			state = ADC_STATE_READ_VLIGHT_F;
-			return;
-
-		case ADC_STATE_START_VLIGHT_R:
-			accumulator = 0;
-			count = 0;
-			state = ADC_STATE_READ_VLIGHT_R;
-			return;
-
-		case ADC_STATE_START_VBATT:
-			accumulator = 0;
-			count = 0;
-			state = ADC_STATE_READ_VBATT;
-			return;
-		
-
-		case ADC_STATE_READ_VREV:
-		case ADC_STATE_READ_VBRAKE:
-		case ADC_STATE_READ_VLIGHT_F:
-		case ADC_STATE_READ_VLIGHT_R:
-		case ADC_STATE_READ_VBATT:
-			count++;
-			break;
-
-		default:
-			// Eh, what are we doing here?
-			ADMUX  = _BV(REFS0) | 0x00; // AVCC reference, ADC7 channel (throttle pot)
-			count = 0;
-			state = ADC_STATE_START_VREV;
-			break;
-	
+		// Turn off ADC after 64 samples
+		ADCSRA &= ~(_BV(ADEN));
 	}
+}
 
-	if (count >= 64)
+void startADC(uint8_t mux)
+{
+	ADMUX  = _BV(REFS0) | mux;
+	adcAccumulator = 0;
+	adcCount = 0;
+	ADCSRA |= _BV(ADEN) | _BV(ADSC);
+}
+
+void processADC()
+{
+	static ADCState adcState = ADC_STATE_LAST;  // Initialize to the last one, since that's the only state guaranteed to be present
+	
+	if(!(ADCSRA & _BV(ADEN)))
 	{
-		switch(state)
+		// Only process ADC if ADC not running
+		int16_t delta = 0;
+		switch(adcState)
 		{
+			case ADC_STATE_START_VREV:
+				enableReverserPot();
+				startADC(ANALOG_VREV);
+				adcState++;
+				break;
 
 			case ADC_STATE_READ_VREV:
-				ADMUX  = _BV(REFS0) | ANALOG_VBRAKE; // AVCC reference, ADC6 channel (battery voltage)
-				enableBrakePot();
 				disableReverserPot();
-				reverserPot = accumulator >> 8;
-				if(reverserPot < 0x30)
+				adcAccumulator >>= 8;
+				if(adcAccumulator < 0x30)
 				{
 					reverserPosition = REVERSE;
 				}
-				else if(reverserPot < 0x70)
+				else if(adcAccumulator < 0x70)
 				{
 					reverserPosition = NEUTRAL;
 				}
@@ -196,26 +144,50 @@ ISR(ADC_vect)
 				{
 					reverserPosition = FORWARD;
 				}
-				state = ADC_STATE_START_VBRAKE;
+				adcState++;
+				break;
+
+			case ADC_STATE_START_VBRAKE:
+				enableBrakePot();
+				startADC(ANALOG_VBRAKE);
+				adcState++;
 				break;
 
 			case ADC_STATE_READ_VBRAKE:
-				ADMUX  = _BV(REFS0) | ANALOG_VLIGHT_F;
-				enableLightSwitches();
 				disableBrakePot();
-				brakePot = accumulator >> 8;
-				state = ADC_STATE_START_VLIGHT_F;
+				adcAccumulator >>= 8;
+				if(adcAccumulator >= 160)
+				{
+					brakePosition = 0x80;
+				}
+				else
+				{
+					if(adcAccumulator < 96)
+					{
+						brakePosition = 0;
+					}
+					else
+					{
+						brakePosition = 128 * (adcAccumulator - 96) / 64;
+					}
+				}
+				adcState++;
+				break;
+
+			case ADC_STATE_START_VLIGHT_F:
+				enableLightSwitches();
+				startADC(ANALOG_VLIGHT_F);
+				adcState++;
 				break;
 
 			case ADC_STATE_READ_VLIGHT_F:
-				ADMUX  = _BV(REFS0) | ANALOG_VLIGHT_R;
-				state = ADC_STATE_START_VLIGHT_R;
-				delta = (int16_t)(accumulator >> 9) - (int16_t)frontLightPot;
+				disableLightSwitches();
+				delta = (int16_t)(adcAccumulator >> 9) - (int16_t)frontLightPot;
 				if(delta > 64)  // Rate-of-change clamping determined experimentally
 					delta = 64;
 				else if(delta < -32)
 					delta = -32;
-				frontLightPot = ((delta + ((int16_t)frontLightPot << 4)) >> 4);
+				frontLightPot = ((delta + ((int16_t)frontLightPot << 3)) >> 3);
 				if (frontLightPot > 106)
 					frontLight = LIGHT_OFF;
 				else if (frontLightPot > 60)
@@ -224,19 +196,23 @@ ISR(ADC_vect)
 					frontLight = LIGHT_BRIGHT;
 				else 
 					frontLight = LIGHT_BRIGHT_DITCH;
-				
+				adcState++;
+				break;
+
+			case ADC_STATE_START_VLIGHT_R:
+				enableLightSwitches();
+				startADC(ANALOG_VLIGHT_R);
+				adcState++;
 				break;
 
 			case ADC_STATE_READ_VLIGHT_R:
-				ADMUX  = _BV(REFS0) | ANALOG_VBATT;
 				disableLightSwitches();
-				state = ADC_STATE_START_VBATT;
-				delta = (int16_t)(accumulator >> 9) - (int16_t)rearLightPot;
+				delta = (int16_t)(adcAccumulator >> 9) - (int16_t)rearLightPot;
 				if(delta > 64)  // Rate-of-change clamping determined experimentally
 					delta = 64;
 				else if(delta < -32)
 					delta = -32;
-				rearLightPot = ((delta + ((int16_t)rearLightPot << 4)) >> 4);
+				rearLightPot = ((delta + ((int16_t)rearLightPot << 3)) >> 3);
 				if (rearLightPot > 106)
 					rearLight = LIGHT_OFF;
 				else if (rearLightPot > 60)
@@ -245,33 +221,31 @@ ISR(ADC_vect)
 					rearLight = LIGHT_BRIGHT;
 				else 
 					rearLight = LIGHT_BRIGHT_DITCH;
+				adcState++;
+				break;
 
+			case ADC_STATE_START_VBATT:
+				ADMUX  = _BV(REFS0) | ANALOG_VBATT;
+				startADC(ANALOG_VBATT);
+				adcState++;
 				break;
 
 			case ADC_STATE_READ_VBATT:
 				// Measuring battery voltage
 				// In 20mV increments
-				accumulator >>= 6; // Divide by 64 - get the average measurement
-				batteryVoltage = (uint8_t)(accumulator / 8);			
+				adcAccumulator >>= 6; // Divide by 64 - get the average measurement
+				batteryVoltage = (uint8_t)((adcAccumulator * 5) / 31);
+				adcState++;
+				break;
 
-				// Intentional fallthrough
-				
-			case ADC_STATE_START_VREV:
-			case ADC_STATE_START_VBRAKE:
-			case ADC_STATE_START_VLIGHT_F:
-			case ADC_STATE_START_VLIGHT_R:
-			case ADC_STATE_START_VBATT:
-			default:  // These are all "what the heck are we doing here? cases
-				enableReverserPot();
-				ADMUX  = _BV(REFS0) | ANALOG_VREV;
-				state = ADC_STATE_START_VREV;
+			case ADC_STATE_LAST:
+			default:
+				adcState = 0;
 				break;		
 		}
-
-		accumulator = 0;
-		count = 0;
 	}
 }
+
 
 
 void ledUpdate()

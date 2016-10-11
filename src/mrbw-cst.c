@@ -75,7 +75,8 @@ typedef enum
 	LOCO_SCREEN,
 	MRBUS_SCREEN,
 	DEBUG_SCREEN,
-	LAST_SCREEN
+	VBAT_SCREEN,
+	LAST_SCREEN  // Must be the last screen
 } Screens;
 
 typedef enum
@@ -92,18 +93,6 @@ typedef enum
 Buttons button = NO_BUTTON;
 Buttons previousButton = NO_BUTTON;
 uint8_t buttonCount = 0;
-
-/*uint8_t menuButton = 0;*/
-/*uint8_t menuButtonPrevious = 0;*/
-/*uint8_t selectButton = 0;*/
-/*uint8_t selectButtonPrevious = 0;*/
-/*uint8_t selectButtonCount = 0;*/
-/*uint8_t upButton = 0;*/
-/*uint8_t upButtonPrevious = 0;*/
-/*uint8_t upButtonCount = 0;*/
-/*uint8_t downButton = 0;*/
-/*uint8_t downButtonPrevious = 0;*/
-/*uint8_t downButtonCount = 0;*/
 
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
@@ -248,37 +237,6 @@ void initialize100HzTimer(void)
 	TIMSK0 |= _BV(OCIE0A);
 }
 
-void init(void)
-{
-	// Clear watchdog (in the case of an 'X' packet reset)
-	MCUSR = 0;
-#ifdef ENABLE_WATCHDOG
-	// If you don't want the watchdog to do system reset, remove this chunk of code
-	wdt_reset();
-	WDTCSR |= _BV(WDE) | _BV(WDCE);
-	WDTCSR = _BV(WDE) | _BV(WDP2) | _BV(WDP1); // Set the WDT to system reset and 1s timeout
-	wdt_reset();
-#else
-	wdt_reset();
-	wdt_disable();
-#endif	
-
-	// Initialize MRBus address from EEPROM
-	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
-	// Bogus addresses, fix to default address
-	if (0xFF == mrbus_dev_addr || 0x00 == mrbus_dev_addr)
-	{
-		mrbus_dev_addr = 0x30;
-		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
-	}
-
-	initPorts();
-	initADC();
-//	initThrottle();
-	enableThrottle();
-	initialize100HzTimer();
-}
-
 volatile uint8_t throttlePosition = 0;
 volatile uint8_t throttleQuadrature = 0;
 
@@ -382,15 +340,46 @@ const uint8_t Horn[8] =
 };
 
 
+void init(void)
+{
+	// Clear watchdog (in the case of an 'X' packet reset)
+	MCUSR = 0;
+#ifdef ENABLE_WATCHDOG
+	// If you don't want the watchdog to do system reset, remove this chunk of code
+	wdt_reset();
+	WDTCSR |= _BV(WDE) | _BV(WDCE);
+	WDTCSR = _BV(WDE) | _BV(WDP2) | _BV(WDP1); // Set the WDT to system reset and 1s timeout
+	wdt_reset();
+#else
+	wdt_reset();
+	wdt_disable();
+#endif	
+
+	// Initialize MRBus address from EEPROM
+	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
+	// Bogus addresses, fix to default address
+	if (0xFF == mrbus_dev_addr || 0x00 == mrbus_dev_addr)
+	{
+		mrbus_dev_addr = 0x30;
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
+	}
+
+	initPorts();
+	initADC();
+//	initThrottle();
+	enableThrottle();
+	initialize100HzTimer();
+}
+
+
 int main(void)
 {
 	uint8_t funcButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 	uint8_t controlsChanged = 0;
-	uint8_t brakePosition = 0;
 
-	ReverserPosition lastReverserPosition = reverserPosition;
 	uint8_t lastThrottlePosition = throttlePosition;
+	ReverserPosition lastReverserPosition = reverserPosition;
 	uint8_t lastBrakePosition = brakePosition;
 	LightPosition lastFrontLight = frontLight;
 	LightPosition lastRearLight = rearLight;
@@ -399,7 +388,9 @@ int main(void)
 	uint16_t newLocoAddress = locoAddress;
 	uint8_t newDevAddr = mrbus_dev_addr;
 	
-	Screens screenState = MAIN_SCREEN;
+	uint8_t backlight = 0;
+	
+	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
 	
 	uint8_t i;
 
@@ -435,21 +426,17 @@ int main(void)
 	lcd_setup_custom(0, Bell);
 	lcd_setup_custom(1, Horn);
 
-	for(i=0; i<10; i++)
-	{
-		// Pause for the splash screen
-		// Also start debouncing the buttons so there are no startup artifacts when we actually start to use them
-		funcButtons = debounce(funcButtons, (PINB & (0xF7)));
-		wdt_reset();
-		_delay_ms(100);
-	}
+	// Initialize the buttons so there are no startup artifacts when we actually use them
+	funcButtons = PINB & (0xF7);
+
+	wait100ms(20);
 
 	lcd_clrscr();
 	buttonsEnable();
 
 	while(1)
 	{
-		led = LED_GREEN;
+		led = LED_OFF;
 		wdt_reset();
 
 		if (status & STATUS_READ_SWITCHES)
@@ -460,48 +447,28 @@ int main(void)
 			processFuncButtons(funcButtons);
 		}
 
-		if(brakePot >= 160)
-		{
-			brakePosition = 0x80;
-		}
-		else
-		{
-			if(brakePot < 96)
-			{
-				brakePosition = 0;
-			}
-			else
-			{
-				brakePosition = 128 * (brakePot - 96) / 64;
-			}
-		}
-
-		// Process Menu button
-		if(MENU_BUTTON == button)
-		{
-			if(MENU_BUTTON != previousButton)
-			{
-				// Menu pressed, advance menu
-				lcd_clrscr();
-				screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
-				ticks_autoincrement = 0;
-			}
-			if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-			{
-				// Reset menu on long press
-				screenState = LAST_SCREEN;
-			}
-		}
+		processADC();
 
 		switch(screenState)
 		{
 			case MAIN_SCREEN:
-				lcd_gotoxy(0,0);
-				lcd_puts("L:");
+				if(backlight)
+					lcdBacklightEnable();
+				else
+					lcdBacklightDisable();
+				lcd_gotoxy(2,0);
 				printDec4DigWZero(locoAddress);
+				if((SELECT_BUTTON == button) && (SELECT_BUTTON != previousButton))
+				{
+					if(backlight)
+						backlight = 0;
+					else
+						backlight = 1;
+				}
 				break;
 
 			case LOCO_SCREEN:
+				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
 				lcd_puts("GET LOCO");
 				lcd_gotoxy(2,1);
@@ -552,6 +519,7 @@ int main(void)
 				break;
 
 			case MRBUS_SCREEN:
+				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
 				lcd_puts("MRB ADR");
 				lcd_gotoxy(2,1);
@@ -601,6 +569,7 @@ int main(void)
 				break;
 
 			case DEBUG_SCREEN:
+				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
 				if(0 == throttlePosition)
 				{
@@ -649,7 +618,7 @@ int main(void)
 				lcd_gotoxy(5, 1);
 				lcd_putc((funcButtons & BUTTON_HORN)?' ': 1);
 
-				lcd_gotoxy(0, 1);
+				lcd_gotoxy(7, 1);
 				switch(frontLight)
 				{
 					default:
@@ -667,7 +636,7 @@ int main(void)
 						break;
 				}
 
-				lcd_gotoxy(7, 1);
+				lcd_gotoxy(0, 1);
 				switch(rearLight)
 				{
 					case LIGHT_OFF:
@@ -686,11 +655,41 @@ int main(void)
 
 				break;
 
+			case VBAT_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				lcd_puts("BATTERY");
+				lcd_gotoxy(1,1);
+				lcd_putc('0' + (((batteryVoltage*2)/100)%10));
+				lcd_putc('.');
+				lcd_putc('0' + (((batteryVoltage*2)/10)%10));
+				lcd_putc('0' + ((batteryVoltage*2)%10));
+				lcd_putc('V');
+				break;
+
 			case LAST_SCREEN:
 				// Clean up and reset
 				lcd_clrscr();
-				screenState = MAIN_SCREEN;
+				screenState = 0;
 				break;
+		}
+
+		// Process Menu button
+		// Do this after main screen loop so screens can also do cleanup when menu is pressed
+		if(MENU_BUTTON == button)
+		{
+			if(MENU_BUTTON != previousButton)
+			{
+				// Menu pressed, advance menu
+				lcd_clrscr();
+				screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
+				ticks_autoincrement = 0;
+			}
+			if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+			{
+				// Reset menu on long press
+				screenState = LAST_SCREEN;
+			}
 		}
 
 		previousButton = button;
@@ -737,10 +736,8 @@ int main(void)
 					break;
 			}
 
-			txBuffer[7] = reverserPot;
-
-/*			uint16_t throttleTemp = throttlePosition * 32;*/
-/*			txBuffer[7] = (throttleTemp > 255) ? 255 : throttleTemp;*/
+			uint16_t throttleTemp = throttlePosition * 32;
+			txBuffer[7] = (throttleTemp > 255) ? 255 : throttleTemp;
 
 			txBuffer[8] = 0x7F & brakePosition;
 			txBuffer[9] = brakePosition;
