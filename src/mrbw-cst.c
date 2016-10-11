@@ -52,6 +52,10 @@ LICENSE:
 #define BUTTON_UP      0x40
 #define BUTTON_DOWN    0x80
 
+#define FUNC_HORN      0x01
+#define FUNC_BELL      0x02
+#define FUNC_DYNAMIC   0x04
+
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
@@ -93,6 +97,8 @@ typedef enum
 Buttons button = NO_BUTTON;
 Buttons previousButton = NO_BUTTON;
 uint8_t buttonCount = 0;
+
+uint8_t functions = 0;
 
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
@@ -171,6 +177,20 @@ void setActivePortDirections()
 void processFuncButtons(uint8_t funcButtons)
 {
 	// Called every 10ms
+	if(funcButtons & BUTTON_DYNAMIC)
+		functions &= ~(FUNC_DYNAMIC);
+	else
+		functions |= FUNC_DYNAMIC;
+
+	if(funcButtons & BUTTON_BELL)
+		functions &= ~(FUNC_BELL);
+	else
+		functions |= FUNC_BELL;
+
+	if(funcButtons & BUTTON_HORN)
+		functions &= ~(FUNC_HORN);
+	else
+		functions |= FUNC_HORN;
 	
 	if(!(funcButtons & BUTTON_MENU))
 	{
@@ -378,6 +398,7 @@ int main(void)
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 	uint8_t controlsChanged = 0;
 
+	uint8_t lastFunctions = functions;
 	uint8_t lastThrottlePosition = throttlePosition;
 	ReverserPosition lastReverserPosition = reverserPosition;
 	uint8_t lastBrakePosition = brakePosition;
@@ -392,8 +413,6 @@ int main(void)
 	
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
 	
-	uint8_t i;
-
 	init();
 
 	setXbeeActive();
@@ -612,11 +631,11 @@ int main(void)
 				}
 
 				lcd_gotoxy(2, 1);
-				lcd_puts((funcButtons & BUTTON_DYNAMIC)?"  ":"DB");
+				lcd_puts((functions & FUNC_DYNAMIC) ? "DB":"  ");
 				lcd_gotoxy(4, 1);
-				lcd_putc((funcButtons & BUTTON_BELL)?' ': 0);
+				lcd_putc((functions & FUNC_BELL) ? 0 : ' ');
 				lcd_gotoxy(5, 1);
-				lcd_putc((funcButtons & BUTTON_HORN)?' ': 1);
+				lcd_putc((functions & FUNC_HORN) ? 1 : ' ');
 
 				lcd_gotoxy(7, 1);
 				switch(frontLight)
@@ -705,6 +724,7 @@ int main(void)
 		controlsChanged =	(reverserPosition != lastReverserPosition) ||
 							(throttlePosition != lastThrottlePosition) ||
 							(brakePosition != lastBrakePosition) ||
+							(functions != lastFunctions) ||
 							(frontLight != lastFrontLight) ||
 							(rearLight != lastRearLight);
 		
@@ -715,6 +735,7 @@ int main(void)
 			lastReverserPosition = reverserPosition;
 			lastThrottlePosition = throttlePosition;
 			lastBrakePosition = brakePosition;
+			lastFunctions = functions;
 			lastFrontLight = frontLight;
 			lastRearLight = rearLight;
 			
@@ -736,11 +757,21 @@ int main(void)
 					break;
 			}
 
+			// FIXME: need dynamic brake logic
+
 			uint16_t throttleTemp = throttlePosition * 32;
 			txBuffer[7] = (throttleTemp > 255) ? 255 : throttleTemp;
 
 			txBuffer[8] = 0x7F & brakePosition;
 			txBuffer[9] = brakePosition;
+			
+			txBuffer[10] = 0;
+			txBuffer[10] |= (functions & FUNC_HORN) ? 0x80 : 0x00;
+
+			txBuffer[11] = 0;
+			txBuffer[11] |= (functions & FUNC_BELL) ? 0x01 : 0x00;
+
+			txBuffer[12] = 0;
 
 			switch(frontLight)
 			{
