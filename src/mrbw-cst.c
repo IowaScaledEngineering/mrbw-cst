@@ -433,7 +433,7 @@ int main(void)
 	createVersionPacket(0xFF, txBuffer);
 	mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 
-	led = LED_OFF;
+	led = LED_GREEN;
 	lcd_init(LCD_DISP_ON);
 	wdt_reset();	
 
