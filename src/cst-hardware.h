@@ -18,6 +18,7 @@
 #define LED_RED_PIN     PD6
 #define LED_GREEN_PIN   PD7
 
+
 // Define the ADC order
 // Must end with ADC_STATE_LAST
 typedef enum

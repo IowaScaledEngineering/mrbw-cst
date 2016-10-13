@@ -27,6 +27,7 @@ LICENSE:
 #include <avr/sleep.h>
 #include <util/delay.h>
 #include "lcd.h"
+#include "cst-lcd.h"
 #include "cst-hardware.h"
 #include "mrbee.h"
 
@@ -77,6 +78,7 @@ typedef enum
 {
 	MAIN_SCREEN = 0,
 	LOCO_SCREEN,
+	TONNAGE_SCREEN,
 	MRBUS_SCREEN,
 	DEBUG_SCREEN,
 	VBAT_SCREEN,
@@ -335,31 +337,6 @@ void wait100ms(uint16_t loops)
 }
 
 
-const uint8_t Bell[8] =
-{
-	0b00000100,
-	0b00001110,
-	0b00001110,
-	0b00001110,
-	0b00011111,
-	0b00000000,
-	0b00000100,
-	0b00000000
-};
-
-const uint8_t Horn[8] =
-{
-	0b00000000,
-	0b00000001,
-	0b00010011,
-	0b00011111,
-	0b00010011,
-	0b00000001,
-	0b00000000,
-	0b00000000
-};
-
-
 void init(void)
 {
 	// Clear watchdog (in the case of an 'X' packet reset)
@@ -404,6 +381,8 @@ int main(void)
 	uint8_t lastBrakePosition = brakePosition;
 	LightPosition lastFrontLight = frontLight;
 	LightPosition lastRearLight = rearLight;
+
+	uint8_t tonnage = 0;
 	
 	uint16_t locoAddress = 250;
 	uint16_t newLocoAddress = locoAddress;
@@ -442,8 +421,13 @@ int main(void)
 	lcd_gotoxy(2, 1);
 	lcd_puts(VERSION_STRING);
 
-	lcd_setup_custom(0, Bell);
-	lcd_setup_custom(1, Horn);
+	lcd_setup_custom(BELL_CHAR, Bell);
+	lcd_setup_custom(HORN_CHAR, Horn);
+	lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
+	lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
+	lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
+	lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
+	lcd_setup_custom(BARGRAPH_FULL, BarGraphFull);
 
 	// Initialize the buttons so there are no startup artifacts when we actually use them
 	funcButtons = PINB & (0xF7);
@@ -475,14 +459,44 @@ int main(void)
 					lcdBacklightEnable();
 				else
 					lcdBacklightDisable();
-				lcd_gotoxy(2,0);
+				lcd_gotoxy(0,0);
 				printDec4DigWZero(locoAddress);
-				if((SELECT_BUTTON == button) && (SELECT_BUTTON != previousButton))
+				printTime();
+				printTonnage(tonnage);
+				switch(button)
 				{
-					if(backlight)
-						backlight = 0;
-					else
-						backlight = 1;
+					case UP_BUTTON:
+						if(UP_BUTTON != previousButton)
+						{
+							if(tonnage >= 3)
+								tonnage = 0;
+							else
+								tonnage++;
+						}
+						break;
+					case DOWN_BUTTON:
+						if(DOWN_BUTTON != previousButton)
+						{
+							if((0 == tonnage) || (tonnage > 3))
+								tonnage = 3;
+							else
+								tonnage--;
+						}
+						break;
+					case SELECT_BUTTON:
+						if(SELECT_BUTTON != previousButton)
+						{
+							if(backlight)
+								backlight = 0;
+							else
+								backlight = 1;
+						}
+						break;
+					case MENU_BUTTON:
+					case UP_SELECT_BUTTON:
+					case DOWN_SELECT_BUTTON:
+					case NO_BUTTON:
+						break;
 				}
 				break;
 
@@ -532,6 +546,56 @@ int main(void)
 					case MENU_BUTTON:
 						newLocoAddress = locoAddress;  // Reset newLocoAddress since no changes were commited
 						break;
+					case NO_BUTTON:
+						break;
+				}
+				break;
+
+			case TONNAGE_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				lcd_puts("WEIGHT");
+				lcd_gotoxy(0,1);
+				switch(tonnage)
+				{
+					case 0:
+						lcd_puts("LIGHT ");
+						break;
+					case 1:
+						lcd_puts("LOW   ");
+						break;
+					case 2:
+						lcd_puts("MEDIUM");
+						break;
+					case 3:
+						lcd_puts("HEAVY ");
+						break;
+				}
+				printTonnage(tonnage);
+				switch(button)
+				{
+					case UP_BUTTON:
+						if(UP_BUTTON != previousButton)
+						{
+							if(tonnage >= 3)
+								tonnage = 0;
+							else
+								tonnage++;
+						}
+						break;
+					case DOWN_BUTTON:
+						if(DOWN_BUTTON != previousButton)
+						{
+							if((0 == tonnage) || (tonnage > 3))
+								tonnage = 3;
+							else
+								tonnage--;
+						}
+						break;
+					case SELECT_BUTTON:
+					case MENU_BUTTON:
+					case UP_SELECT_BUTTON:
+					case DOWN_SELECT_BUTTON:
 					case NO_BUTTON:
 						break;
 				}
@@ -633,9 +697,9 @@ int main(void)
 				lcd_gotoxy(2, 1);
 				lcd_puts((functions & FUNC_DYNAMIC) ? "DB":"  ");
 				lcd_gotoxy(4, 1);
-				lcd_putc((functions & FUNC_BELL) ? 0 : ' ');
+				lcd_putc((functions & FUNC_BELL) ? BELL_CHAR : ' ');
 				lcd_gotoxy(5, 1);
-				lcd_putc((functions & FUNC_HORN) ? 1 : ' ');
+				lcd_putc((functions & FUNC_HORN) ? HORN_CHAR : ' ');
 
 				lcd_gotoxy(7, 1);
 				switch(frontLight)
