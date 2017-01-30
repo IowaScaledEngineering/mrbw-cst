@@ -1363,7 +1363,7 @@ device=HOLE
 T 60000 42300 5 10 1 1 0 4 1
 refdes=H5
 T 59800 41700 5 10 0 0 0 0 1
-footprint=SOLDERED_HOLE_350MIL
+footprint=SOLDERED_HOLE_250MIL
 }
 C 67100 47000 1 90 0 potentiometer.sym
 {

@@ -1593,20 +1593,6 @@ Element["" "crystal-4-smd" "Y1" "11.0592MHz" 1740.00mil 3340.00mil -25.00mil -13
 
 	)
 
-Element["hidename" "SOLDERED_HOLE_350MIL" "H5" "unknown" 2165.00mil 3870.00mil 0.0000 0.0000 0 100 ""]
-(
-	Pin[0.0000 0.0000 500.00mil 20.00mil 506.00mil 350.00mil "1" "1" ""]
-	Pad[0.0000 -212.50mil 0.0000 -212.50mil 60.00mil 20.00mil 66.00mil "1" "1" ""]
-	Pad[0.0000 212.50mil 0.0000 212.50mil 60.00mil 20.00mil 66.00mil "1" "1" ""]
-	Pad[-212.50mil 0.0000 -212.50mil 0.0000 60.00mil 20.00mil 66.00mil "1" "1" ""]
-	Pad[212.50mil 0.0000 212.50mil 0.0000 60.00mil 20.00mil 66.00mil "1" "1" "edge2"]
-	Pad[-3.8166mm 3.8166mm -3.8166mm 3.8166mm 60.00mil 20.00mil 66.00mil "1" "1" ""]
-	Pad[3.8166mm 3.8166mm 3.8166mm 3.8166mm 60.00mil 20.00mil 66.00mil "1" "1" "edge2"]
-	Pad[-3.8166mm -3.8166mm -3.8166mm -3.8166mm 60.00mil 20.00mil 66.00mil "1" "1" ""]
-	Pad[3.8166mm -3.8166mm 3.8166mm -3.8166mm 60.00mil 20.00mil 66.00mil "1" "1" "edge2"]
-
-	)
-
 Element["onsolder" "BOURNS_PTV09" "P2" "100k" 1120.00mil 270.00mil -50.00mil -30.00mil 2 100 "auto"]
 (
 	Pin[0.0000 2.5000mm 59.00mil 20.00mil 65.00mil 39.00mil "1" "1" ""]
@@ -1685,6 +1671,20 @@ Element["onsolder" "MOLEX-43045-02xx" "J3" "unknown" 1375.00mil 5315.00mil 210.0
 	ElementLine [-141.00mil -209.00mil -141.00mil 181.00mil 10.00mil]
 	ElementLine [-141.00mil 181.00mil 141.00mil 181.00mil 10.00mil]
 	ElementLine [141.00mil -209.00mil 141.00mil 181.00mil 10.00mil]
+
+	)
+
+Element["hidename" "SOLDERED_HOLE_250MIL" "H5" "unknown" 2165.00mil 3870.00mil 0.0000 0.0000 0 100 ""]
+(
+	Pin[0.0000 0.0000 400.00mil 20.00mil 406.00mil 250.00mil "1" "1" ""]
+	Pad[0.0000 -162.50mil 0.0000 -162.50mil 60.00mil 20.00mil 66.00mil "1" "1" ""]
+	Pad[0.0000 162.50mil 0.0000 162.50mil 60.00mil 20.00mil 66.00mil "1" "1" ""]
+	Pad[-162.50mil 0.0000 -162.50mil 0.0000 60.00mil 20.00mil 66.00mil "1" "1" ""]
+	Pad[162.50mil 0.0000 162.50mil 0.0000 60.00mil 20.00mil 66.00mil "1" "1" "edge2"]
+	Pad[-114.90mil 114.90mil -114.90mil 114.90mil 60.00mil 20.00mil 66.00mil "1" "1" ""]
+	Pad[114.90mil 114.90mil 114.90mil 114.90mil 60.00mil 20.00mil 66.00mil "1" "1" "edge2"]
+	Pad[-114.90mil -114.90mil -114.90mil -114.90mil 60.00mil 20.00mil 66.00mil "1" "1" ""]
+	Pad[114.90mil -114.90mil 114.90mil -114.90mil 60.00mil 20.00mil 66.00mil "1" "1" "edge2"]
 
 	)
 Layer(1 "top")
@@ -2365,10 +2365,9 @@ Layer(2 "bottom")
 	Line[2335.00mil 3500.00mil 2335.00mil 3590.00mil 10.00mil 20.00mil "clearline"]
 	Line[2385.00mil 3640.00mil 2525.00mil 3640.00mil 10.00mil 20.00mil "clearline"]
 	Line[2335.00mil 3590.00mil 2385.00mil 3640.00mil 10.00mil 20.00mil "clearline"]
-	Line[2485.00mil 3695.00mil 2405.00mil 3695.00mil 15.00mil 20.00mil "clearline"]
-	Line[2405.00mil 3695.00mil 2295.00mil 3585.00mil 15.00mil 20.00mil "clearline"]
-	Line[2295.00mil 3585.00mil 2250.00mil 3585.00mil 15.00mil 20.00mil "clearline"]
-	Line[2250.00mil 3585.00mil 2165.00mil 3500.00mil 15.00mil 20.00mil "clearline"]
+	Line[2485.00mil 3695.00mil 2360.00mil 3695.00mil 15.00mil 20.00mil "clearline"]
+	Line[2360.00mil 3695.00mil 2360.00mil 3695.00mil 15.00mil 20.00mil "clearline"]
+	Line[2360.00mil 3695.00mil 2165.00mil 3500.00mil 15.00mil 20.00mil "clearline"]
 	Line[2065.00mil 2605.00mil 1435.00mil 2605.00mil 10.00mil 20.00mil "clearline"]
 	Line[1435.00mil 2605.00mil 1410.00mil 2580.00mil 10.00mil 20.00mil "clearline"]
 	Line[1295.00mil 72.4278mm 1295.00mil 2550.00mil 10.00mil 20.00mil "clearline"]
