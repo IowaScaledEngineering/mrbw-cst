@@ -45,17 +45,17 @@ LICENSE:
 #define XBEE_SLEEP_PORT PORTA
 #define XBEE_SLEEP      4
 
-#define BUTTON_DYNAMIC 0x02
-#define BUTTON_BELL    0x04
-#define BUTTON_HORN    0x01
-#define BUTTON_MENU    0x20
-#define BUTTON_SELECT  0x10
-#define BUTTON_UP      0x40
-#define BUTTON_DOWN    0x80
+#define DYNAMIC_PIN    0x02
+#define BELL_PIN       0x04
+#define HORN_PIN       0x01
+#define MENU_PIN       0x20
+#define SELECT_PIN     0x10
+#define UP_PIN         0x40
+#define DOWN_PIN       0x80
 
-#define FUNC_HORN      0x01
-#define FUNC_BELL      0x02
-#define FUNC_DYNAMIC   0x04
+#define HORN_CONTROL      0x01
+#define BELL_CONTROL      0x02
+#define DYNAMIC_CONTROL   0x04
 
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
@@ -100,8 +100,7 @@ Buttons button = NO_BUTTON;
 Buttons previousButton = NO_BUTTON;
 uint8_t buttonCount = 0;
 
-uint8_t functions = 0;
-
+uint8_t controls = 0;
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
 {
@@ -176,45 +175,45 @@ void setActivePortDirections()
 }
 
 
-void processFuncButtons(uint8_t funcButtons)
+void processButtons(uint8_t inputButtons)
 {
 	// Called every 10ms
-	if(funcButtons & BUTTON_DYNAMIC)
-		functions &= ~(FUNC_DYNAMIC);
+	if(inputButtons & DYNAMIC_PIN)
+		controls &= ~(DYNAMIC_CONTROL);
 	else
-		functions |= FUNC_DYNAMIC;
+		controls |= DYNAMIC_CONTROL;
 
-	if(funcButtons & BUTTON_BELL)
-		functions &= ~(FUNC_BELL);
+	if(inputButtons & BELL_PIN)
+		controls &= ~(BELL_CONTROL);
 	else
-		functions |= FUNC_BELL;
+		controls |= BELL_CONTROL;
 
-	if(funcButtons & BUTTON_HORN)
-		functions &= ~(FUNC_HORN);
+	if(inputButtons & HORN_PIN)
+		controls &= ~(HORN_CONTROL);
 	else
-		functions |= FUNC_HORN;
+		controls |= HORN_CONTROL;
 	
-	if(!(funcButtons & BUTTON_MENU))
+	if(!(inputButtons & MENU_PIN))
 	{
 		button = MENU_BUTTON;
 	}
-	else if(!(funcButtons & BUTTON_SELECT) && (funcButtons & BUTTON_UP) && (funcButtons & BUTTON_DOWN))
+	else if(!(inputButtons & SELECT_PIN) && (inputButtons & UP_PIN) && (inputButtons & DOWN_PIN))
 	{
 		button = SELECT_BUTTON;
 	}
-	else if(!(funcButtons & BUTTON_SELECT) && !(funcButtons & BUTTON_UP))
+	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & UP_PIN))
 	{
 		button = UP_SELECT_BUTTON;
 	}
-	else if(!(funcButtons & BUTTON_SELECT) && !(funcButtons & BUTTON_DOWN))
+	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & DOWN_PIN))
 	{
 		button = DOWN_SELECT_BUTTON;
 	}
-	else if(!(funcButtons & BUTTON_UP))
+	else if(!(inputButtons & UP_PIN))
 	{
 		button = UP_BUTTON;
 	}
-	else if(!(funcButtons & BUTTON_DOWN))
+	else if(!(inputButtons & DOWN_PIN))
 	{
 		button = DOWN_BUTTON;
 	}
@@ -371,11 +370,11 @@ void init(void)
 
 int main(void)
 {
-	uint8_t funcButtons = 0;
+	uint8_t inputButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 	uint8_t controlsChanged = 0;
 
-	uint8_t lastFunctions = functions;
+	uint8_t lastControls = controls;
 	uint8_t lastThrottlePosition = throttlePosition;
 	ReverserPosition lastReverserPosition = reverserPosition;
 	uint8_t lastBrakePosition = brakePosition;
@@ -430,7 +429,7 @@ int main(void)
 	lcd_setup_custom(BARGRAPH_FULL, BarGraphFull);
 
 	// Initialize the buttons so there are no startup artifacts when we actually use them
-	funcButtons = PINB & (0xF7);
+	inputButtons = PINB & (0xF7);
 
 	wait100ms(20);
 
@@ -446,8 +445,8 @@ int main(void)
 		{
 			// Read switches every 10ms
 			status &= ~STATUS_READ_SWITCHES;
-			funcButtons = debounce(funcButtons, (PINB & (0xF7)));
-			processFuncButtons(funcButtons);
+			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
+			processButtons(inputButtons);
 		}
 
 		processADC();
@@ -695,11 +694,11 @@ int main(void)
 				}
 
 				lcd_gotoxy(2, 1);
-				lcd_puts((functions & FUNC_DYNAMIC) ? "DB":"  ");
+				lcd_puts((controls & DYNAMIC_CONTROL) ? "DB":"  ");
 				lcd_gotoxy(4, 1);
-				lcd_putc((functions & FUNC_BELL) ? BELL_CHAR : ' ');
+				lcd_putc((controls & BELL_CONTROL) ? BELL_CHAR : ' ');
 				lcd_gotoxy(5, 1);
-				lcd_putc((functions & FUNC_HORN) ? HORN_CHAR : ' ');
+				lcd_putc((controls & HORN_CONTROL) ? HORN_CHAR : ' ');
 
 				lcd_gotoxy(7, 1);
 				switch(frontLight)
@@ -788,7 +787,7 @@ int main(void)
 		controlsChanged =	(reverserPosition != lastReverserPosition) ||
 							(throttlePosition != lastThrottlePosition) ||
 							(brakePosition != lastBrakePosition) ||
-							(functions != lastFunctions) ||
+							(controls != lastControls) ||
 							(frontLight != lastFrontLight) ||
 							(rearLight != lastRearLight);
 		
@@ -799,7 +798,7 @@ int main(void)
 			lastReverserPosition = reverserPosition;
 			lastThrottlePosition = throttlePosition;
 			lastBrakePosition = brakePosition;
-			lastFunctions = functions;
+			lastControls = controls;
 			lastFrontLight = frontLight;
 			lastRearLight = rearLight;
 			
@@ -830,10 +829,10 @@ int main(void)
 			txBuffer[9] = brakePosition;
 			
 			txBuffer[10] = 0;
-			txBuffer[10] |= (functions & FUNC_HORN) ? 0x80 : 0x00;
+			txBuffer[10] |= (controls & HORN_CONTROL) ? 0x80 : 0x00;
 
 			txBuffer[11] = 0;
-			txBuffer[11] |= (functions & FUNC_BELL) ? 0x01 : 0x00;
+			txBuffer[11] |= (controls & BELL_CONTROL) ? 0x01 : 0x00;
 
 			txBuffer[12] = 0;
 
