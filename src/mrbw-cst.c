@@ -31,7 +31,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "v0.2"
+#define VERSION_STRING " 0.3"
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -57,6 +57,9 @@ LICENSE:
 #define BELL_CONTROL      0x02
 #define DYNAMIC_CONTROL   0x04
 
+#define OFF_FUNCTION      0x80
+#define LATCH_FUNCTION    0x40
+
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
@@ -79,9 +82,11 @@ typedef enum
 	MAIN_SCREEN = 0,
 	LOCO_SCREEN,
 	TONNAGE_SCREEN,
+	FUNC_SCREEN,
 	MRBUS_SCREEN,
 	DEBUG_SCREEN,
 	VBAT_SCREEN,
+	VERSION_SCREEN,
 	LAST_SCREEN  // Must be the last screen
 } Screens;
 
@@ -91,14 +96,35 @@ typedef enum
 	MENU_BUTTON,
 	SELECT_BUTTON,
 	UP_BUTTON,
-	UP_SELECT_BUTTON,
 	DOWN_BUTTON,
-	DOWN_SELECT_BUTTON
 } Buttons;
 
 Buttons button = NO_BUTTON;
 Buttons previousButton = NO_BUTTON;
 uint8_t buttonCount = 0;
+
+typedef enum
+{
+	HORN_FN = 0,
+	BELL_FN,
+	DYNAMIC_FN,
+	FRONT_HEADLIGHT_FN,
+	FRONT_DITCH_FN,
+	FRONT_DIM1_FN,
+	FRONT_DIM2_FN,
+	REAR_HEADLIGHT_FN,
+	REAR_DITCH_FN,
+	REAR_DIM1_FN,
+	REAR_DIM2_FN,
+	UP_FN,
+	DOWN_FN,
+	LAST_FN,
+} Functions;
+
+Functions functionSetting = HORN_FN;
+
+#define UP_OPTION_BUTTON   0x01
+#define DOWN_OPTION_BUTTON 0x02
 
 uint8_t controls = 0;
 
@@ -201,14 +227,14 @@ void processButtons(uint8_t inputButtons)
 	{
 		button = SELECT_BUTTON;
 	}
-	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & UP_PIN))
-	{
-		button = UP_SELECT_BUTTON;
-	}
-	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & DOWN_PIN))
-	{
-		button = DOWN_SELECT_BUTTON;
-	}
+/*	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & UP_PIN))*/
+/*	{*/
+/*		button = UP_SELECT_BUTTON;*/
+/*	}*/
+/*	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & DOWN_PIN))*/
+/*	{*/
+/*		button = DOWN_SELECT_BUTTON;*/
+/*	}*/
 	else if(!(inputButtons & UP_PIN))
 	{
 		button = UP_BUTTON;
@@ -390,7 +416,25 @@ int main(void)
 	uint8_t backlight = 0;
 	
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
+	uint8_t subscreenStatus = 0;
+
+	uint8_t i;
+	uint8_t allowLatch;
 	
+	uint8_t decimalNumberIndex = 0;
+	uint8_t decimalNumber[4];
+
+	uint8_t optionButtonState = 0;
+
+	uint8_t hornFunction = 2;
+	uint8_t bellFunction = 7;
+	uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
+	uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
+	uint8_t dynamicFunction = 8;
+	uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
+
+	uint8_t *functionPtr = &hornFunction;
+
 	init();
 
 	setXbeeActive();
@@ -415,10 +459,10 @@ int main(void)
 	lcd_init(LCD_DISP_ON);
 	wdt_reset();	
 
-	lcd_gotoxy(0, 0);
-	lcd_puts("MRBW-CST");
-	lcd_gotoxy(2, 1);
-	lcd_puts(VERSION_STRING);
+	lcd_gotoxy(1, 0);
+	lcd_puts("Proto");
+	lcd_gotoxy(0, 1);
+	lcd_puts("Throttle");
 
 	lcd_setup_custom(BELL_CHAR, Bell);
 	lcd_setup_custom(HORN_CHAR, Horn);
@@ -461,25 +505,57 @@ int main(void)
 				lcd_gotoxy(0,0);
 				printDec4DigWZero(locoAddress);
 				printTime();
-				printTonnage(tonnage);
+
+				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+				{
+					printTonnage(tonnage);
+				}
+				else
+				{
+					lcd_gotoxy(7,0);
+					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? 'o' : ' ');
+					lcd_gotoxy(7,1);
+					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? 'o' : ' ');
+				}
+
 				switch(button)
 				{
 					case UP_BUTTON:
 						if(UP_BUTTON != previousButton)
 						{
-							if(tonnage >= 3)
-								tonnage = 0;
+							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+							{
+								if(tonnage >= 3)
+									tonnage = 3;
+								else
+									tonnage++;
+							}
 							else
-								tonnage++;
+							{
+								if(upButtonFunction & LATCH_FUNCTION)
+									optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
+								else
+									optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
+							}
 						}
 						break;
 					case DOWN_BUTTON:
 						if(DOWN_BUTTON != previousButton)
 						{
-							if((0 == tonnage) || (tonnage > 3))
-								tonnage = 3;
+							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+							{
+								if((0 == tonnage) || (tonnage > 3))
+									tonnage = 0;
+								else
+									tonnage--;
+							}
 							else
-								tonnage--;
+							{
+								if(downButtonFunction & LATCH_FUNCTION)
+									optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
+								else
+									optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
+							}
 						}
 						break;
 					case SELECT_BUTTON:
@@ -492,61 +568,106 @@ int main(void)
 						}
 						break;
 					case MENU_BUTTON:
-					case UP_SELECT_BUTTON:
-					case DOWN_SELECT_BUTTON:
 					case NO_BUTTON:
+						// Release buttons if momentary
+						if(!(upButtonFunction & LATCH_FUNCTION))
+							optionButtonState &= ~UP_OPTION_BUTTON;
+						if(!(downButtonFunction & LATCH_FUNCTION))
+							optionButtonState &= ~DOWN_OPTION_BUTTON;
 						break;
 				}
 				break;
 
 			case LOCO_SCREEN:
 				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				lcd_puts("GET LOCO");
-				lcd_gotoxy(2,1);
-				printDec4DigWZero(newLocoAddress);
-				switch(button)
+				if(!subscreenStatus)
 				{
-					case UP_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+					lcd_gotoxy(0,0);
+					lcd_puts("GET NEW");
+					lcd_gotoxy(0,1);
+					lcd_puts("LOCO -->");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								decimalNumber[0] = (newLocoAddress / 1000) % 10;
+								decimalNumber[1] = (newLocoAddress / 100) % 10;
+								decimalNumber[2] = (newLocoAddress / 10) % 10;
+								decimalNumber[3] = (newLocoAddress) % 10;
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					for(i=0; i<4; i++)
+					{
+						lcd_gotoxy(2+i,0);
+						lcd_putc('0' + decimalNumber[i]);
+						lcd_gotoxy(2+i,1);
+						if(i == decimalNumberIndex)
 						{
-							if(newLocoAddress < 9999)
-								newLocoAddress++;
-							ticks_autoincrement = 0;
+							lcd_putc('^');
 						}
-						break;
-					case UP_SELECT_BUTTON:  // Fast
-						if(newLocoAddress < 9999)
-							newLocoAddress++;
-						break;
-					case DOWN_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						else
 						{
-							if(newLocoAddress > 0)
-								newLocoAddress--;
-							ticks_autoincrement = 0;
+							lcd_putc(' ');
 						}
-						break;
-					case DOWN_SELECT_BUTTON:  // Fast
-						if(newLocoAddress > 0)
-							newLocoAddress--;
-						break;
-					case SELECT_BUTTON:
-						// FIXME: This should really send a packet to request a new locomotive address and locoAddress is only updated once confirmation received
-						locoAddress = newLocoAddress;
-						lcd_clrscr();
-						lcd_gotoxy(0,0);
-						lcd_puts("REQUEST");
-						lcd_gotoxy(0,1);
-						lcd_puts("SENT");
-						wait100ms(7);
-						screenState = LAST_SCREEN;
-						break;
-					case MENU_BUTTON:
-						newLocoAddress = locoAddress;  // Reset newLocoAddress since no changes were commited
-						break;
-					case NO_BUTTON:
-						break;
+					}
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(decimalNumber[decimalNumberIndex] < 9)
+									decimalNumber[decimalNumberIndex]++;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case DOWN_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(decimalNumber[decimalNumberIndex] > 0)
+									decimalNumber[decimalNumberIndex]--;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								// FIXME: This should really send a packet to request a new locomotive address and locoAddress is only updated once confirmation received
+								newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
+								locoAddress = newLocoAddress;
+								lcd_clrscr();
+								lcd_gotoxy(0,0);
+								lcd_puts("REQUEST");
+								lcd_gotoxy(0,1);
+								lcd_puts("SENT");
+								wait100ms(10);
+								decimalNumberIndex = 0;
+								subscreenStatus = 0;
+								screenState = LAST_SCREEN;
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								decimalNumberIndex++;
+								if(decimalNumberIndex > 3)
+									decimalNumberIndex = 0;
+							}
+							break;
+						case NO_BUTTON:
+							break;
+					}
 				}
 				break;
 
@@ -577,7 +698,7 @@ int main(void)
 						if(UP_BUTTON != previousButton)
 						{
 							if(tonnage >= 3)
-								tonnage = 0;
+								tonnage = 3;
 							else
 								tonnage++;
 						}
@@ -586,17 +707,202 @@ int main(void)
 						if(DOWN_BUTTON != previousButton)
 						{
 							if((0 == tonnage) || (tonnage > 3))
-								tonnage = 3;
+								tonnage = 0;
 							else
 								tonnage--;
 						}
 						break;
 					case SELECT_BUTTON:
+							screenState = LAST_SCREEN;
+							break;
 					case MENU_BUTTON:
-					case UP_SELECT_BUTTON:
-					case DOWN_SELECT_BUTTON:
 					case NO_BUTTON:
 						break;
+				}
+				break;
+
+			case FUNC_SCREEN:
+				lcdBacklightEnable();
+				if(!subscreenStatus)
+				{
+					lcd_gotoxy(0,0);
+					lcd_puts("CONFIG");
+					lcd_gotoxy(0,1);
+					lcd_puts("FUNC -->");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								functionSetting = 0;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					allowLatch = 0;
+					switch(functionSetting)
+					{
+						case HORN_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("HORN");
+							functionPtr = &hornFunction;
+							break;
+						case BELL_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("BELL");
+							functionPtr = &bellFunction;
+							break;
+						case DYNAMIC_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("D.BRAKE");
+							functionPtr = &dynamicFunction;
+							break;
+						case FRONT_DIM1_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("F.DIM #1");
+							functionPtr = &frontDim1Function;
+							break;
+						case FRONT_DIM2_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("F.DIM #2");
+							functionPtr = &frontDim2Function;
+							break;
+						case FRONT_HEADLIGHT_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("F.HEAD");
+							functionPtr = &frontHeadlightFunction;
+							break;
+						case FRONT_DITCH_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("F.DITCH");
+							functionPtr = &frontDitchFunction;
+							break;
+						case REAR_DIM1_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("R.DIM #1");
+							functionPtr = &rearDim1Function;
+							break;
+						case REAR_DIM2_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("R.DIM #2");
+							functionPtr = &rearDim2Function;
+							break;
+						case REAR_HEADLIGHT_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("R.HEAD");
+							functionPtr = &rearHeadlightFunction;
+							break;
+						case REAR_DITCH_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("R.DITCH");
+							functionPtr = &rearDitchFunction;
+							break;
+						case UP_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("UP BTN");
+							functionPtr = &upButtonFunction;
+							allowLatch = 1;
+							break;
+						case DOWN_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("DOWN BTN");
+							functionPtr = &downButtonFunction;
+							allowLatch = 1;
+							break;
+						case LAST_FN:
+							// Should never get here...
+							break;
+					}
+
+					lcd_gotoxy(0,1);
+					lcd_puts("F");
+					lcd_gotoxy(1,1);
+					if((*functionPtr) & OFF_FUNCTION)
+						lcd_puts("--     ");
+					else
+					{
+						printDec2DigWZero((*functionPtr) & 0x1F);
+						if(allowLatch)
+						{
+							lcd_gotoxy(5,1);
+							if((*functionPtr) & LATCH_FUNCTION)
+								lcd_puts("LAT");
+							else
+								lcd_puts("MOM");
+						}
+					}
+
+					switch(button)
+					{
+						//  |off|latch|0|Func[4:0]|
+						case UP_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if((*functionPtr) & OFF_FUNCTION)
+								{
+									(*functionPtr) = 0;  // Turn on
+								}
+								else
+								{
+									if(((*functionPtr) & 0x1F) < 28)
+										(*functionPtr)++;       // Increment
+									else if(allowLatch && !((*functionPtr) & LATCH_FUNCTION))
+										(*functionPtr) = LATCH_FUNCTION;  // Set latch bit, reset function number to zero
+									else
+										(*functionPtr) = ((*functionPtr) & LATCH_FUNCTION) + 28;    // Saturate, preserving latch bit
+								}
+								ticks_autoincrement = 0;
+							}
+							break;
+						case DOWN_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(~((*functionPtr) & OFF_FUNCTION))
+								{
+									// Not OFF...
+									if(((*functionPtr) & 0x1F) > 0)
+										(*functionPtr)--;       // Decrement
+									else if(allowLatch && ((*functionPtr) & LATCH_FUNCTION))
+										(*functionPtr) = 28;    // Unset latch bit, reset function number to 28
+									else
+										(*functionPtr) = OFF_FUNCTION;  // Turn off
+								}
+								ticks_autoincrement = 0;
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								// FIXME: write to EEPROM
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;
+								screenState = LAST_SCREEN;
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Advance through function settings
+								lcd_clrscr();
+								if(++functionSetting >= LAST_FN)
+									functionSetting = 0;
+							}
+							break;
+						case NO_BUTTON:
+							break;
+					}
 				}
 				break;
 
@@ -617,10 +923,6 @@ int main(void)
 							ticks_autoincrement = 0;
 						}
 						break;
-					case UP_SELECT_BUTTON:  // Fast
-						if(newDevAddr < 0xFE)
-							newDevAddr++;
-						break;
 					case DOWN_BUTTON:
 						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 						{
@@ -628,10 +930,6 @@ int main(void)
 								newDevAddr--;
 							ticks_autoincrement = 0;
 						}
-						break;
-					case DOWN_SELECT_BUTTON:  // Fast
-						if(newDevAddr > 0)
-							newDevAddr--;
 						break;
 					case SELECT_BUTTON:
 						mrbus_dev_addr = newDevAddr;
@@ -703,7 +1001,6 @@ int main(void)
 				lcd_gotoxy(7, 1);
 				switch(frontLight)
 				{
-					default:
 					case LIGHT_OFF:
 						lcd_putc('-');
 						break;
@@ -749,28 +1046,39 @@ int main(void)
 				lcd_putc('V');
 				break;
 
+			case VERSION_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				lcd_puts("VERSION");
+				lcd_gotoxy(1,1);
+				lcd_puts(VERSION_STRING);
+				break;
+
 			case LAST_SCREEN:
 				// Clean up and reset
 				lcd_clrscr();
 				screenState = 0;
 				break;
 		}
-
-		// Process Menu button
+		// Process Menu button, but only if not in a subscreen
 		// Do this after main screen loop so screens can also do cleanup when menu is pressed
-		if(MENU_BUTTON == button)
+		if(!subscreenStatus)
 		{
-			if(MENU_BUTTON != previousButton)
+			if(MENU_BUTTON == button)
 			{
-				// Menu pressed, advance menu
-				lcd_clrscr();
-				screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
-				ticks_autoincrement = 0;
-			}
-			if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-			{
-				// Reset menu on long press
-				screenState = LAST_SCREEN;
+				if(MENU_BUTTON != previousButton)
+				{
+					// Menu pressed, advance menu
+					lcd_clrscr();
+					screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
+					ticks_autoincrement = 0;
+				}
+				if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+				{
+					// Reset menu on long press
+
+					screenState = LAST_SCREEN;
+				}
 			}
 		}
 
