@@ -1,16 +1,24 @@
 #ifndef _CST_HARDWARE_H_
 #define _CST_HARDWARE_H_
 
+#define DYNAMIC_BIT    0x04
+#define BELL_BIT       0x02
+#define MENU_BIT       0x20
+#define SELECT_BIT     0x10
+#define UP_BIT         0x40
+#define DOWN_BIT       0x80
+
 #define LCD_POWER      PA6
 #define LCD_BACKLIGHT  PA5
 
 #define ENABLE_REVERSER PC0
-#define ENABLE_BRAKE    PC1
+#define ENABLE_POTS     PC1
 #define ENABLE_LIGHTSWS PD5
 #define ENABLE_THROTTLE PD4
 
 #define ANALOG_VREV     PA0
 #define ANALOG_VBRAKE   PA1
+#define ANALOG_VHORN    PA4
 #define ANALOG_VLIGHT_R PA2
 #define ANALOG_VLIGHT_F PA3
 #define ANALOG_VBATT    PA7
@@ -18,23 +26,6 @@
 #define LED_RED_PIN     PD6
 #define LED_GREEN_PIN   PD7
 
-
-// Define the ADC order
-// Must end with ADC_STATE_LAST
-typedef enum
-{
-	ADC_STATE_START_VREV = 0,
-	ADC_STATE_READ_VREV,
-	ADC_STATE_START_VBRAKE,
-	ADC_STATE_READ_VBRAKE,
-	ADC_STATE_START_VLIGHT_F,
-	ADC_STATE_READ_VLIGHT_F,
-	ADC_STATE_START_VLIGHT_R,
-	ADC_STATE_READ_VLIGHT_R,
-	ADC_STATE_START_VBATT,
-	ADC_STATE_READ_VBATT,
-	ADC_STATE_LAST  // Must be the last state
-} ADCState;
 
 typedef enum
 {
@@ -46,6 +37,7 @@ typedef enum
 extern ReverserPosition reverserPosition;
 
 extern uint8_t brakePosition;
+extern uint8_t hornPosition;
 
 typedef enum
 {
@@ -106,15 +98,13 @@ inline void ledRedOn()
 
 inline void buttonsEnable()
 {
-	PORTB = 0b11110111;  // Pullups on for all buttons
+	PORTB = 0b11110110;  // Pullups on for all buttons
 }
-
 
 inline void buttonsDisable()
 {
-	PORTB = 0b00000000;  // Pullups on for all buttons
+	PORTB = 0b00000000;  // Pullups off for all buttons
 }
-
 
 inline void lcdEnable()
 {
@@ -136,23 +126,22 @@ inline void lcdBacklightDisable()
 	PORTA &= ~_BV(LCD_BACKLIGHT);
 }
 
-inline void	enableBrakePot()
+inline void enablePots()
 {
-	PORTC |= _BV(ENABLE_BRAKE);
+	PORTC |= _BV(ENABLE_POTS);
 }
 
-inline void	disableBrakePot()
+inline void disablePots()
 {
-	PORTC &= ~_BV(ENABLE_BRAKE);
+	PORTC &= ~_BV(ENABLE_POTS);
 }
 
-
-inline void enableReverserPot()
+inline void enableReverser()
 {
 	PORTC |= _BV(ENABLE_REVERSER);
 }
 
-inline void disableReverserPot()
+inline void disableReverser()
 {
 	PORTC &= ~_BV(ENABLE_REVERSER);
 }

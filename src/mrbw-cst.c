@@ -6,7 +6,7 @@ File:     $Id: $
 License:  GNU General Public License v3
 
 LICENSE:
-    Copyright (C) 2014 Nathan Holmes
+    Copyright (C) 2017 Michael Petersen & Nathan Holmes
     
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,17 +41,9 @@ LICENSE:
 #define MRBUS_TX_BUFFER_DEPTH 4
 #define MRBUS_RX_BUFFER_DEPTH 4
 
-#define XBEE_SLEEP_DDR  DDRA
-#define XBEE_SLEEP_PORT PORTA
-#define XBEE_SLEEP      4
-
-#define DYNAMIC_PIN    0x02
-#define BELL_PIN       0x04
-#define HORN_PIN       0x01
-#define MENU_PIN       0x20
-#define SELECT_PIN     0x10
-#define UP_PIN         0x40
-#define DOWN_PIN       0x80
+#define XBEE_SLEEP_DDR  DDRB
+#define XBEE_SLEEP_PORT PORTB
+#define XBEE_SLEEP      0
 
 #define HORN_CONTROL      0x01
 #define BELL_CONTROL      0x02
@@ -193,53 +185,40 @@ void setXbeeActive()
 	XBEE_SLEEP_PORT &= ~_BV(XBEE_SLEEP);
 }
 
-
-void setActivePortDirections()
-{
-	// Set XBee sleep control as output
-	XBEE_SLEEP_DDR |= _BV(XBEE_SLEEP);
-}
-
-
 void processButtons(uint8_t inputButtons)
 {
 	// Called every 10ms
-	if(inputButtons & DYNAMIC_PIN)
+	if(inputButtons & DYNAMIC_BIT)
 		controls &= ~(DYNAMIC_CONTROL);
 	else
 		controls |= DYNAMIC_CONTROL;
 
-	if(inputButtons & BELL_PIN)
+	if(inputButtons & BELL_BIT)
 		controls &= ~(BELL_CONTROL);
 	else
 		controls |= BELL_CONTROL;
 
-	if(inputButtons & HORN_PIN)
-		controls &= ~(HORN_CONTROL);
-	else
-		controls |= HORN_CONTROL;
-	
-	if(!(inputButtons & MENU_PIN))
+	if(!(inputButtons & MENU_BIT))
 	{
 		button = MENU_BUTTON;
 	}
-	else if(!(inputButtons & SELECT_PIN) && (inputButtons & UP_PIN) && (inputButtons & DOWN_PIN))
+	else if(!(inputButtons & SELECT_BIT)) // && (inputButtons & UP_BIT) && (inputButtons & DOWN_BIT))
 	{
 		button = SELECT_BUTTON;
 	}
-/*	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & UP_PIN))*/
+/*	else if(!(inputButtons & SELECT_BIT) && !(inputButtons & UP_BIT))*/
 /*	{*/
 /*		button = UP_SELECT_BUTTON;*/
 /*	}*/
-/*	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & DOWN_PIN))*/
+/*	else if(!(inputButtons & SELECT_BIT) && !(inputButtons & DOWN_BIT))*/
 /*	{*/
 /*		button = DOWN_SELECT_BUTTON;*/
 /*	}*/
-	else if(!(inputButtons & UP_PIN))
+	else if(!(inputButtons & UP_BIT))
 	{
 		button = UP_BUTTON;
 	}
-	else if(!(inputButtons & DOWN_PIN))
+	else if(!(inputButtons & DOWN_BIT))
 	{
 		button = DOWN_BUTTON;
 	}
@@ -404,6 +383,7 @@ int main(void)
 	uint8_t lastThrottlePosition = throttlePosition;
 	ReverserPosition lastReverserPosition = reverserPosition;
 	uint8_t lastBrakePosition = brakePosition;
+	uint8_t lastHornPosition = hornPosition;
 	LightPosition lastFrontLight = frontLight;
 	LightPosition lastRearLight = rearLight;
 
@@ -473,7 +453,7 @@ int main(void)
 	lcd_setup_custom(BARGRAPH_FULL, BarGraphFull);
 
 	// Initialize the buttons so there are no startup artifacts when we actually use them
-	inputButtons = PINB & (0xF7);
+	inputButtons = PINB & (0xF6);
 
 	wait100ms(20);
 
@@ -494,6 +474,17 @@ int main(void)
 		}
 
 		processADC();
+
+		// Convert horn to on/off control
+		// FIXME: eventually add analog horn functionality
+		if(hornPosition > 127)
+		{
+			controls &= ~(HORN_CONTROL);
+		}
+		else
+		{
+			controls |= HORN_CONTROL;
+		}
 
 		switch(screenState)
 		{
@@ -1095,6 +1086,7 @@ int main(void)
 		controlsChanged =	(reverserPosition != lastReverserPosition) ||
 							(throttlePosition != lastThrottlePosition) ||
 							(brakePosition != lastBrakePosition) ||
+							(hornPosition != lastHornPosition) ||
 							(controls != lastControls) ||
 							(frontLight != lastFrontLight) ||
 							(rearLight != lastRearLight);
@@ -1106,6 +1098,7 @@ int main(void)
 			lastReverserPosition = reverserPosition;
 			lastThrottlePosition = throttlePosition;
 			lastBrakePosition = brakePosition;
+			lastHornPosition = hornPosition;
 			lastControls = controls;
 			lastFrontLight = frontLight;
 			lastRearLight = rearLight;

@@ -8,11 +8,31 @@
 
 #include "cst-hardware.h"
 
+// Define the ADC order
+// Must end with ADC_STATE_LAST
+typedef enum
+{
+	ADC_STATE_START_VREV = 0,
+	ADC_STATE_READ_VREV,
+	ADC_STATE_START_VBRAKE,
+	ADC_STATE_READ_VBRAKE,
+	ADC_STATE_START_VHORN,
+	ADC_STATE_READ_VHORN,
+	ADC_STATE_START_VLIGHT_F,
+	ADC_STATE_READ_VLIGHT_F,
+	ADC_STATE_START_VLIGHT_R,
+	ADC_STATE_READ_VLIGHT_R,
+	ADC_STATE_START_VBATT,
+	ADC_STATE_READ_VBATT,
+	ADC_STATE_LAST  // Must be the last state
+} ADCState;
+
 volatile LEDStatus led;
 
 ReverserPosition reverserPosition = NEUTRAL;
 
 uint8_t brakePosition = 0;
+uint8_t hornPosition = 0;
 
 uint8_t frontLightPot = 0;
 LightPosition frontLight = LIGHT_OFF;
@@ -29,30 +49,30 @@ void initPorts()
 	// Pin Assignments for PORTA/DDRA
 	//  PA0 - Analog - VREV
 	//  PA1 - Analog - VBRAKE
-	//  PA2 - Analog - VLIGHT_F
-	//  PA3 - Analog - VLIGHT_R
-	//  PA4 - Output - Xbee SLEEP_EN
+	//  PA2 - Analog - VLIGHT_R
+	//  PA3 - Analog - VLIGHT_F
+	//  PA4 - Analog - VHORN
 	//  PA5 - Output - LCD Backlight Enable
 	//  PA6 - Output - LCD Power Enable (inverted)
 	//  PA7 - Analog - VBATTERY
-	DDRA  = 0b01110000;
+	DDRA  = 0b01100000;
 	PORTA = 0b00000000;
 
 	// Pin Assignments for PORTB/DDRB
-	//  PB0 - Input  - Horn
-	//  PB1 - Input  - Dynamic Brake
-	//  PB2 - Input  - Bell
+	//  PB0 - Output - XBee SLEEP_EN
+	//  PB1 - Input  - Bell
+	//  PB2 - Input  - Dynamic Brake
 	//  PB3 - Output - N/C
 	//  PB4 - Input  - Softkey 0
 	//  PB5 - Input  - Softkey 1
 	//  PB6 - Input  - Softkey 2
 	//  PB7 - Input  - Softkey 3
-	DDRB  = 0b00001000;
-	PORTB = 0b11110111;  // Pullups on for all buttons
+	DDRB  = 0b00001001;
+	buttonsEnable();
 
 	// Pin Assignments for PORTC/DDRC
 	//  PC0 - Output - Reverser Enable
-	//  PC1 - Output - Brake Enable
+	//  PC1 - Output - Pots Enable
 	//  PC2 - Output - LCD RS
 	//  PC3 - Output - LCD E
 	//  PC4 - Output - LCD D4
@@ -124,13 +144,13 @@ void processADC()
 		switch(adcState)
 		{
 			case ADC_STATE_START_VREV:
-				enableReverserPot();
+				enableReverser();
 				startADC(ANALOG_VREV);
 				adcState++;
 				break;
 
 			case ADC_STATE_READ_VREV:
-				disableReverserPot();
+				disableReverser();
 				adcAccumulator >>= 8;
 				if(adcAccumulator < 0x30)
 				{
@@ -148,13 +168,13 @@ void processADC()
 				break;
 
 			case ADC_STATE_START_VBRAKE:
-				enableBrakePot();
+				enablePots();
 				startADC(ANALOG_VBRAKE);
 				adcState++;
 				break;
 
 			case ADC_STATE_READ_VBRAKE:
-				disableBrakePot();
+				disablePots();
 				adcAccumulator >>= 8;
 				if(adcAccumulator >= 160)
 				{
@@ -170,6 +190,30 @@ void processADC()
 					{
 						brakePosition = 128 * (adcAccumulator - 96) / 64;
 					}
+				}
+				adcState++;
+				break;
+
+			case ADC_STATE_START_VHORN:
+				enablePots();
+				startADC(ANALOG_VHORN);
+				adcState++;
+				break;
+
+			case ADC_STATE_READ_VHORN:
+				disablePots();
+				adcAccumulator >>= 8;
+				if(adcAccumulator < 96)
+				{
+					hornPosition = 0;
+				}
+				else if(adcAccumulator > 160)
+				{
+					hornPosition = 255;
+				}
+				else
+				{
+					hornPosition = 128 * (adcAccumulator - 96) / 64;
 				}
 				adcState++;
 				break;
@@ -239,7 +283,6 @@ void processADC()
 				break;
 
 			case ADC_STATE_LAST:
-			default:
 				adcState = 0;
 				break;		
 		}
