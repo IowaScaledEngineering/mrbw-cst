@@ -1,7 +1,7 @@
 /*************************************************************************
 Title:    MRBW-CST Control Stand Throttle
-Authors:  Nathan D. Holmes <maverick@drgw.net>
-          Michael D. Petersen <railfan@drgw.net>
+Authors:  Michael D. Petersen <railfan@drgw.net>
+          Nathan D. Holmes <maverick@drgw.net>
 File:     $Id: $
 License:  GNU General Public License v3
 
@@ -341,6 +341,19 @@ void wait100ms(uint16_t loops)
 }
 
 
+void readConfig(void)
+{
+	// Initialize MRBus address from EEPROM
+	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
+	// Bogus addresses, fix to default address
+	if (0xFF == mrbus_dev_addr || 0x00 == mrbus_dev_addr)
+	{
+		mrbus_dev_addr = 0x30;
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
+	}
+
+}
+
 void init(void)
 {
 	// Clear watchdog (in the case of an 'X' packet reset)
@@ -354,16 +367,9 @@ void init(void)
 #else
 	wdt_reset();
 	wdt_disable();
-#endif	
+#endif
 
-	// Initialize MRBus address from EEPROM
-	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
-	// Bogus addresses, fix to default address
-	if (0xFF == mrbus_dev_addr || 0x00 == mrbus_dev_addr)
-	{
-		mrbus_dev_addr = 0x30;
-		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
-	}
+	readConfig();
 
 	initPorts();
 	initADC();
@@ -574,9 +580,9 @@ int main(void)
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(0,0);
-					lcd_puts("GET NEW");
+					lcd_puts(" GET NEW");
 					lcd_gotoxy(0,1);
-					lcd_puts("LOCO -->");
+					lcd_puts("<-- LOCO");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -717,9 +723,9 @@ int main(void)
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(0,0);
-					lcd_puts("CONFIG");
+					lcd_puts("  CONFIG");
 					lcd_gotoxy(0,1);
-					lcd_puts("FUNC -->");
+					lcd_puts("<-- FUNC");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -923,8 +929,10 @@ int main(void)
 						}
 						break;
 					case SELECT_BUTTON:
+						eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, newDevAddr);
+
 						mrbus_dev_addr = newDevAddr;
-						// FIXME: write to EEPROM
+						mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
 						lcd_clrscr();
 						lcd_gotoxy(1,0);
 						lcd_puts("SAVED!");
