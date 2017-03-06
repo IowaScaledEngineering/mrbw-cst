@@ -52,10 +52,33 @@ LICENSE:
 #define OFF_FUNCTION      0x80
 #define LATCH_FUNCTION    0x40
 
+#define EE_LOCO_ADDRESS               0x10
+#define EE_HORN_FUNCTION              0x20
+#define EE_BELL_FUNCTION              0x21
+#define EE_FRONT_DIM1_FUNCTION        0x22
+#define EE_FRONT_DIM2_FUNCTION        0x23
+#define EE_FRONT_HEADLIGHT_FUNCTION   0x24
+#define EE_FRONT_DITCH_FUNCTION       0x25
+#define EE_REAR_DIM1_FUNCTION         0x26
+#define EE_REAR_DIM2_FUNCTION         0x27
+#define EE_REAR_HEADLIGHT_FUNCTION    0x28
+#define EE_REAR_DITCH_FUNCTION        0x29
+#define EE_DYNAMIC_FUNCTION           0x2A
+#define EE_UP_BUTTON_FUNCTION         0x2B
+#define EE_DOWN_BUTTON_FUNCTION       0x2C
+
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
 uint8_t mrbus_dev_addr = 0;
+uint16_t locoAddress = 0;
+
+uint8_t hornFunction = 2;
+uint8_t bellFunction = 7;
+uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
+uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
+uint8_t dynamicFunction = 8;
+uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
 
 #define STATUS_READ_SWITCHES          0x01
 
@@ -351,7 +374,24 @@ void readConfig(void)
 		mrbus_dev_addr = 0x30;
 		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
 	}
+	
+	// Locomotive Address
+	locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
 
+	// Function configs
+	hornFunction = eeprom_read_byte((uint8_t*)EE_HORN_FUNCTION);
+	bellFunction = eeprom_read_byte((uint8_t*)EE_BELL_FUNCTION);
+	frontDim1Function = eeprom_read_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION);
+	frontDim2Function = eeprom_read_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION);
+	frontHeadlightFunction = eeprom_read_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION);
+	frontDitchFunction = eeprom_read_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION);
+	rearDim1Function = eeprom_read_byte((uint8_t*)EE_REAR_DIM1_FUNCTION);
+	rearDim2Function = eeprom_read_byte((uint8_t*)EE_REAR_DIM2_FUNCTION);
+	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
+	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
+	dynamicFunction = eeprom_read_byte((uint8_t*)EE_DYNAMIC_FUNCTION);
+	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
+	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
 }
 
 void init(void)
@@ -395,10 +435,6 @@ int main(void)
 
 	uint8_t tonnage = 0;
 	
-	uint16_t locoAddress = 250;
-	uint16_t newLocoAddress = locoAddress;
-	uint8_t newDevAddr = mrbus_dev_addr;
-	
 	uint8_t backlight = 0;
 	
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
@@ -412,17 +448,14 @@ int main(void)
 
 	uint8_t optionButtonState = 0;
 
-	uint8_t hornFunction = 2;
-	uint8_t bellFunction = 7;
-	uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
-	uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
-	uint8_t dynamicFunction = 8;
-	uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
-
 	uint8_t *functionPtr = &hornFunction;
 
 	init();
 
+	// Assign after init() so values are read from EEPROM first
+	uint16_t newLocoAddress = locoAddress;
+	uint8_t newDevAddr = mrbus_dev_addr;
+	
 	setXbeeActive();
 	
 	lcdEnable();
@@ -642,7 +675,8 @@ int main(void)
 							{
 								// FIXME: This should really send a packet to request a new locomotive address and locoAddress is only updated once confirmation received
 								newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
-								locoAddress = newLocoAddress;
+								eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, newLocoAddress);
+								locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
 								lcd_clrscr();
 								lcd_gotoxy(0,0);
 								lcd_puts("REQUEST");
@@ -879,7 +913,19 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								// FIXME: write to EEPROM
+								eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, hornFunction);
+								eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, bellFunction);
+								eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, frontDim1Function);
+								eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, frontDim2Function);
+								eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, frontHeadlightFunction);
+								eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, frontDitchFunction);
+								eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, rearDim1Function);
+								eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, rearDim2Function);
+								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);
+								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);
+								eeprom_write_byte((uint8_t*)EE_DYNAMIC_FUNCTION, dynamicFunction);
+								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
+								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -930,8 +976,6 @@ int main(void)
 						break;
 					case SELECT_BUTTON:
 						eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, newDevAddr);
-
-						mrbus_dev_addr = newDevAddr;
 						mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
 						lcd_clrscr();
 						lcd_gotoxy(1,0);
