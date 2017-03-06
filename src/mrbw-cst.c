@@ -31,7 +31,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING " 0.3"
+#define VERSION_STRING " 0.4"
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -45,6 +45,8 @@ LICENSE:
 #define XBEE_SLEEP_PORT PORTB
 #define XBEE_SLEEP      0
 
+#define STATUS_READ_SWITCHES          0x01
+
 #define HORN_CONTROL      0x01
 #define BELL_CONTROL      0x02
 #define DYNAMIC_CONTROL   0x04
@@ -52,7 +54,13 @@ LICENSE:
 #define OFF_FUNCTION      0x80
 #define LATCH_FUNCTION    0x40
 
-#define EE_LOCO_ADDRESS               0x10
+// Default sleep time in minutes
+#define DEFAULT_SLEEP_TIME 1
+
+// Set EEPROM locations
+#define EE_DEVICE_SLEEP_TIMEOUT       0x10
+#define EE_LOCO_ADDRESS               0x11
+
 #define EE_HORN_FUNCTION              0x20
 #define EE_BELL_FUNCTION              0x21
 #define EE_FRONT_DIM1_FUNCTION        0x22
@@ -80,8 +88,6 @@ uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunc
 uint8_t dynamicFunction = 8;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
 
-#define STATUS_READ_SWITCHES          0x01
-
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
 
@@ -90,11 +96,14 @@ volatile uint16_t decisecs = 0;
 volatile uint16_t update_decisecs = 10;
 volatile uint8_t status = 0;
 
+uint16_t sleep_tmr_reset_value;
+
 // Define the menu screens and menu order
 // Must end with LAST_SCREEN
 typedef enum
 {
 	MAIN_SCREEN = 0,
+	DEBUG2_SCREEN,
 	LOCO_SCREEN,
 	TONNAGE_SCREEN,
 	FUNC_SCREEN,
@@ -210,17 +219,6 @@ void setXbeeActive()
 
 void processButtons(uint8_t inputButtons)
 {
-	// Called every 10ms
-	if(inputButtons & DYNAMIC_BIT)
-		controls &= ~(DYNAMIC_CONTROL);
-	else
-		controls |= DYNAMIC_CONTROL;
-
-	if(inputButtons & BELL_BIT)
-		controls &= ~(BELL_CONTROL);
-	else
-		controls |= BELL_CONTROL;
-
 	if(!(inputButtons & MENU_BIT))
 	{
 		button = MENU_BUTTON;
@@ -273,6 +271,20 @@ void processButtons(uint8_t inputButtons)
 	}
 }
 
+void processSwitches(uint8_t inputButtons)
+{
+	// Called every 10ms
+	if(inputButtons & DYNAMIC_BIT)
+		controls &= ~(DYNAMIC_CONTROL);
+	else
+		controls |= DYNAMIC_CONTROL;
+
+	if(inputButtons & BELL_BIT)
+		controls &= ~(BELL_CONTROL);
+	else
+		controls |= BELL_CONTROL;
+}
+
 
 void initialize100HzTimer(void)
 {
@@ -289,9 +301,10 @@ void initialize100HzTimer(void)
 volatile uint8_t throttlePosition = 0;
 volatile uint8_t throttleQuadrature = 0;
 
+volatile uint16_t sleepDeciSecs = 0;
+
 ISR(TIMER0_COMPA_vect)
 {
-	static uint16_t internalDeciSecs = 0;
 	static uint8_t throttleQuadrature;
 	static uint8_t initialized = 0;
 	uint8_t newQuadrature;
@@ -314,12 +327,10 @@ ISR(TIMER0_COMPA_vect)
 //		if (pktTimeout)
 	//		pktTimeout--;
 		
-		if (internalDeciSecs >= 600)
+		if(sleepDeciSecs)
 		{
-			// Things that happen on minutes
-//			if (sleepTimer != 0)
-//				sleepTimer--;
-			internalDeciSecs -= 600;
+//FIXME			sleepDeciSecs--;
+			sleepDeciSecs-=10;
 		}
 
 		ledUpdate();
@@ -366,6 +377,16 @@ void wait100ms(uint16_t loops)
 
 void readConfig(void)
 {
+	// Read the number of minutes before sleeping from EEP and store it.  If it's not set (255)
+	// or not sane (0), set it to the default of five minutes.
+	sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT);
+	if (0xFF == sleep_tmr_reset_value || 0x00 == sleep_tmr_reset_value)
+	{
+		sleep_tmr_reset_value = DEFAULT_SLEEP_TIME;
+		eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, sleep_tmr_reset_value);
+	}
+	sleep_tmr_reset_value *= 600;  // Convert to decisecs
+
 	// Initialize MRBus address from EEPROM
 	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
 	// Bogus addresses, fix to default address
@@ -413,7 +434,6 @@ void init(void)
 
 	initPorts();
 	initADC();
-//	initThrottle();
 	enableThrottle();
 	initialize100HzTimer();
 }
@@ -457,6 +477,8 @@ int main(void)
 	uint8_t newDevAddr = mrbus_dev_addr;
 	
 	setXbeeActive();
+
+	sleepDeciSecs = sleep_tmr_reset_value;
 	
 	lcdEnable();
 	lcdBacklightEnable();
@@ -498,6 +520,7 @@ int main(void)
 
 	lcd_clrscr();
 	buttonsEnable();
+	switchesEnable();
 
 	while(1)
 	{
@@ -510,6 +533,7 @@ int main(void)
 			status &= ~STATUS_READ_SWITCHES;
 			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
 			processButtons(inputButtons);
+			processSwitches(inputButtons);
 		}
 
 		processADC();
@@ -1077,6 +1101,12 @@ int main(void)
 
 				break;
 
+			case DEBUG2_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				printDec4DigWZero(sleepDeciSecs);
+				break;
+
 			case VBAT_SCREEN:
 				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
@@ -1123,6 +1153,15 @@ int main(void)
 					screenState = LAST_SCREEN;
 				}
 			}
+		}
+
+		// Reset sleep timer
+		if( (NO_BUTTON != button) ||
+			(FORWARD == reverserPosition) ||
+			(REVERSE == reverserPosition)
+			)
+		{
+			sleepDeciSecs = sleep_tmr_reset_value;
 		}
 
 		previousButton = button;
@@ -1232,10 +1271,50 @@ int main(void)
 			mrbeeTransmit();
 		}
 
+		while (0 == sleepDeciSecs)
+		{
+			// Time to nod off
+			led = LED_OFF;
+
+			// Disable internal power-sucking peripherals (need to be enabled when awake)
+			ADCSRA &= ~_BV(ADEN);
+			setXbeeSleep();
+			lcdDisable();
+			PORTC &= ~(0xFC);  // Set LCD lines low
+			lcdBacklightDisable();
+			switchesDisable();  // Don't disable buttons
+			disableThrottle();
+			
+			// Reinforce that these are off
+			disablePots();
+			disableReverser();
+			disableLightSwitches();
+
+			while(
+				(NO_BUTTON == button) &&
+				(FORWARD != reverserPosition) &&
+				(REVERSE != reverserPosition)
+				)
+			{
+				system_sleep(10);
+				// FIXME: quick read reverser
+				inputButtons = PINB & (0xF7);
+				processButtons(inputButtons);
+			}
+
+			sleepDeciSecs = sleep_tmr_reset_value;
+			
+			// Re-enable chip internal bits (ADC, pots, reverser, lights done in main loop)
+			setXbeeActive();
+			lcdEnable();
+			lcd_init(LCD_DISP_ON);
+			lcdBacklightEnable();
+			switchesEnable();
+			enableThrottle();
+		}
 
 	}
 
 }
-
 
 

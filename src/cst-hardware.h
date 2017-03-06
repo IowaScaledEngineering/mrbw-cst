@@ -96,14 +96,24 @@ inline void ledRedOn()
 	PORTD |= _BV(LED_RED_PIN);
 }
 
+inline void switchesEnable()
+{
+	PORTB |= 0b00000110;  // Pullups on
+}
+
+inline void switchesDisable()
+{
+	PORTB &= ~(0b00000110);  // Pullups off
+}
+
 inline void buttonsEnable()
 {
-	PORTB = 0b11110110;  // Pullups on for all buttons
+	PORTB |= 0b11110000;  // Pullups on
 }
 
 inline void buttonsDisable()
 {
-	PORTB = 0b00000000;  // Pullups off for all buttons
+	PORTB &= ~(0b11110000);  // Pullups off
 }
 
 inline void lcdEnable()
@@ -113,7 +123,7 @@ inline void lcdEnable()
 
 inline void lcdDisable()
 {
-	PORTA |= ~_BV(LCD_POWER);
+	PORTA |= _BV(LCD_POWER);
 }
 
 inline void lcdBacklightEnable()
@@ -168,5 +178,7 @@ inline void disableThrottle()
 
 
 void ledUpdate();
+
+uint16_t system_sleep(uint16_t);
 
 #endif

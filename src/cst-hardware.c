@@ -69,6 +69,7 @@ void initPorts()
 	//  PB7 - Input  - Softkey 3
 	DDRB  = 0b00001001;
 	buttonsEnable();
+	switchesEnable();
 
 	// Pin Assignments for PORTC/DDRC
 	//  PC0 - Output - Reverser Enable
@@ -389,6 +390,97 @@ void ledUpdate()
 }
 
 
+volatile uint8_t wdt_tripped=0;
+
+ISR(WDT_vect) 
+{
+	wdt_tripped=1;  // set global volatile variable
+}
+
+uint16_t system_sleep(uint16_t sleep_decisecs)
+{
+	uint16_t slept = 0;
+
+	while(slept < sleep_decisecs)
+	{
+		uint16_t remaining_sleep = sleep_decisecs - slept;
+		uint8_t planned_sleep = 80;
+		uint8_t wdtcsr_bits = _BV(WDIF) | _BV(WDIE);
+
+		if (remaining_sleep == 1)
+		{
+			wdtcsr_bits |= _BV(WDP1) | _BV(WDP0);
+			planned_sleep = 1;
+		}
+		else if (remaining_sleep <= 3)
+		{
+			wdtcsr_bits |= _BV(WDP2);
+			planned_sleep = 3;
+		}
+		else if (remaining_sleep <= 5)
+		{
+			wdtcsr_bits |= _BV(WDP2) | _BV(WDP0);
+			planned_sleep = 5;
+		}
+		else if (remaining_sleep <= 10)
+		{
+			wdtcsr_bits |= _BV(WDP2) | _BV(WDP1);
+			planned_sleep = 10;
+		}
+		else if (remaining_sleep <= 20)
+		{
+			wdtcsr_bits |= _BV(WDP2) | _BV(WDP1) | _BV(WDP0);
+			planned_sleep = 20;
+		}
+		else if (remaining_sleep <= 40)
+		{
+			wdtcsr_bits |= _BV(WDP3);
+			planned_sleep = 40;
+		}
+		else
+		{
+			wdtcsr_bits |= _BV(WDP3) | _BV(WDP0);
+			planned_sleep = 80;
+		}
+
+		// Procedure to reset watchdog and set it into interrupt mode only
+
+		cli();
+		set_sleep_mode(SLEEP_MODE_PWR_DOWN);      // set the type of sleep mode to use
+		sleep_enable();                           // enable sleep mode
+		wdt_reset();
+		MCUSR &= ~(_BV(WDRF));
+		WDTCSR |= _BV(WDE) | _BV(WDCE);
+		WDTCSR = wdtcsr_bits;
+
+		sei();
+
+		wdt_tripped = 0;
+		// Wrap this in a loop, so we go back to sleep unless the WDT woke us up
+		while (0 == wdt_tripped)
+			sleep_cpu();
+
+		wdt_reset();
+		WDTCSR |= _BV(WDIE); // Restore WDT interrupt mode
+		slept += planned_sleep;
+	}
+
+	sleep_disable();
+
+#ifdef ENABLE_WATCHDOG
+	// If you don't want the watchdog to do system reset, remove this chunk of code
+	wdt_reset();
+	MCUSR &= ~(_BV(WDRF));
+	WDTCSR |= _BV(WDE) | _BV(WDCE);
+	WDTCSR = _BV(WDE) | _BV(WDP2) | _BV(WDP1); // Set the WDT to system reset and 1s timeout
+	wdt_reset();
+#else
+	wdt_reset();
+	wdt_disable();
+#endif
+
+	return(slept);
+}
 
 
 
