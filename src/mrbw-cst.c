@@ -295,27 +295,27 @@ uint16_t system_sleep(uint16_t sleep_decisecs)
 
 void processButtons(uint8_t inputButtons)
 {
-	if(!(inputButtons & MENU_BIT))
+	if(!(inputButtons & _BV(MENU_PIN)))
 	{
 		button = MENU_BUTTON;
 	}
-	else if(!(inputButtons & SELECT_BIT)) // && (inputButtons & UP_BIT) && (inputButtons & DOWN_BIT))
+	else if(!(inputButtons & _BV(SELECT_PIN))) // && (inputButtons & UP_PIN) && (inputButtons & DOWN_PIN))
 	{
 		button = SELECT_BUTTON;
 	}
-/*	else if(!(inputButtons & SELECT_BIT) && !(inputButtons & UP_BIT))*/
+/*	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & UP_PIN))*/
 /*	{*/
 /*		button = UP_SELECT_BUTTON;*/
 /*	}*/
-/*	else if(!(inputButtons & SELECT_BIT) && !(inputButtons & DOWN_BIT))*/
+/*	else if(!(inputButtons & SELECT_PIN) && !(inputButtons & DOWN_PIN))*/
 /*	{*/
 /*		button = DOWN_SELECT_BUTTON;*/
 /*	}*/
-	else if(!(inputButtons & UP_BIT))
+	else if(!(inputButtons & _BV(UP_PIN)))
 	{
 		button = UP_BUTTON;
 	}
-	else if(!(inputButtons & DOWN_BIT))
+	else if(!(inputButtons & _BV(DOWN_PIN)))
 	{
 		button = DOWN_BUTTON;
 	}
@@ -350,12 +350,12 @@ void processButtons(uint8_t inputButtons)
 void processSwitches(uint8_t inputButtons)
 {
 	// Called every 10ms
-	if(inputButtons & DYNAMIC_BIT)
+	if(inputButtons & _BV(DYNAMIC_PIN))
 		controls &= ~(DYNAMIC_CONTROL);
 	else
 		controls |= DYNAMIC_CONTROL;
 
-	if(inputButtons & BELL_BIT)
+	if(inputButtons & _BV(BELL_PIN))
 		controls &= ~(BELL_CONTROL);
 	else
 		controls |= BELL_CONTROL;

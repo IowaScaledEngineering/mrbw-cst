@@ -1,12 +1,12 @@
 #ifndef _CST_HARDWARE_H_
 #define _CST_HARDWARE_H_
 
-#define DYNAMIC_BIT    0x04
-#define BELL_BIT       0x02
-#define MENU_BIT       0x20
-#define SELECT_BIT     0x10
-#define UP_BIT         0x40
-#define DOWN_BIT       0x80
+#define DYNAMIC_PIN    PB2
+#define BELL_PIN       PB1
+#define MENU_PIN       PB5
+#define SELECT_PIN     PB4
+#define UP_PIN         PB6
+#define DOWN_PIN       PB7
 
 #define LCD_POWER      PA6
 #define LCD_BACKLIGHT  PA5
