@@ -54,9 +54,6 @@ LICENSE:
 #define OFF_FUNCTION      0x80
 #define LATCH_FUNCTION    0x40
 
-// Default sleep time in minutes
-#define DEFAULT_SLEEP_TIME 1
-
 // Set EEPROM locations
 #define EE_DEVICE_SLEEP_TIMEOUT       0x10
 #define EE_LOCO_ADDRESS               0x11
@@ -108,6 +105,7 @@ typedef enum
 	TONNAGE_SCREEN,
 	FUNC_SCREEN,
 	MRBUS_SCREEN,
+	SLEEP_SCREEN,
 	DEBUG_SCREEN,
 	VBAT_SCREEN,
 	VERSION_SCREEN,
@@ -404,8 +402,7 @@ ISR(TIMER0_COMPA_vect)
 		
 		if(sleepDeciSecs)
 		{
-//FIXME			sleepDeciSecs--;
-			sleepDeciSecs-=10;  // FIXME: debug only
+			sleepDeciSecs--;
 		}
 
 		ledUpdate();
@@ -452,12 +449,23 @@ void wait100ms(uint16_t loops)
 
 void readConfig(void)
 {
-	// Read the number of minutes before sleeping from EEP and store it.  If it's not set (255)
-	// or not sane (0), set it to the default of five minutes.
+	// Read the number of minutes before sleeping from EEP and store it.
+	// If it's not in range, clamp it.
+	// Abuse sleep_tmr_reset_value to read the EEPROM value in minutes before converting to decisecs
 	sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT);
-	if (0xFF == sleep_tmr_reset_value || 0x00 == sleep_tmr_reset_value)
+	if(0 == sleep_tmr_reset_value)
 	{
-		sleep_tmr_reset_value = DEFAULT_SLEEP_TIME;
+		sleep_tmr_reset_value = 1;
+		eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, sleep_tmr_reset_value);
+	}
+	else if(0xFF == sleep_tmr_reset_value)
+	{
+		sleep_tmr_reset_value = 5;  // Default for unprogrammed EEPROM
+		eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, sleep_tmr_reset_value);
+	}
+	else if(sleep_tmr_reset_value > 99)
+	{
+		sleep_tmr_reset_value = 99;
 		eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, sleep_tmr_reset_value);
 	}
 	sleep_tmr_reset_value *= 600;  // Convert to decisecs
@@ -549,7 +557,8 @@ int main(void)
 	// Assign after init() so values are read from EEPROM first
 	uint16_t newLocoAddress = locoAddress;
 	uint8_t newDevAddr = mrbus_dev_addr;
-	
+	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
+
 	setXbeeActive();
 
 	sleepDeciSecs = sleep_tmr_reset_value;
@@ -1094,6 +1103,53 @@ int main(void)
 						break;
 					case MENU_BUTTON:
 						newDevAddr = mrbus_dev_addr;  // Reset newDevAddr since no changes were commited
+						break;
+					case NO_BUTTON:
+						break;
+				}
+				break;
+
+			case SLEEP_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				lcd_puts("SLEEP");
+				lcd_gotoxy(0,1);
+				lcd_puts("DLY: ");
+				printDec2Dig(newSleepTimeout);
+				lcd_puts("M");
+				switch(button)
+				{
+					case UP_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newSleepTimeout < 99)
+								newSleepTimeout++;
+							else
+								newSleepTimeout = 99;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case DOWN_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newSleepTimeout > 1)
+								newSleepTimeout--;
+							else
+								newSleepTimeout = 1;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case SELECT_BUTTON:
+						eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
+						sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT) * 600;
+						lcd_clrscr();
+						lcd_gotoxy(1,0);
+						lcd_puts("SAVED!");
+						wait100ms(7);
+						screenState = LAST_SCREEN;
+						break;
+					case MENU_BUTTON:
+						newSleepTimeout = sleep_tmr_reset_value / 600;  // Reset newSleepTimeout since no changes were commited
 						break;
 					case NO_BUTTON:
 						break;
