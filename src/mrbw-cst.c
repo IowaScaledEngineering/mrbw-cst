@@ -169,23 +169,6 @@ uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
 	return(debouncedState);
 }
 
-uint8_t throttleDebounce(uint8_t debouncedState, uint8_t newInputs)
-{
-	static uint8_t clock_A=0, clock_B=0;
-	uint8_t delta = newInputs ^ debouncedState;   //Find all of the changes
-	uint8_t changes;
-
-	clock_A ^= clock_B;                     //Increment the counters
-	clock_B  = ~clock_B;
-
-	clock_A &= delta;                       //Reset the counters if no changes
-	clock_B &= delta;                       //were detected.
-
-	changes = ~((~delta) | clock_A | clock_B);
-	debouncedState ^= changes;
-	return(debouncedState);
-}
-
 
 void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 {
@@ -216,6 +199,99 @@ void setXbeeActive()
 	// Unsleep the XBee
 	XBEE_SLEEP_PORT &= ~_BV(XBEE_SLEEP);
 }
+
+volatile uint8_t wdt_tripped=0;
+
+ISR(WDT_vect) 
+{
+	wdt_tripped=1;  // set global volatile variable
+}
+
+uint16_t system_sleep(uint16_t sleep_decisecs)
+{
+	uint16_t slept = 0;
+
+	while(slept < sleep_decisecs)
+	{
+		uint16_t remaining_sleep = sleep_decisecs - slept;
+		uint8_t planned_sleep = 80;
+		uint8_t wdtcsr_bits = _BV(WDIF) | _BV(WDIE);
+
+		if (remaining_sleep == 1)
+		{
+			wdtcsr_bits |= _BV(WDP1) | _BV(WDP0);
+			planned_sleep = 1;
+		}
+		else if (remaining_sleep <= 3)
+		{
+			wdtcsr_bits |= _BV(WDP2);
+			planned_sleep = 3;
+		}
+		else if (remaining_sleep <= 5)
+		{
+			wdtcsr_bits |= _BV(WDP2) | _BV(WDP0);
+			planned_sleep = 5;
+		}
+		else if (remaining_sleep <= 10)
+		{
+			wdtcsr_bits |= _BV(WDP2) | _BV(WDP1);
+			planned_sleep = 10;
+		}
+		else if (remaining_sleep <= 20)
+		{
+			wdtcsr_bits |= _BV(WDP2) | _BV(WDP1) | _BV(WDP0);
+			planned_sleep = 20;
+		}
+		else if (remaining_sleep <= 40)
+		{
+			wdtcsr_bits |= _BV(WDP3);
+			planned_sleep = 40;
+		}
+		else
+		{
+			wdtcsr_bits |= _BV(WDP3) | _BV(WDP0);
+			planned_sleep = 80;
+		}
+
+		// Procedure to reset watchdog and set it into interrupt mode only
+
+		cli();
+		set_sleep_mode(SLEEP_MODE_PWR_DOWN);      // set the type of sleep mode to use
+		sleep_enable();                           // enable sleep mode
+		wdt_reset();
+		MCUSR &= ~(_BV(WDRF));
+		WDTCSR |= _BV(WDE) | _BV(WDCE);
+		WDTCSR = wdtcsr_bits;
+
+		sei();
+
+		wdt_tripped = 0;
+		// Wrap this in a loop, so we go back to sleep unless the WDT woke us up
+		while (0 == wdt_tripped)
+			sleep_cpu();
+
+		wdt_reset();
+		WDTCSR |= _BV(WDIE); // Restore WDT interrupt mode
+		slept += planned_sleep;
+	}
+
+	sleep_disable();
+
+#ifdef ENABLE_WATCHDOG
+	// If you don't want the watchdog to do system reset, remove this chunk of code
+	wdt_reset();
+	MCUSR &= ~(_BV(WDRF));
+	WDTCSR |= _BV(WDE) | _BV(WDCE);
+	WDTCSR = _BV(WDE) | _BV(WDP2) | _BV(WDP1); // Set the WDT to system reset and 1s timeout
+	wdt_reset();
+#else
+	wdt_reset();
+	wdt_disable();
+#endif
+
+	return(slept);
+}
+
 
 void processButtons(uint8_t inputButtons)
 {
@@ -314,7 +390,6 @@ ISR(TIMER0_COMPA_vect)
 		enableThrottle();	
 		initialized = 1;
 		throttleQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
-
 	}
 
 	status |= STATUS_READ_SWITCHES;
@@ -330,7 +405,7 @@ ISR(TIMER0_COMPA_vect)
 		if(sleepDeciSecs)
 		{
 //FIXME			sleepDeciSecs--;
-			sleepDeciSecs-=10;
+			sleepDeciSecs-=10;  // FIXME: debug only
 		}
 
 		ledUpdate();
@@ -434,7 +509,6 @@ void init(void)
 
 	initPorts();
 	initADC();
-	enableThrottle();
 	initialize100HzTimer();
 }
 
@@ -492,18 +566,25 @@ int main(void)
 
 	sei();	
 
+	wdt_reset();
+
 	// Fire off initial reset version packet
 	createVersionPacket(0xFF, txBuffer);
 	mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 
+	wdt_reset();
+
 	led = LED_OFF;
 	lcd_init(LCD_DISP_ON);
+
 	wdt_reset();	
 
 	lcd_gotoxy(1, 0);
 	lcd_puts("Proto");
 	lcd_gotoxy(0, 1);
 	lcd_puts("Throttle");
+
+	wdt_reset();
 
 	lcd_setup_custom(BELL_CHAR, Bell);
 	lcd_setup_custom(HORN_CHAR, Horn);
@@ -513,10 +594,14 @@ int main(void)
 	lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
 	lcd_setup_custom(BARGRAPH_FULL, BarGraphFull);
 
+	wdt_reset();
+
 	// Initialize the buttons so there are no startup artifacts when we actually use them
 	inputButtons = PINB & (0xF6);
 
 	wait100ms(20);
+
+	wdt_reset();
 
 	lcd_clrscr();
 	buttonsEnable();
@@ -1280,7 +1365,6 @@ int main(void)
 			ADCSRA &= ~_BV(ADEN);
 			setXbeeSleep();
 			lcdDisable();
-			PORTC &= ~(0xFC);  // Set LCD lines low
 			lcdBacklightDisable();
 			switchesDisable();  // Don't disable buttons
 			disableThrottle();
@@ -1290,6 +1374,7 @@ int main(void)
 			disableReverser();
 			disableLightSwitches();
 
+			// Wake up from sleep on a button press or taking the reverser out of neutral
 			while(
 				(NO_BUTTON == button) &&
 				(FORWARD != reverserPosition) &&
@@ -1304,11 +1389,10 @@ int main(void)
 
 			sleepDeciSecs = sleep_tmr_reset_value;
 			
-			// Re-enable chip internal bits (ADC, pots, reverser, lights done in main loop)
+			// Re-enable chip internal bits (ADC, pots, reverser, light switches done in main loop)
 			setXbeeActive();
 			lcdEnable();
 			lcd_init(LCD_DISP_ON);
-			lcdBacklightEnable();
 			switchesEnable();
 			enableThrottle();
 		}

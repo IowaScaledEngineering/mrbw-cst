@@ -11,10 +11,10 @@
 #define LCD_POWER      PA6
 #define LCD_BACKLIGHT  PA5
 
-#define ENABLE_REVERSER PC0
-#define ENABLE_POTS     PC1
-#define ENABLE_LIGHTSWS PD5
-#define ENABLE_THROTTLE PD4
+#define REVERSER_ENABLE PC0
+#define POTS_ENABLE     PC1
+#define LIGHTSW_ENABLES PD5
+#define THROTTLE_ENABLE PD4
 
 #define ANALOG_VREV     PA0
 #define ANALOG_VBRAKE   PA1
@@ -124,6 +124,7 @@ inline void lcdEnable()
 inline void lcdDisable()
 {
 	PORTA |= _BV(LCD_POWER);
+	PORTC &= ~(0xFC);  // Set LCD lines low  FIXME: use #define for LCD pins?
 }
 
 inline void lcdBacklightEnable()
@@ -138,47 +139,44 @@ inline void lcdBacklightDisable()
 
 inline void enablePots()
 {
-	PORTC |= _BV(ENABLE_POTS);
+	PORTC |= _BV(POTS_ENABLE);
 }
 
 inline void disablePots()
 {
-	PORTC &= ~_BV(ENABLE_POTS);
+	PORTC &= ~_BV(POTS_ENABLE);
 }
 
 inline void enableReverser()
 {
-	PORTC |= _BV(ENABLE_REVERSER);
+	PORTC |= _BV(REVERSER_ENABLE);
 }
 
 inline void disableReverser()
 {
-	PORTC &= ~_BV(ENABLE_REVERSER);
+	PORTC &= ~_BV(REVERSER_ENABLE);
 }
 
 inline void enableLightSwitches()
 {
-	PORTD |= _BV(ENABLE_LIGHTSWS);
+	PORTD |= _BV(LIGHTSW_ENABLES);
 }
 
 inline void disableLightSwitches()
 {
-	PORTD &= ~_BV(ENABLE_LIGHTSWS);
+	PORTD &= ~_BV(LIGHTSW_ENABLES);
 }
 
 inline void enableThrottle()
 {
-	PORTD |= _BV(ENABLE_THROTTLE);
+	PORTD |= _BV(THROTTLE_ENABLE);
 }
 
 inline void disableThrottle()
 {
-	PORTD &= ~_BV(ENABLE_THROTTLE);
+	PORTD &= ~_BV(THROTTLE_ENABLE);
 }
 
-
 void ledUpdate();
-
-uint16_t system_sleep(uint16_t);
 
 #endif
