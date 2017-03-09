@@ -100,7 +100,7 @@ uint16_t sleep_tmr_reset_value;
 typedef enum
 {
 	MAIN_SCREEN = 0,
-	DEBUG2_SCREEN,
+//	DEBUG2_SCREEN,
 	LOCO_SCREEN,
 	TONNAGE_SCREEN,
 	FUNC_SCREEN,
@@ -520,6 +520,33 @@ void init(void)
 	initialize100HzTimer();
 }
 
+void initLCD(void)
+{
+	lcd_init(LCD_DISP_ON);
+	lcdBacklightEnable();
+
+	wdt_reset();	
+
+	lcd_gotoxy(1, 0);
+	lcd_puts("Proto");
+	lcd_gotoxy(0, 1);
+	lcd_puts("Throttle");
+
+	wdt_reset();
+
+	lcd_setup_custom(BELL_CHAR, Bell);
+	lcd_setup_custom(HORN_CHAR, Horn);
+	lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
+	lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
+	lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
+	lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
+	lcd_setup_custom(BARGRAPH_FULL, BarGraphFull);
+
+	wdt_reset();
+
+	wait100ms(20);
+	lcd_clrscr();
+}
 
 int main(void)
 {
@@ -564,7 +591,6 @@ int main(void)
 	sleepDeciSecs = sleep_tmr_reset_value;
 	
 	lcdEnable();
-	lcdBacklightEnable();
 
 	wdt_reset();
 
@@ -584,35 +610,12 @@ int main(void)
 	wdt_reset();
 
 	led = LED_OFF;
-	lcd_init(LCD_DISP_ON);
 
-	wdt_reset();	
-
-	lcd_gotoxy(1, 0);
-	lcd_puts("Proto");
-	lcd_gotoxy(0, 1);
-	lcd_puts("Throttle");
-
-	wdt_reset();
-
-	lcd_setup_custom(BELL_CHAR, Bell);
-	lcd_setup_custom(HORN_CHAR, Horn);
-	lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
-	lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
-	lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
-	lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
-	lcd_setup_custom(BARGRAPH_FULL, BarGraphFull);
-
-	wdt_reset();
+	initLCD();
 
 	// Initialize the buttons so there are no startup artifacts when we actually use them
 	inputButtons = PINB & (0xF6);
 
-	wait100ms(20);
-
-	wdt_reset();
-
-	lcd_clrscr();
 	buttonsEnable();
 	switchesEnable();
 
@@ -1242,11 +1245,11 @@ int main(void)
 
 				break;
 
-			case DEBUG2_SCREEN:
-				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				printDec4DigWZero(sleepDeciSecs);
-				break;
+/*			case DEBUG2_SCREEN:*/
+/*				lcdBacklightEnable();*/
+/*				lcd_gotoxy(0,0);*/
+/*				printDec4DigWZero(sleepDeciSecs);*/
+/*				break;*/
 
 			case VBAT_SCREEN:
 				lcdBacklightEnable();
@@ -1441,6 +1444,7 @@ int main(void)
 				// FIXME: quick read reverser
 				inputButtons = PINB & (0xF7);
 				processButtons(inputButtons);
+				previousButton = button;
 			}
 
 			sleepDeciSecs = sleep_tmr_reset_value;
@@ -1448,7 +1452,7 @@ int main(void)
 			// Re-enable chip internal bits (ADC, pots, reverser, light switches done in main loop)
 			setXbeeActive();
 			lcdEnable();
-			lcd_init(LCD_DISP_ON);
+			initLCD();
 			switchesEnable();
 			enableThrottle();
 		}
