@@ -1,8 +1,8 @@
 #*************************************************************************
-#Title:    MRBW-CST v1 Makefile
+#Title:    MRBW-CST Makefile
 #Authors:  Michael Petersen <railfan@drgw.net>
 #          Nathan Holmes <maverick@drgw.net>
-#File:     MRB-AVRTEMPLATE Makefile
+#File:     MRBW-CST Makefile
 #License:  GNU General Public License v3
 #
 #LICENSE:
@@ -42,8 +42,6 @@ FUSE_H  = 0xD1
 FUSE_E  = 0xFD
 
 GITREV := 'GIT_REV=0x$(shell git rev-parse --short=6 HEAD)L'
-# MRBus
-
 
 DEFINES := -DMRBEE -D$(GITREV) -DENABLE_WATCHDOG -DHWREV_MAJOR=1 -DHWREV_MINOR=1 -DMRBEE_IGNORE_FLOW
 SRCS = $(BASE_NAME).c lcd.c cst-hardware.c $(MRBUS_LIB)/mrbee-avr.c $(MRBUS_LIB)/mrbus-crc.c $(MRBUS_LIB)/mrbus-queue.c

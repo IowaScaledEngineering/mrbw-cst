@@ -26,6 +26,7 @@ LICENSE:
 #include <avr/wdt.h>
 #include <avr/sleep.h>
 #include <util/delay.h>
+#include <util/atomic.h>
 #include "lcd.h"
 #include "cst-lcd.h"
 #include "cst-hardware.h"
@@ -90,6 +91,7 @@ volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
 
 volatile uint8_t ticks;
 volatile uint16_t decisecs = 0;
+volatile uint16_t sleepTimeout_decisecs = 0;
 volatile uint16_t update_decisecs = 10;
 volatile uint8_t status = 0;
 
@@ -375,8 +377,6 @@ void initialize100HzTimer(void)
 volatile uint8_t throttlePosition = 0;
 volatile uint8_t throttleQuadrature = 0;
 
-volatile uint16_t sleepDeciSecs = 0;
-
 ISR(TIMER0_COMPA_vect)
 {
 	static uint8_t throttleQuadrature;
@@ -400,9 +400,9 @@ ISR(TIMER0_COMPA_vect)
 //		if (pktTimeout)
 	//		pktTimeout--;
 		
-		if(sleepDeciSecs)
+		if(sleepTimeout_decisecs)
 		{
-			sleepDeciSecs--;
+			sleepTimeout_decisecs--;
 		}
 
 		ledUpdate();
@@ -550,6 +550,9 @@ void initLCD(void)
 
 int main(void)
 {
+	uint16_t decisecs_tmp;
+	uint8_t i;
+
 	uint8_t inputButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 	uint8_t controlsChanged = 0;
@@ -569,7 +572,6 @@ int main(void)
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
 	uint8_t subscreenStatus = 0;
 
-	uint8_t i;
 	uint8_t allowLatch;
 	
 	uint8_t decimalNumberIndex = 0;
@@ -588,7 +590,10 @@ int main(void)
 
 	setXbeeActive();
 
-	sleepDeciSecs = sleep_tmr_reset_value;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		sleepTimeout_decisecs = sleep_tmr_reset_value;
+	}
 	
 	lcdEnable();
 
@@ -826,8 +831,6 @@ int main(void)
 			case TONNAGE_SCREEN:
 				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
-				lcd_puts("WEIGHT");
-				lcd_gotoxy(0,1);
 				switch(tonnage)
 				{
 					case 0:
@@ -841,6 +844,18 @@ int main(void)
 						break;
 					case 3:
 						lcd_puts("HEAVY ");
+						break;
+				}
+				lcd_gotoxy(0,1);
+				switch(tonnage)
+				{
+					case 0:
+						lcd_puts("ENGINE");
+						break;
+					case 1:
+					case 2:
+					case 3:
+						lcd_puts("WEIGHT");
 						break;
 				}
 				printTonnage(tonnage);
@@ -1248,7 +1263,7 @@ int main(void)
 /*			case DEBUG2_SCREEN:*/
 /*				lcdBacklightEnable();*/
 /*				lcd_gotoxy(0,0);*/
-/*				printDec4DigWZero(sleepDeciSecs);*/
+/*				printDec4DigWZero(sleepTimeout_decisecs);*/
 /*				break;*/
 
 			case VBAT_SCREEN:
@@ -1305,7 +1320,10 @@ int main(void)
 			(REVERSE == reverserPosition)
 			)
 		{
-			sleepDeciSecs = sleep_tmr_reset_value;
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				sleepTimeout_decisecs = sleep_tmr_reset_value;
+			}
 		}
 
 		previousButton = button;
@@ -1326,7 +1344,11 @@ int main(void)
 							(frontLight != lastFrontLight) ||
 							(rearLight != lastRearLight);
 		
-		if (( (controlsChanged && decisecs > 1) || (decisecs >= update_decisecs))
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			decisecs_tmp = decisecs;
+		}
+		if (( (controlsChanged && decisecs_tmp > 1) || (decisecs_tmp >= update_decisecs))
 				&& !(mrbusPktQueueFull(&mrbeeTxQueue)))
 		{
 			controlsChanged = 0;
@@ -1406,7 +1428,10 @@ int main(void)
 
 			txBuffer[15] = batteryVoltage;	
 			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-			decisecs = 0;
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				decisecs = 0;
+			}
 		}
 
 		if (mrbusPktQueueDepth(&mrbeeTxQueue))
@@ -1415,7 +1440,11 @@ int main(void)
 			mrbeeTransmit();
 		}
 
-		while (0 == sleepDeciSecs)
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			decisecs_tmp = sleepTimeout_decisecs;
+		}
+		if (0 == decisecs_tmp)
 		{
 			// Time to nod off
 			led = LED_OFF;
@@ -1446,8 +1475,6 @@ int main(void)
 				processButtons(inputButtons);
 				previousButton = button;
 			}
-
-			sleepDeciSecs = sleep_tmr_reset_value;
 			
 			// Re-enable chip internal bits (ADC, pots, reverser, light switches done in main loop)
 			setXbeeActive();
@@ -1455,6 +1482,11 @@ int main(void)
 			initLCD();
 			switchesEnable();
 			enableThrottle();
+
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				sleepTimeout_decisecs = sleep_tmr_reset_value;
+			}
 		}
 
 	}
