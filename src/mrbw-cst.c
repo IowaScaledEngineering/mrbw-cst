@@ -519,7 +519,6 @@ int main(void)
 
 	uint8_t inputButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
-	uint8_t controlsChanged = 0;
 
 	uint8_t lastControls = controls;
 	uint8_t lastThrottlePosition = throttlePosition;
@@ -528,6 +527,8 @@ int main(void)
 	uint8_t lastHornPosition = hornPosition;
 	LightPosition lastFrontLight = frontLight;
 	LightPosition lastRearLight = rearLight;
+	uint8_t optionButtonState = 0;
+	uint8_t lastOptionButtonState = optionButtonState;
 
 	uint8_t tonnage = 0;
 	
@@ -540,8 +541,6 @@ int main(void)
 	
 	uint8_t decimalNumberIndex = 0;
 	uint8_t decimalNumber[4];
-
-	uint8_t optionButtonState = 0;
 
 	uint8_t *functionPtr = &hornFunction;
 
@@ -1293,34 +1292,36 @@ int main(void)
 		previousButton = button;
 
 		// Transmission criteria...
-		// > 2 decisec from last transmission and...
-		// current throttle reading is not the same as before and the direction is non-idle
-		// the function buttons changed
+		// > 1 decisec from last transmission and...
+		// stuff changed
 		// *****  or *****
 		// it's been more than the transmission timeout
 		
 		wdt_reset();
-		controlsChanged =	(reverserPosition != lastReverserPosition) ||
-							(throttlePosition != lastThrottlePosition) ||
-							(brakePosition != lastBrakePosition) ||
-							(hornPosition != lastHornPosition) ||
-							(controls != lastControls) ||
-							(frontLight != lastFrontLight) ||
-							(rearLight != lastRearLight);
+
+		uint8_t inputsChanged =	(reverserPosition != lastReverserPosition) ||
+									(throttlePosition != lastThrottlePosition) ||
+									(brakePosition != lastBrakePosition) ||
+									(hornPosition != lastHornPosition) ||
+									(controls != lastControls) ||
+									(optionButtonState != lastOptionButtonState) ||
+									(frontLight != lastFrontLight) ||
+									(rearLight != lastRearLight);
 		
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
 			decisecs_tmp = decisecs;
 		}
-		if (( (controlsChanged && decisecs_tmp > 1) || (decisecs_tmp >= update_decisecs))
+		if (( (inputsChanged && decisecs_tmp > 1) || (decisecs_tmp >= update_decisecs))
 				&& !(mrbusPktQueueFull(&mrbeeTxQueue)))
 		{
-			controlsChanged = 0;
+			inputsChanged = 0;
 			lastReverserPosition = reverserPosition;
 			lastThrottlePosition = throttlePosition;
 			lastBrakePosition = brakePosition;
 			lastHornPosition = hornPosition;
 			lastControls = controls;
+			lastOptionButtonState = optionButtonState;
 			lastFrontLight = frontLight;
 			lastRearLight = rearLight;
 			
