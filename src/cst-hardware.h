@@ -38,6 +38,7 @@ extern ReverserPosition reverserPosition;
 
 extern uint8_t brakePosition;
 extern uint8_t hornPosition;
+extern volatile uint8_t throttlePosition;
 
 typedef enum
 {
@@ -55,10 +56,12 @@ extern LightPosition rearLight;
 
 extern uint8_t batteryVoltage;
 
+void initPorts();
+
 void initADC();
 void processADC();
 
-void initPorts();
+void initThrottle();
 
 typedef enum
 {

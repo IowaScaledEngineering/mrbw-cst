@@ -390,3 +390,46 @@ void ledUpdate()
 }
 
 
+volatile uint8_t throttlePosition = 0;
+volatile uint8_t throttleQuadrature;
+
+void initThrottle(void)
+{
+	
+	EIMSK = 0;  // Turn off interrupts while configuring
+	EICRA |= _BV(ISC10) | _BV(ISC00);  // Enable any edge on INT0 and INT1
+	throttleQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
+	EIMSK = _BV(INT1) | _BV(INT0);  // Enable INT0 and INT1 interrupts
+}
+
+ISR(INT0_vect)
+{
+	uint8_t newQuadrature;
+	
+	newQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
+
+	uint8_t quadratureUp[] = {1, 3, 0, 2};
+	uint8_t quadratureDown[] = {2, 0, 3, 1};
+
+	if (newQuadrature != throttleQuadrature)
+	{
+
+		if (newQuadrature == quadratureUp[throttleQuadrature & 0x03])
+		{
+			if (throttlePosition > 0)
+				throttlePosition--;
+		}
+		else if (newQuadrature == quadratureDown[throttleQuadrature & 0x03])
+		{
+			if (throttlePosition < 8)
+				throttlePosition++;
+		}
+		else
+			throttlePosition = 0;	
+	}
+	throttleQuadrature = newQuadrature & 0x03;
+}
+
+ISR(INT1_vect, ISR_ALIASOF(INT0_vect));
+
+

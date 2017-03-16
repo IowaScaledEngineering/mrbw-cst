@@ -374,22 +374,8 @@ void initialize100HzTimer(void)
 	TIMSK0 |= _BV(OCIE0A);
 }
 
-volatile uint8_t throttlePosition = 0;
-volatile uint8_t throttleQuadrature = 0;
-
 ISR(TIMER0_COMPA_vect)
 {
-	static uint8_t throttleQuadrature;
-	static uint8_t initialized = 0;
-	uint8_t newQuadrature;
-	
-	if (!initialized)
-	{
-		enableThrottle();	
-		initialized = 1;
-		throttleQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
-	}
-
 	status |= STATUS_READ_SWITCHES;
 
 	if (++ticks >= 10)  // 100ms
@@ -410,31 +396,7 @@ ISR(TIMER0_COMPA_vect)
 
 	if(ticks_autoincrement < button_autoincrement_10ms_ticks)
 			ticks_autoincrement++;
-
-	newQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
-
-	uint8_t quadratureUp[] = {1, 3, 0, 2};
-	uint8_t quadratureDown[] = {2, 0, 3, 1};
-
-	if (newQuadrature != throttleQuadrature)
-	{
-
-		if (newQuadrature == quadratureUp[throttleQuadrature & 0x03])
-		{
-			if (throttlePosition > 0)
-				throttlePosition--;
-		}
-		else if (newQuadrature == quadratureDown[throttleQuadrature & 0x03])
-		{
-			if (throttlePosition < 8)
-				throttlePosition++;
-		}
-		else
-			throttlePosition = 0;	
-	}
-	throttleQuadrature = newQuadrature & 0x03;	
 }
-
 
 void wait100ms(uint16_t loops)
 {
@@ -517,6 +479,8 @@ void init(void)
 
 	initPorts();
 	initADC();
+	enableThrottle();
+	initThrottle();
 	initialize100HzTimer();
 }
 
