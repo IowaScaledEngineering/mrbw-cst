@@ -1670,10 +1670,10 @@ int main(void)
 				)
 			{
 				system_sleep(10);
-				// FIXME: quick read reverser
+				// Quick read buttons
 				inputButtons = PINB & (0xF7);
 				processButtons(inputButtons);
-				previousButton = button;
+				// FIXME: quick read reverser
 			}
 			
 			// Re-enable chip internal bits (ADC, pots, reverser, light switches done in main loop)
@@ -1682,6 +1682,15 @@ int main(void)
 			initLCD();
 			switchesEnable();
 			enableThrottle();
+
+			// Initialize the buttons so there are no startup artifacts when we actually use them
+			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
+			processButtons(inputButtons);
+			processSwitches(inputButtons);
+			previousButton = button;  // Prevent extraneous menu advances
 
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
