@@ -59,6 +59,8 @@ LICENSE:
 #define EE_DEVICE_SLEEP_TIMEOUT       0x10
 #define EE_LOCO_ADDRESS               0x11
 
+#define EE_BASE_ADDR                  0x1F
+
 #define EE_HORN_FUNCTION              0x20
 #define EE_BELL_FUNCTION              0x21
 #define EE_FRONT_DIM1_FUNCTION        0x22
@@ -80,6 +82,7 @@ MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
 uint8_t mrbus_dev_addr = 0;
+uint8_t mrbus_base_addr = 0;
 uint16_t locoAddress = 0;
 
 uint8_t hornFunction = 2;
@@ -112,7 +115,8 @@ typedef enum
 	TONNAGE_SCREEN,
 	FUNC_SET_SCREEN,
 	FUNC_CONFIG_SCREEN,
-	MRBUS_SCREEN,
+	MRBUS_DEV_SCREEN,
+	MRBUS_BASE_SCREEN,
 	SLEEP_SCREEN,
 	DEBUG_SCREEN,
 	VBAT_SCREEN,
@@ -450,6 +454,14 @@ void readConfig(void)
 		mrbus_dev_addr = 0x30;
 		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
 	}
+
+	mrbus_base_addr = eeprom_read_byte((uint8_t*)EE_BASE_ADDR);
+	// Bogus addresses, fix to default address
+	if (0xFF == mrbus_base_addr || 0x00 == mrbus_base_addr)
+	{
+		mrbus_base_addr = 0xF0;
+		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
+	}
 	
 	// Locomotive Address
 	locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
@@ -565,6 +577,7 @@ int main(void)
 	// Assign after init() so values are read from EEPROM first
 	uint16_t newLocoAddress = locoAddress;
 	uint8_t newDevAddr = mrbus_dev_addr;
+	uint8_t newBaseAddr = mrbus_base_addr;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
 
 	setXbeeActive();
@@ -1200,10 +1213,10 @@ int main(void)
 				}
 				break;
 
-			case MRBUS_SCREEN:
+			case MRBUS_DEV_SCREEN:
 				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
-				lcd_puts("MRB ADR");
+				lcd_puts("THR ADR");
 				lcd_gotoxy(2,1);
 				lcd_puts("0x");
 				printHex(newDevAddr);
@@ -1236,6 +1249,55 @@ int main(void)
 						break;
 					case MENU_BUTTON:
 						newDevAddr = mrbus_dev_addr;  // Reset newDevAddr since no changes were commited
+						break;
+					case NO_BUTTON:
+						break;
+				}
+				break;
+
+			case MRBUS_BASE_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				lcd_puts("BASE ADR");
+				lcd_gotoxy(2,1);
+				if(0xFF != newBaseAddr)
+				{
+					lcd_puts("0x");
+					printHex(newBaseAddr);
+				}
+				else
+				{
+					lcd_puts("ANY ");
+				}
+				switch(button)
+				{
+					case UP_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newBaseAddr < 0xFF)
+								newBaseAddr++;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case DOWN_BUTTON:
+						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+						{
+							if(newBaseAddr > 0)
+								newBaseAddr--;
+							ticks_autoincrement = 0;
+						}
+						break;
+					case SELECT_BUTTON:
+						eeprom_write_byte((uint8_t*)EE_BASE_ADDR, newBaseAddr);
+						mrbus_base_addr = eeprom_read_byte((uint8_t*)EE_BASE_ADDR);
+						lcd_clrscr();
+						lcd_gotoxy(1,0);
+						lcd_puts("SAVED!");
+						wait100ms(7);
+						screenState = LAST_SCREEN;
+						break;
+					case MENU_BUTTON:
+						newBaseAddr = mrbus_base_addr;  // Reset newBaseAddr since no changes were commited
 						break;
 					case NO_BUTTON:
 						break;
@@ -1528,7 +1590,7 @@ int main(void)
 			lastThrottlePosition = throttlePosition;
 			lastFunctionMask = functionMask;
 			
-			txBuffer[MRBUS_PKT_DEST] = 0xFF;
+			txBuffer[MRBUS_PKT_DEST] = mrbus_base_addr;
 			txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
 			txBuffer[MRBUS_PKT_LEN] = 14;
 			txBuffer[5] = 'S';
