@@ -63,6 +63,8 @@ void processADC();
 
 void initThrottle();
 
+uint8_t adcLoopInitialized(void);
+
 typedef enum
 {
 	LED_OFF = 0x00,

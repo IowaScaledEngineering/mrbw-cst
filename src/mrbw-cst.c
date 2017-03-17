@@ -933,13 +933,14 @@ int main(void)
 				}
 				else
 				{
+					// Note: _BV() macro doesn't work on 32-bit numbers.  Thus why (1 << functionNumber) is used
 					lcd_gotoxy(0,0);
 					lcd_puts("F");
 					printDec2DigWZero(functionNumber);
 					lcd_gotoxy(5,0);
-					if(functionForceOn & _BV(functionNumber))
+					if(functionForceOn & ((uint32_t)1 << functionNumber))
 						lcd_puts(" ON");
-					else if(functionForceOff & _BV(functionNumber))
+					else if(functionForceOff & ((uint32_t)1 << functionNumber))
 						lcd_puts("OFF");
 					else
 						lcd_puts("---");
@@ -948,17 +949,17 @@ int main(void)
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if( (functionForceOn & _BV(functionNumber)) || (functionForceOff & _BV(functionNumber)) )
+								if( (functionForceOn & ((uint32_t)1 << functionNumber)) || (functionForceOff & ((uint32_t)1 << functionNumber)) )
 								{
 									// Function turned on, change to turned off (or already turned off)
-									functionForceOn &= ~_BV(functionNumber);
-									functionForceOff |= _BV(functionNumber);
+									functionForceOn &= ~((uint32_t)1 << functionNumber);
+									functionForceOff |= ((uint32_t)1 << functionNumber);
 								}
 								else
 								{
 									// Function disabled, turn on
-									functionForceOff &= ~_BV(functionNumber);
-									functionForceOn |= _BV(functionNumber);
+									functionForceOff &= ~((uint32_t)1 << functionNumber);
+									functionForceOn |= ((uint32_t)1 << functionNumber);
 								}
 								ticks_autoincrement = 0;
 							}
@@ -966,17 +967,17 @@ int main(void)
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(functionForceOff & _BV(functionNumber))
+								if(functionForceOff & ((uint32_t)1 << functionNumber))
 								{
 									// Function turned off, change to turned on
-									functionForceOff &= ~_BV(functionNumber);
-									functionForceOn |= _BV(functionNumber);
+									functionForceOff &= ~((uint32_t)1 << functionNumber);
+									functionForceOn |= ((uint32_t)1 << functionNumber);
 								}
 								else
 								{
 									// Function turned on or disabled, disable
-									functionForceOff &= ~_BV(functionNumber);
-									functionForceOn &= ~_BV(functionNumber);
+									functionForceOff &= ~((uint32_t)1 << functionNumber);
+									functionForceOn &= ~((uint32_t)1 << functionNumber);
 								}
 								ticks_autoincrement = 0;
 							}
@@ -1582,8 +1583,11 @@ int main(void)
 		{
 			decisecs_tmp = decisecs;
 		}
-		if (( (inputsChanged && decisecs_tmp > 1) || (decisecs_tmp >= update_decisecs))
-				&& !(mrbusPktQueueFull(&mrbeeTxQueue)))
+		if (
+				adcLoopInitialized() &&
+				((inputsChanged && decisecs_tmp > 1) || (decisecs_tmp >= update_decisecs)) &&
+				!(mrbusPktQueueFull(&mrbeeTxQueue))
+			)
 		{
 			inputsChanged = 0;
 			lastReverserPosition = reverserPosition;

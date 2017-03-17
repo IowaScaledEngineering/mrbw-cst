@@ -41,6 +41,8 @@ LightPosition rearLight = LIGHT_OFF;
 
 uint8_t batteryVoltage = 0;
 
+uint8_t adcLoopCount = 0;
+
 void initPorts()
 {
 	// DDR = 0 - Input / 1 - Output
@@ -109,6 +111,8 @@ void initADC()
 	ADCSRA = _BV(ADATE) | _BV(ADIF) | _BV(ADPS2) | _BV(ADPS1); // 128 prescaler
 	ADCSRB = 0x00;
 	ADCSRA |= _BV(ADSC) | _BV(ADIE) | _BV(ADIF);
+	
+	adcLoopCount = 0;
 }
 
 volatile uint16_t adcAccumulator = 0;
@@ -136,7 +140,7 @@ void startADC(uint8_t mux)
 
 void processADC()
 {
-	static ADCState adcState = ADC_STATE_LAST;  // Initialize to the last one, since that's the only state guaranteed to be present
+	static ADCState adcState = 0;
 	
 	if(!(ADCSRA & _BV(ADEN)))
 	{
@@ -284,13 +288,22 @@ void processADC()
 				break;
 
 			case ADC_STATE_LAST:
+				if(adcLoopCount < 255)
+					adcLoopCount++;  // Saturate at 255
 				adcState = 0;
 				break;		
 		}
 	}
 }
 
-
+uint8_t adcLoopInitialized(void)
+{
+	// Make sure all the ADC averaging is settled
+	if(adcLoopCount > 32)
+		return(1);
+	else
+		return(0);
+}
 
 void ledUpdate()
 {
