@@ -72,6 +72,8 @@ LICENSE:
 #define EE_DYNAMIC_FUNCTION           0x2A
 #define EE_UP_BUTTON_FUNCTION         0x2B
 #define EE_DOWN_BUTTON_FUNCTION       0x2C
+#define EE_FUNC_FORCE_ON              0x30
+#define EE_FUNC_FORCE_OFF             0x34
 
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
@@ -105,7 +107,8 @@ typedef enum
 //	DEBUG2_SCREEN,
 	LOCO_SCREEN,
 	TONNAGE_SCREEN,
-	FUNC_SCREEN,
+	FUNC_SET_SCREEN,
+	FUNC_CONFIG_SCREEN,
 	MRBUS_SCREEN,
 	SLEEP_SCREEN,
 	DEBUG_SCREEN,
@@ -146,6 +149,9 @@ typedef enum
 } Functions;
 
 Functions functionSetting = HORN_FN;
+
+uint32_t functionForceOn  = 0;
+uint32_t functionForceOff = 0;
 
 #define UP_OPTION_BUTTON   0x01
 #define DOWN_OPTION_BUTTON 0x02
@@ -458,6 +464,9 @@ void readConfig(void)
 	dynamicFunction = eeprom_read_byte((uint8_t*)EE_DYNAMIC_FUNCTION);
 	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
 	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
+	
+	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
+	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
 }
 
 void init(void)
@@ -543,6 +552,7 @@ int main(void)
 	uint8_t decimalNumber[4];
 
 	uint8_t *functionPtr = &hornFunction;
+	uint8_t functionNumber = 0;
 
 	init();
 
@@ -851,7 +861,111 @@ int main(void)
 				}
 				break;
 
-			case FUNC_SCREEN:
+			case FUNC_SET_SCREEN:
+				lcdBacklightEnable();
+				if(!subscreenStatus)
+				{
+					lcd_gotoxy(0,0);
+					lcd_puts("    SET");
+					lcd_gotoxy(0,1);
+					lcd_puts("<-- FUNC");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								functionNumber = 0;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					lcd_gotoxy(0,0);
+					lcd_puts("F");
+					printDec2DigWZero(functionNumber);
+					lcd_gotoxy(5,0);
+					if(functionForceOn & _BV(functionNumber))
+						lcd_puts(" ON");
+					else if(functionForceOff & _BV(functionNumber))
+						lcd_puts("OFF");
+					else
+						lcd_puts("---");
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if( (functionForceOn & _BV(functionNumber)) || (functionForceOff & _BV(functionNumber)) )
+								{
+									// Function turned on, change to turned off (or already turned off)
+									functionForceOn &= ~_BV(functionNumber);
+									functionForceOff |= _BV(functionNumber);
+								}
+								else
+								{
+									// Function disabled, turn on
+									functionForceOff &= ~_BV(functionNumber);
+									functionForceOn |= _BV(functionNumber);
+								}
+								ticks_autoincrement = 0;
+							}
+							break;
+						case DOWN_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(functionForceOff & _BV(functionNumber))
+								{
+									// Function turned off, change to turned on
+									functionForceOff &= ~_BV(functionNumber);
+									functionForceOn |= _BV(functionNumber);
+								}
+								else
+								{
+									// Function turned on or disabled, disable
+									functionForceOff &= ~_BV(functionNumber);
+									functionForceOn &= ~_BV(functionNumber);
+								}
+								ticks_autoincrement = 0;
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, functionForceOn);
+								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, functionForceOff);
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;
+								screenState = LAST_SCREEN;
+							}
+							break;
+						case MENU_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								// Advance through function settings
+								lcd_clrscr();
+								if(++functionNumber > 28)
+									functionNumber = 0;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case NO_BUTTON:
+							break;
+					}
+				}
+				break;
+
+			case FUNC_CONFIG_SCREEN:
 				lcdBacklightEnable();
 				if(!subscreenStatus)
 				{
