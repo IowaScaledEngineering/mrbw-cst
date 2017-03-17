@@ -70,8 +70,9 @@ LICENSE:
 #define EE_REAR_HEADLIGHT_FUNCTION    0x28
 #define EE_REAR_DITCH_FUNCTION        0x29
 #define EE_DYNAMIC_FUNCTION           0x2A
-#define EE_UP_BUTTON_FUNCTION         0x2B
-#define EE_DOWN_BUTTON_FUNCTION       0x2C
+#define EE_ENGINE_FUNCTION            0x2B
+#define EE_UP_BUTTON_FUNCTION         0x2C
+#define EE_DOWN_BUTTON_FUNCTION       0x2D
 #define EE_FUNC_FORCE_ON              0x30
 #define EE_FUNC_FORCE_OFF             0x34
 
@@ -85,7 +86,8 @@ uint8_t hornFunction = 2;
 uint8_t bellFunction = 7;
 uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
 uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
-uint8_t dynamicFunction = 8;
+uint8_t dynamicFunction = OFF_FUNCTION;
+uint8_t engineFunction = 8;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
 
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
@@ -105,6 +107,7 @@ typedef enum
 {
 	MAIN_SCREEN = 0,
 //	DEBUG2_SCREEN,
+	ENGINE_SCREEN,
 	LOCO_SCREEN,
 	TONNAGE_SCREEN,
 	FUNC_SET_SCREEN,
@@ -135,6 +138,7 @@ typedef enum
 	HORN_FN = 0,
 	BELL_FN,
 	DYNAMIC_FN,
+	ENGINE_FN,
 	FRONT_HEADLIGHT_FN,
 	FRONT_DITCH_FN,
 	FRONT_DIM1_FN,
@@ -462,6 +466,7 @@ void readConfig(void)
 	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
 	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
 	dynamicFunction = eeprom_read_byte((uint8_t*)EE_DYNAMIC_FUNCTION);
+	engineFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_FUNCTION);
 	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
 	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
 	
@@ -553,6 +558,8 @@ int main(void)
 
 	uint8_t *functionPtr = &hornFunction;
 	uint8_t functionNumber = 0;
+
+	uint8_t engineState = 0;
 
 	init();
 
@@ -703,6 +710,32 @@ int main(void)
 							optionButtonState &= ~UP_OPTION_BUTTON;
 						if(!(downButtonFunction & LATCH_FUNCTION))
 							optionButtonState &= ~DOWN_OPTION_BUTTON;
+						break;
+				}
+				break;
+
+			case ENGINE_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				lcd_puts(" ENGINE");
+				lcd_gotoxy(2,1);
+				if(engineState)
+					lcd_puts(" ON");
+				else
+					lcd_puts("OFF");
+				switch(button)
+				{
+					case UP_BUTTON:
+						engineState = 1;
+						break;
+					case DOWN_BUTTON:
+						engineState = 0;
+						break;
+					case SELECT_BUTTON:
+							screenState = LAST_SCREEN;
+							break;
+					case MENU_BUTTON:
+					case NO_BUTTON:
 						break;
 				}
 				break;
@@ -1010,6 +1043,11 @@ int main(void)
 							lcd_puts("D.BRAKE");
 							functionPtr = &dynamicFunction;
 							break;
+						case ENGINE_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("ENGINE");
+							functionPtr = &engineFunction;
+							break;
 						case FRONT_DIM1_FN:
 							lcd_gotoxy(0,0);
 							lcd_puts("F.DIM #1");
@@ -1137,6 +1175,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);
 								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);
 								eeprom_write_byte((uint8_t*)EE_DYNAMIC_FUNCTION, dynamicFunction);
+								eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, engineFunction);
 								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
 								lcd_clrscr();
