@@ -534,15 +534,9 @@ int main(void)
 	uint8_t inputButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 
-	uint8_t lastControls = controls;
 	uint8_t lastThrottlePosition = throttlePosition;
 	ReverserPosition lastReverserPosition = reverserPosition;
-	uint8_t lastBrakePosition = brakePosition;
-	uint8_t lastHornPosition = hornPosition;
-	LightPosition lastFrontLight = frontLight;
-	LightPosition lastRearLight = rearLight;
 	uint8_t optionButtonState = 0;
-	uint8_t lastOptionButtonState = optionButtonState;
 
 	uint8_t tonnage = 0;
 	
@@ -560,6 +554,11 @@ int main(void)
 	uint8_t functionNumber = 0;
 
 	uint8_t engineState = 0;
+
+	uint32_t functionMask = 0;
+	uint32_t lastFunctionMask = 0;
+	
+	ReverserPosition direction = FORWARD;
 
 	init();
 
@@ -1444,22 +1443,78 @@ int main(void)
 
 		previousButton = button;
 
+		wdt_reset();
+
+		functionMask = 0;
+		if((controls & HORN_CONTROL) && !(hornFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (hornFunction & 0x1F);
+		if((controls & BELL_CONTROL) && !(bellFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (bellFunction & 0x1F);
+		if((controls & DYNAMIC_CONTROL) && !(dynamicFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (dynamicFunction & 0x1F);
+		if(engineState && !(engineFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (engineFunction & 0x1F);
+		if((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (upButtonFunction & 0x1F);
+		if((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (downButtonFunction & 0x1F);
+		switch(frontLight)
+		{
+			case LIGHT_OFF:
+				break;
+			case LIGHT_DIM:
+				if(!(frontDim1Function & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (frontDim1Function & 0x1F);
+				if(!(frontDim2Function & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (frontDim2Function & 0x1F);
+				break;
+			case LIGHT_BRIGHT:
+				if(!(frontHeadlightFunction & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (frontHeadlightFunction & 0x1F);
+				break;
+			case LIGHT_BRIGHT_DITCH:
+				if(!(frontHeadlightFunction & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (frontHeadlightFunction & 0x1F);
+				if(!(frontDitchFunction & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (frontDitchFunction & 0x1F);
+				break;
+		}
+		switch(rearLight)
+		{
+			case LIGHT_OFF:
+				break;
+			case LIGHT_DIM:
+				if(!(rearDim1Function & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (rearDim1Function & 0x1F);
+				if(!(rearDim2Function & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (rearDim2Function & 0x1F);
+				break;
+			case LIGHT_BRIGHT:
+				if(!(rearHeadlightFunction & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (rearHeadlightFunction & 0x1F);
+				break;
+			case LIGHT_BRIGHT_DITCH:
+				if(!(rearHeadlightFunction & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (rearHeadlightFunction & 0x1F);
+				if(!(rearDitchFunction & OFF_FUNCTION))
+					functionMask |= (uint32_t)1 << (rearDitchFunction & 0x1F);
+				break;
+		}
+
+		functionMask |= functionForceOn;
+		functionMask &= ~functionForceOff;
+
+		uint8_t inputsChanged =	(reverserPosition != lastReverserPosition) ||
+									(throttlePosition != lastThrottlePosition) ||
+									(functionMask != lastFunctionMask);
+
+		wdt_reset();
+		
 		// Transmission criteria...
 		// > 1 decisec from last transmission and...
 		// stuff changed
 		// *****  or *****
 		// it's been more than the transmission timeout
-		
-		wdt_reset();
-
-		uint8_t inputsChanged =	(reverserPosition != lastReverserPosition) ||
-									(throttlePosition != lastThrottlePosition) ||
-									(brakePosition != lastBrakePosition) ||
-									(hornPosition != lastHornPosition) ||
-									(controls != lastControls) ||
-									(optionButtonState != lastOptionButtonState) ||
-									(frontLight != lastFrontLight) ||
-									(rearLight != lastRearLight);
 		
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
@@ -1471,80 +1526,41 @@ int main(void)
 			inputsChanged = 0;
 			lastReverserPosition = reverserPosition;
 			lastThrottlePosition = throttlePosition;
-			lastBrakePosition = brakePosition;
-			lastHornPosition = hornPosition;
-			lastControls = controls;
-			lastOptionButtonState = optionButtonState;
-			lastFrontLight = frontLight;
-			lastRearLight = rearLight;
+			lastFunctionMask = functionMask;
 			
 			txBuffer[MRBUS_PKT_DEST] = 0xFF;
 			txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
-			txBuffer[MRBUS_PKT_LEN] = 16;
+			txBuffer[MRBUS_PKT_LEN] = 14;
 			txBuffer[5] = 'S';
 
+			txBuffer[6] = locoAddress >> 8;
+			txBuffer[7] = locoAddress & 0xFF;
+			
+			uint8_t throttleTemp = throttlePosition * 16;
+			txBuffer[8] = (throttleTemp > 127) ? 127 : throttleTemp;
+			
 			switch(reverserPosition)
 			{
 				case FORWARD:
-					txBuffer[6] = 0x02;
-					break;
-				case NEUTRAL:
-					txBuffer[6] = 0x00;
+					direction = FORWARD;
 					break;
 				case REVERSE:
-					txBuffer[6] = 0x03;
+					direction = REVERSE;
+					break;
+				case NEUTRAL:
+					// Preserve previous direction
 					break;
 			}
-
-			// FIXME: need dynamic brake logic
-
-			uint16_t throttleTemp = throttlePosition * 32;
-			txBuffer[7] = (throttleTemp > 255) ? 255 : throttleTemp;
-
-			txBuffer[8] = 0x7F & brakePosition;
-			txBuffer[9] = brakePosition;
 			
-			txBuffer[10] = 0;
-			txBuffer[10] |= (controls & HORN_CONTROL) ? 0x80 : 0x00;
+			if(FORWARD == direction)
+				txBuffer[8] |= 0x80;
+			
+			txBuffer[9]  = functionMask >> 24;
+			txBuffer[10] = functionMask >> 16;
+			txBuffer[11] = functionMask >> 8;
+			txBuffer[12] = functionMask & 0xFF;
 
-			txBuffer[11] = 0;
-			txBuffer[11] |= (controls & BELL_CONTROL) ? 0x01 : 0x00;
-
-			txBuffer[12] = 0;
-
-			switch(frontLight)
-			{
-				case LIGHT_OFF:
-					txBuffer[13] = 0x00;
-					break;
-				case LIGHT_DIM:
-					txBuffer[13] = 0x01;
-					break;
-				case LIGHT_BRIGHT:
-					txBuffer[13] = 0x02;
-					break;
-				case LIGHT_BRIGHT_DITCH:
-					txBuffer[13] = 0x82;
-					break;
-			}
-
-			switch(rearLight)
-			{
-				case LIGHT_OFF:
-					txBuffer[14] = 0x00;
-					break;
-				case LIGHT_DIM:
-					txBuffer[14] = 0x01;
-					break;
-				case LIGHT_BRIGHT:
-					txBuffer[14] = 0x02;
-					break;
-				case LIGHT_BRIGHT_DITCH:
-					txBuffer[14] = 0x82;
-					break;
-			}
-
-			txBuffer[15] = batteryVoltage;	
+			txBuffer[13] = batteryVoltage;	
 			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
