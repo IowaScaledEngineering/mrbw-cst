@@ -115,8 +115,7 @@ typedef enum
 	TONNAGE_SCREEN,
 	FUNC_SET_SCREEN,
 	FUNC_CONFIG_SCREEN,
-	MRBUS_DEV_SCREEN,
-	MRBUS_BASE_SCREEN,
+	COMM_SCREEN,
 	SLEEP_SCREEN,
 	DEBUG_SCREEN,
 	VBAT_SCREEN,
@@ -580,6 +579,8 @@ int main(void)
 	uint8_t newBaseAddr = mrbus_base_addr;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
 
+	uint8_t *addrPtr = &newDevAddr;
+
 	setXbeeActive();
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -911,7 +912,7 @@ int main(void)
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(0,0);
-					lcd_puts("    SET");
+					lcd_puts("     SET");
 					lcd_gotoxy(0,1);
 					lcd_puts("<-- FUNC");
 					switch(button)
@@ -1214,94 +1215,108 @@ int main(void)
 				}
 				break;
 
-			case MRBUS_DEV_SCREEN:
+			case COMM_SCREEN:
 				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				lcd_puts("THR ADR");
-				lcd_gotoxy(2,1);
-				lcd_puts("0x");
-				printHex(newDevAddr);
-				switch(button)
+				if(!subscreenStatus)
 				{
-					case UP_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-						{
-							if(newDevAddr < 0xFE)
-								newDevAddr++;
-							ticks_autoincrement = 0;
-						}
-						break;
-					case DOWN_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-						{
-							if(newDevAddr > 0)
-								newDevAddr--;
-							ticks_autoincrement = 0;
-						}
-						break;
-					case SELECT_BUTTON:
-						eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, newDevAddr);
-						mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
-						lcd_clrscr();
-						lcd_gotoxy(1,0);
-						lcd_puts("SAVED!");
-						wait100ms(7);
-						screenState = LAST_SCREEN;
-						break;
-					case MENU_BUTTON:
-						newDevAddr = mrbus_dev_addr;  // Reset newDevAddr since no changes were commited
-						break;
-					case NO_BUTTON:
-						break;
-				}
-				break;
-
-			case MRBUS_BASE_SCREEN:
-				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				lcd_puts("BASE ADR");
-				lcd_gotoxy(2,1);
-				if(0xFF != newBaseAddr)
-				{
-					lcd_puts("0x");
-					printHex(newBaseAddr);
+					lcd_gotoxy(0,0);
+					lcd_puts("    COMM");
+					lcd_gotoxy(0,1);
+					lcd_puts("<--  CFG");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
 				}
 				else
 				{
-					lcd_puts("ANY ");
-				}
-				switch(button)
-				{
-					case UP_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-						{
-							if(newBaseAddr < 0xFF)
-								newBaseAddr++;
-							ticks_autoincrement = 0;
-						}
-						break;
-					case DOWN_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-						{
-							if(newBaseAddr > 0)
-								newBaseAddr--;
-							ticks_autoincrement = 0;
-						}
-						break;
-					case SELECT_BUTTON:
-						eeprom_write_byte((uint8_t*)EE_BASE_ADDR, newBaseAddr);
-						mrbus_base_addr = eeprom_read_byte((uint8_t*)EE_BASE_ADDR);
-						lcd_clrscr();
-						lcd_gotoxy(1,0);
-						lcd_puts("SAVED!");
-						wait100ms(7);
-						screenState = LAST_SCREEN;
-						break;
-					case MENU_BUTTON:
-						newBaseAddr = mrbus_base_addr;  // Reset newBaseAddr since no changes were commited
-						break;
-					case NO_BUTTON:
-						break;
+					lcdBacklightEnable();
+					lcd_gotoxy(0,0);
+					if(1 == subscreenStatus)
+					{
+						lcd_puts("THR ADR");
+						addrPtr = &newDevAddr;
+					}
+					else
+					{
+						lcd_puts("BASE ADR");
+						addrPtr = &newBaseAddr;
+					}
+					lcd_gotoxy(2,1);
+					if( (addrPtr == &newBaseAddr) && (0xFF == *addrPtr) )
+					{
+						lcd_puts("ALL ");
+					}
+					else
+					{
+						lcd_puts("0x");
+						printHex(*addrPtr);
+					}
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(*addrPtr < 0xFE)
+									(*addrPtr)++;
+								if( (0xFF == newDevAddr) )
+									newDevAddr = 0;  // Don't allow 0xFF for device address
+								ticks_autoincrement = 0;
+							}
+							break;
+						case DOWN_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(*addrPtr > 0)
+									(*addrPtr)--;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, newDevAddr);
+								eeprom_write_byte((uint8_t*)EE_BASE_ADDR, newBaseAddr);
+								mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
+								mrbus_base_addr = eeprom_read_byte((uint8_t*)EE_BASE_ADDR);
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenStatus++;
+								if(subscreenStatus > 2)
+									subscreenStatus = 1;
+								ticks_autoincrement = 0;
+							}
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								// Reset menu on long press
+								subscreenStatus = 0;  // Escape submenu with long press
+							}
+							lcd_clrscr();
+							break;
+						case NO_BUTTON:
+							break;
+					}
 				}
 				break;
 
@@ -1486,7 +1501,6 @@ int main(void)
 				if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 				{
 					// Reset menu on long press
-
 					screenState = LAST_SCREEN;
 				}
 			}
