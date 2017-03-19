@@ -1590,18 +1590,6 @@ int main(void)
 			}
 		}
 
-		// Reset sleep timer
-		if( (NO_BUTTON != button) ||
-			(FORWARD == reverserPosition) ||
-			(REVERSE == reverserPosition)
-			)
-		{
-			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-			{
-				sleepTimeout_decisecs = sleep_tmr_reset_value;
-			}
-		}
-
 		previousButton = button;
 
 		wdt_reset();
@@ -1668,6 +1656,15 @@ int main(void)
 		uint8_t inputsChanged =	(reverserPosition != lastReverserPosition) ||
 									(throttlePosition != lastThrottlePosition) ||
 									(functionMask != lastFunctionMask);
+
+		// Reset sleep timer
+		if( (NO_BUTTON != button) || inputsChanged )
+		{
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				sleepTimeout_decisecs = sleep_tmr_reset_value;
+			}
+		}
 
 		wdt_reset();
 		
