@@ -117,9 +117,7 @@ typedef enum
 	FUNC_CONFIG_SCREEN,
 	COMM_SCREEN,
 	PREFS_SCREEN,
-	DEBUG_SCREEN,
-	VBAT_SCREEN,
-	VERSION_SCREEN,
+	DIAG_SCREEN,
 	LAST_SCREEN  // Must be the last screen
 } Screens;
 
@@ -1396,120 +1394,173 @@ int main(void)
 						case NO_BUTTON:
 							break;
 					}
-					break;
 				}
 				break;
 
-			case DEBUG_SCREEN:
+			case DIAG_SCREEN:
 				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				if(0 == throttlePosition)
+				if(!subscreenStatus)
 				{
-					lcd_putc('I');
+					lcd_gotoxy(3,0);
+					lcd_puts("DIAGS");
+					lcd_gotoxy(0,1);
+					lcd_puts("<--");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
 				}
 				else
 				{
-					lcd_putc('0' + throttlePosition);
-				}
-				lcd_putc(' ');		
+					if(1 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						if(0 == throttlePosition)
+						{
+							lcd_putc('I');
+						}
+						else
+						{
+							lcd_putc('0' + throttlePosition);
+						}
+						lcd_putc(' ');		
 		
-				lcd_gotoxy(2,0);
-				if(brakePosition & 0x80)
-				{
-					lcd_putc('E');
-					lcd_putc('M');
-					lcd_putc('R');
-					lcd_putc('G');
+						lcd_gotoxy(2,0);
+						if(brakePosition & 0x80)
+						{
+							lcd_putc('E');
+							lcd_putc('M');
+							lcd_putc('R');
+							lcd_putc('G');
+						}
+						else
+						{
+							uint8_t brakePcnt = 100 * brakePosition / 128;
+							lcd_putc(' ');
+							printDec2Dig(brakePcnt);
+							lcd_putc('%');
+						}
+
+						lcd_gotoxy(7,0);
+						switch(reverserPosition)
+						{
+							case FORWARD:
+								lcd_putc('F');
+								break;
+							case NEUTRAL:
+								lcd_putc('N');
+								break;
+							case REVERSE:
+								lcd_putc('R');
+								break;
+						}
+
+						lcd_gotoxy(2, 1);
+						lcd_puts((controls & DYNAMIC_CONTROL) ? "DB":"  ");
+						lcd_gotoxy(4, 1);
+						lcd_putc((controls & BELL_CONTROL) ? BELL_CHAR : ' ');
+						lcd_gotoxy(5, 1);
+						lcd_putc((controls & HORN_CONTROL) ? HORN_CHAR : ' ');
+
+						lcd_gotoxy(7, 1);
+						switch(frontLight)
+						{
+							case LIGHT_OFF:
+								lcd_putc('-');
+								break;
+							case LIGHT_DIM:
+								lcd_putc('D');
+								break;
+							case LIGHT_BRIGHT:
+								lcd_putc('B');
+								break;
+							case LIGHT_BRIGHT_DITCH:
+								lcd_putc('*');
+								break;
+						}
+
+						lcd_gotoxy(0, 1);
+						switch(rearLight)
+						{
+							case LIGHT_OFF:
+								lcd_putc('-');
+								break;
+							case LIGHT_DIM:
+								lcd_putc('D');
+								break;
+							case LIGHT_BRIGHT:
+								lcd_putc('B');
+								break;
+							case LIGHT_BRIGHT_DITCH:
+								lcd_putc('*');
+								break;
+						}
+					}
+					else if(2 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						lcd_puts("SLEEP");
+						lcd_gotoxy(0,1);
+						printDec4DigWZero(sleepTimeout_decisecs);
+					}
+					else if(3 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						lcd_puts("BATTERY");
+						lcd_gotoxy(1,1);
+						lcd_putc('0' + (((batteryVoltage*2)/100)%10));
+						lcd_putc('.');
+						lcd_putc('0' + (((batteryVoltage*2)/10)%10));
+						lcd_putc('0' + ((batteryVoltage*2)%10));
+						lcd_putc('V');
+					}
+					else if(4 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						lcd_puts("VERSION");
+						lcd_gotoxy(1,1);
+						lcd_puts(VERSION_STRING);
+					}
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenStatus++;
+								if(subscreenStatus > 4)
+									subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
 				}
-				else
-				{
-					uint8_t brakePcnt = 100 * brakePosition / 128;
-					lcd_putc(' ');
-					printDec2Dig(brakePcnt);
-					lcd_putc('%');
-				}
-
-				lcd_gotoxy(7,0);
-				switch(reverserPosition)
-				{
-					case FORWARD:
-						lcd_putc('F');
-						break;
-					case NEUTRAL:
-						lcd_putc('N');
-						break;
-					case REVERSE:
-						lcd_putc('R');
-						break;
-				}
-
-				lcd_gotoxy(2, 1);
-				lcd_puts((controls & DYNAMIC_CONTROL) ? "DB":"  ");
-				lcd_gotoxy(4, 1);
-				lcd_putc((controls & BELL_CONTROL) ? BELL_CHAR : ' ');
-				lcd_gotoxy(5, 1);
-				lcd_putc((controls & HORN_CONTROL) ? HORN_CHAR : ' ');
-
-				lcd_gotoxy(7, 1);
-				switch(frontLight)
-				{
-					case LIGHT_OFF:
-						lcd_putc('-');
-						break;
-					case LIGHT_DIM:
-						lcd_putc('D');
-						break;
-					case LIGHT_BRIGHT:
-						lcd_putc('B');
-						break;
-					case LIGHT_BRIGHT_DITCH:
-						lcd_putc('*');
-						break;
-				}
-
-				lcd_gotoxy(0, 1);
-				switch(rearLight)
-				{
-					case LIGHT_OFF:
-						lcd_putc('-');
-						break;
-					case LIGHT_DIM:
-						lcd_putc('D');
-						break;
-					case LIGHT_BRIGHT:
-						lcd_putc('B');
-						break;
-					case LIGHT_BRIGHT_DITCH:
-						lcd_putc('*');
-						break;
-				}
-
-				break;
-
-/*			case DEBUG2_SCREEN:*/
-/*				lcdBacklightEnable();*/
-/*				lcd_gotoxy(0,0);*/
-/*				printDec4DigWZero(sleepTimeout_decisecs);*/
-/*				break;*/
-
-			case VBAT_SCREEN:
-				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				lcd_puts("BATTERY");
-				lcd_gotoxy(1,1);
-				lcd_putc('0' + (((batteryVoltage*2)/100)%10));
-				lcd_putc('.');
-				lcd_putc('0' + (((batteryVoltage*2)/10)%10));
-				lcd_putc('0' + ((batteryVoltage*2)%10));
-				lcd_putc('V');
-				break;
-
-			case VERSION_SCREEN:
-				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				lcd_puts("VERSION");
-				lcd_gotoxy(1,1);
-				lcd_puts(VERSION_STRING);
 				break;
 
 			case LAST_SCREEN:
