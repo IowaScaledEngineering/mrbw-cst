@@ -61,8 +61,6 @@ void initPorts();
 void initADC();
 void processADC();
 
-void initThrottle();
-
 uint8_t adcLoopInitialized(void);
 
 typedef enum
@@ -172,15 +170,8 @@ inline void disableLightSwitches()
 	PORTD &= ~_BV(LIGHTSW_ENABLES);
 }
 
-inline void enableThrottle()
-{
-	PORTD |= _BV(THROTTLE_ENABLE);
-}
-
-inline void disableThrottle()
-{
-	PORTD &= ~_BV(THROTTLE_ENABLE);
-}
+void enableThrottle();
+void disableThrottle();
 
 void ledUpdate();
 

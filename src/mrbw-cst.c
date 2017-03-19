@@ -32,7 +32,9 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING " 0.5"
+#define VERSION_STRING "0.55"
+
+#define FAST_SLEEP
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -399,7 +401,11 @@ ISR(TIMER0_COMPA_vect)
 		
 		if(sleepTimeout_decisecs)
 		{
+#ifdef FAST_SLEEP
+			sleepTimeout_decisecs-=10;
+#else
 			sleepTimeout_decisecs--;
+#endif
 		}
 
 		ledUpdate();
@@ -503,7 +509,6 @@ void init(void)
 	initPorts();
 	initADC();
 	enableThrottle();
-	initThrottle();
 	initialize100HzTimer();
 }
 

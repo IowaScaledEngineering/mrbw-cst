@@ -406,13 +406,20 @@ void ledUpdate()
 volatile uint8_t throttlePosition = 0;
 volatile uint8_t throttleQuadrature;
 
-void initThrottle(void)
+void enableThrottle(void)
 {
-	
 	EIMSK = 0;  // Turn off interrupts while configuring
 	EICRA |= _BV(ISC10) | _BV(ISC00);  // Enable any edge on INT0 and INT1
-	throttleQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
+	PORTD |= _BV(THROTTLE_ENABLE);  // Turn on the pull-ups
+	_delay_ms(1);  // Measured 20us rise time
+	throttleQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;  // Get an initial read
 	EIMSK = _BV(INT1) | _BV(INT0);  // Enable INT0 and INT1 interrupts
+}
+
+void disableThrottle(void)
+{
+	EIMSK = 0;  // Turn off interrupts
+	PORTD &= ~_BV(THROTTLE_ENABLE);  // Disable pull-ups
 }
 
 ISR(INT0_vect)
