@@ -34,7 +34,7 @@ LICENSE:
 
 #define VERSION_STRING "0.55"
 
-#define FAST_SLEEP
+//#define FAST_SLEEP
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -1754,6 +1754,9 @@ int main(void)
 			setXbeeSleep();
 			lcdDisable();
 			lcdBacklightDisable();
+			TIMSK0 &= ~_BV(OCIE0A);  // Disable 100Hz timer (to prevent LEDs from blinking on right before sleeping)
+			ledGreenOff();
+			ledRedOff();
 			switchesDisable();  // Don't disable buttons
 			disableThrottle();
 			
@@ -1780,6 +1783,7 @@ int main(void)
 			setXbeeActive();
 			lcdEnable();
 			initLCD();
+			initialize100HzTimer();
 			switchesEnable();
 			enableThrottle();
 
