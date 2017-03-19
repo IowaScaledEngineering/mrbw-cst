@@ -116,7 +116,7 @@ typedef enum
 	FUNC_SET_SCREEN,
 	FUNC_CONFIG_SCREEN,
 	COMM_SCREEN,
-	SLEEP_SCREEN,
+	PREFS_SCREEN,
 	DEBUG_SCREEN,
 	VBAT_SCREEN,
 	VERSION_SCREEN,
@@ -911,8 +911,8 @@ int main(void)
 				lcdBacklightEnable();
 				if(!subscreenStatus)
 				{
-					lcd_gotoxy(0,0);
-					lcd_puts("     SET");
+					lcd_gotoxy(5,0);
+					lcd_puts("SET");
 					lcd_gotoxy(0,1);
 					lcd_puts("<-- FUNC");
 					switch(button)
@@ -1016,8 +1016,8 @@ int main(void)
 				lcdBacklightEnable();
 				if(!subscreenStatus)
 				{
-					lcd_gotoxy(0,0);
-					lcd_puts("  CONFIG");
+					lcd_gotoxy(2,0);
+					lcd_puts("CONFIG");
 					lcd_gotoxy(0,1);
 					lcd_puts("<-- FUNC");
 					switch(button)
@@ -1220,8 +1220,8 @@ int main(void)
 				lcdBacklightEnable();
 				if(!subscreenStatus)
 				{
-					lcd_gotoxy(0,0);
-					lcd_puts("    COMM");
+					lcd_gotoxy(4,0);
+					lcd_puts("COMM");
 					lcd_gotoxy(0,1);
 					lcd_puts("<--  CFG");
 					switch(button)
@@ -1315,50 +1315,88 @@ int main(void)
 				}
 				break;
 
-			case SLEEP_SCREEN:
+			case PREFS_SCREEN:
 				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				lcd_puts("SLEEP");
-				lcd_gotoxy(0,1);
-				lcd_puts("DLY: ");
-				printDec2Dig(newSleepTimeout);
-				lcd_puts("M");
-				switch(button)
+				if(!subscreenStatus)
 				{
-					case UP_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-						{
-							if(newSleepTimeout < 99)
-								newSleepTimeout++;
-							else
-								newSleepTimeout = 99;
-							ticks_autoincrement = 0;
-						}
-						break;
-					case DOWN_BUTTON:
-						if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-						{
-							if(newSleepTimeout > 1)
-								newSleepTimeout--;
-							else
-								newSleepTimeout = 1;
-							ticks_autoincrement = 0;
-						}
-						break;
-					case SELECT_BUTTON:
-						eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
-						sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT) * 600;
-						lcd_clrscr();
-						lcd_gotoxy(1,0);
-						lcd_puts("SAVED!");
-						wait100ms(7);
-						screenState = LAST_SCREEN;
-						break;
-					case MENU_BUTTON:
-						newSleepTimeout = sleep_tmr_reset_value / 600;  // Reset newSleepTimeout since no changes were commited
-						break;
-					case NO_BUTTON:
-						break;
+					lcd_gotoxy(3,0);
+					lcd_puts("PREFS");
+					lcd_gotoxy(0,1);
+					lcd_puts("<--");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					lcdBacklightEnable();
+					lcd_gotoxy(0,0);
+					lcd_puts("SLEEP");
+					lcd_gotoxy(0,1);
+					lcd_puts("DLY: ");
+					printDec2Dig(newSleepTimeout);
+					lcd_puts("M");
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(newSleepTimeout < 99)
+									newSleepTimeout++;
+								else
+									newSleepTimeout = 99;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case DOWN_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(newSleepTimeout > 1)
+									newSleepTimeout--;
+								else
+									newSleepTimeout = 1;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
+								sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT) * 600;
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenStatus++;
+								if(subscreenStatus > 1)
+									subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case NO_BUTTON:
+							break;
+					}
+					break;
 				}
 				break;
 
