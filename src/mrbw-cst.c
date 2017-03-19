@@ -992,18 +992,18 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;
-								screenState = LAST_SCREEN;
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
 							}
 							break;
 						case MENU_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if(MENU_BUTTON != previousButton)
 							{
 								// Advance through function settings
-								lcd_clrscr();
 								if(++functionNumber > 28)
 									functionNumber = 0;
 								ticks_autoincrement = 0;
+								lcd_clrscr();
 							}
 							break;
 						case NO_BUTTON:
@@ -1196,17 +1196,18 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;
-								screenState = LAST_SCREEN;
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
 							}
 							break;
 						case MENU_BUTTON:
 							if(MENU_BUTTON != previousButton)
 							{
 								// Advance through function settings
-								lcd_clrscr();
 								if(++functionSetting >= LAST_FN)
 									functionSetting = 0;
+								ticks_autoincrement = 0;
+								lcd_clrscr();
 							}
 							break;
 						case NO_BUTTON:
@@ -1305,14 +1306,8 @@ int main(void)
 								subscreenStatus++;
 								if(subscreenStatus > 2)
 									subscreenStatus = 1;
-								ticks_autoincrement = 0;
+								lcd_clrscr();
 							}
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
-							{
-								// Reset menu on long press
-								subscreenStatus = 0;  // Escape submenu with long press
-							}
-							lcd_clrscr();
 							break;
 						case NO_BUTTON:
 							break;
