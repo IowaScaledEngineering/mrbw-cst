@@ -774,11 +774,13 @@ int main(void)
 					lcdBacklightEnable();
 				else
 					lcdBacklightDisable();
-				lcd_gotoxy(0,0);
+				lcd_gotoxy(2,0);
 				printDec4DigWZero(locoAddress);
+
+				lcd_gotoxy(1,1);
 				printTime();
 				
-				lcd_gotoxy(5,0);
+				lcd_gotoxy(0,0);
 				if (batteryVoltage >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
 					lcd_putc(BATTERY_FULL);
 				else if (batteryVoltage >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
