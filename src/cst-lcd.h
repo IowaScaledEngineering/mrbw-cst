@@ -1,13 +1,16 @@
 #ifndef _LCD_CHAR_H_
 #define _LCD_CHAR_H_
 
-#define BELL_CHAR             0
-#define HORN_CHAR             1
-#define BARGRAPH_BOTTOM_EMPTY 2
-#define BARGRAPH_BOTTOM_HALF  3
-#define BARGRAPH_TOP_EMPTY    4
-#define BARGRAPH_TOP_HALF     5
-#define BARGRAPH_FULL         6
+#define BARGRAPH_BOTTOM_EMPTY 0
+#define BARGRAPH_BOTTOM_HALF  1
+#define BARGRAPH_TOP_EMPTY    2
+#define BARGRAPH_TOP_HALF     3
+#define BARGRAPH_FULL         0xFF
+#define BELL_CHAR             4
+#define HORN_CHAR             0x7E
+#define BATTERY_FULL          5
+#define BATTERY_HALF          6
+#define BATTERY_EMPTY         7
 
 const uint8_t Bell[8] =
 {
@@ -92,6 +95,55 @@ const uint8_t BarGraphFull[8] =
 	0b00011111,
 	0b00011111
 };
+
+const uint8_t BatteryFull[8] =
+{
+	0b00001110,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111
+};
+
+const uint8_t BatteryHalf[8] =
+{
+	0b00001110,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111
+};
+const uint8_t BatteryEmpty[8] =
+{
+	0b00001110,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00011111
+};
+
+
+void setupCustomChars(void)
+{
+	lcd_setup_custom(BELL_CHAR, Bell);
+	lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
+	lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
+	lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
+	lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
+	lcd_setup_custom(BATTERY_FULL, BatteryFull);
+	lcd_setup_custom(BATTERY_HALF, BatteryHalf);
+	lcd_setup_custom(BATTERY_EMPTY, BatteryEmpty);
+}
+
 
 void printTonnage(uint8_t tonnage)
 {

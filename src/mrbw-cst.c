@@ -41,6 +41,15 @@ LICENSE:
 #define BUTTON_AUTOINCREMENT_ACCEL         10
 #define BUTTON_AUTOINCREMENT_MINIMUM        5
 
+#define PKT_TIMEOUT_DECISECS   100
+volatile uint8_t pktTimeout = 0;
+
+// VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
+#define VBATT_OKAY  220 
+// VBATT_WARN is the battery voltage (in centivolts) above which the batteries are considered a warning, but not
+//  in critical shape.  This should *always* be less than VBATT_OKAY
+#define VBATT_WARN  200
+
 #define MRBUS_TX_BUFFER_DEPTH 4
 #define MRBUS_RX_BUFFER_DEPTH 4
 
@@ -200,6 +209,122 @@ void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 	buf[13] = 'S';
 	buf[14] = 'T';
 }
+
+void PktHandler(void)
+{
+	uint16_t crc = 0;
+	uint8_t i;
+	uint8_t rxBuffer[MRBUS_BUFFER_SIZE];
+	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
+
+	if (0 == mrbusPktQueuePop(&mrbeeRxQueue, rxBuffer, sizeof(rxBuffer)))
+		return;
+
+
+	//*************** PACKET FILTER ***************
+	// Loopback Test - did we send it?  If so, we probably want to ignore it
+	if (rxBuffer[MRBUS_PKT_SRC] == mrbus_dev_addr) 
+		goto	PktIgnore;
+
+	// Destination Test - is this for us or broadcast?  If not, ignore
+	if (0xFF != rxBuffer[MRBUS_PKT_DEST] && mrbus_dev_addr != rxBuffer[MRBUS_PKT_DEST]) 
+		goto	PktIgnore;
+	
+	// CRC16 Test - is the packet intact?
+	for(i=0; i<rxBuffer[MRBUS_PKT_LEN]; i++)
+	{
+		if ((i != MRBUS_PKT_CRC_H) && (i != MRBUS_PKT_CRC_L)) 
+			crc = mrbusCRC16Update(crc, rxBuffer[i]);
+	}
+	if ((UINT16_HIGH_BYTE(crc) != rxBuffer[MRBUS_PKT_CRC_H]) || (UINT16_LOW_BYTE(crc) != rxBuffer[MRBUS_PKT_CRC_L]))
+		goto	PktIgnore;
+		
+	//*************** END PACKET FILTER ***************
+
+
+	//*************** PACKET HANDLER - PROCESS HERE ***************
+
+	// Just smash the transmit buffer if we happen to see a packet directed to us
+	// that requires an immediate response
+	//
+	// If we're in here, then either we're transmitting, then we can't be 
+	// receiving from someone else, or we failed to transmit whatever we were sending
+	// and we're waiting to try again.  Either way, we're not going to corrupt an
+	// in-progress transmission.
+	//
+	// All other non-immediate transmissions (such as scheduled status updates)
+	// should be sent out of the main loop so that they don't step on things in
+	// the transmit buffer
+	
+	if ('A' == rxBuffer[MRBUS_PKT_TYPE])
+	{
+		// PING packet
+		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
+		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
+		txBuffer[MRBUS_PKT_LEN] = 6;
+		txBuffer[MRBUS_PKT_TYPE] = 'a';
+		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+		goto PktIgnore;
+	} 
+	else if ('W' == rxBuffer[MRBUS_PKT_TYPE]) 
+	{
+		// EEPROM WRITE Packet
+		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
+		txBuffer[MRBUS_PKT_LEN] = 8;			
+		txBuffer[MRBUS_PKT_TYPE] = 'w';
+		eeprom_write_byte((uint8_t*)(uint16_t)rxBuffer[6], rxBuffer[7]);
+		txBuffer[6] = rxBuffer[6];
+		txBuffer[7] = rxBuffer[7];
+		if (MRBUS_EE_DEVICE_ADDR == rxBuffer[6])
+			mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
+		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
+		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+		goto PktIgnore;	
+	}
+	else if ('R' == rxBuffer[MRBUS_PKT_TYPE]) 
+	{
+		// EEPROM READ Packet
+		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
+		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
+		txBuffer[MRBUS_PKT_LEN] = 8;			
+		txBuffer[MRBUS_PKT_TYPE] = 'r';
+		txBuffer[6] = rxBuffer[6];
+		txBuffer[7] = eeprom_read_byte((uint8_t*)(uint16_t)rxBuffer[6]);			
+		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+		goto PktIgnore;
+	}
+	else if ('V' == rxBuffer[MRBUS_PKT_TYPE]) 
+	{
+		// Version
+		createVersionPacket(rxBuffer[MRBUS_PKT_SRC], txBuffer);
+		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+		goto PktIgnore;
+	}
+	else if ('X' == rxBuffer[MRBUS_PKT_TYPE]) 
+	{
+		// Reset
+		cli();
+		wdt_reset();
+		MCUSR &= ~(_BV(WDRF));
+		WDTCSR |= _BV(WDE) | _BV(WDCE);
+		WDTCSR = _BV(WDE);
+		while(1);  // Force a watchdog reset
+		sei();
+	}
+	//*************** END PACKET HANDLER  ***************
+
+	
+	//*************** RECEIVE CLEANUP ***************
+PktIgnore:
+	// Yes, I hate gotos as well, but sometimes they're a really handy and efficient
+	// way to jump to a common block of cleanup code at the end of a function 
+
+	// This section resets anything that needs to be reset in order to allow us to receive
+	// another packet.  Typically, that's just clearing the MRBUS_RX_PKT_READY flag to 
+	// indicate to the core library that the mrbus_rx_buffer is clear.
+	return;	
+}
+
 
 
 void setXbeeSleep()
@@ -396,8 +521,8 @@ ISR(TIMER0_COMPA_vect)
 		ticks = 0;
 		decisecs++;
 		
-//		if (pktTimeout)
-	//		pktTimeout--;
+		if (pktTimeout)
+			pktTimeout--;
 		
 		if(sleepTimeout_decisecs)
 		{
@@ -504,6 +629,8 @@ void init(void)
 	wdt_disable();
 #endif
 
+	pktTimeout = 0;
+
 	readConfig();
 
 	initPorts();
@@ -526,13 +653,7 @@ void initLCD(void)
 
 	wdt_reset();
 
-	lcd_setup_custom(BELL_CHAR, Bell);
-	lcd_setup_custom(HORN_CHAR, Horn);
-	lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
-	lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
-	lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
-	lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
-	lcd_setup_custom(BARGRAPH_FULL, BarGraphFull);
+	setupCustomChars();
 
 	wdt_reset();
 
@@ -622,7 +743,6 @@ int main(void)
 
 	while(1)
 	{
-		led = LED_GREEN;
 		wdt_reset();
 
 		if (status & STATUS_READ_SWITCHES)
@@ -657,6 +777,14 @@ int main(void)
 				lcd_gotoxy(0,0);
 				printDec4DigWZero(locoAddress);
 				printTime();
+				
+				lcd_gotoxy(5,0);
+				if (batteryVoltage >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+					lcd_putc(BATTERY_FULL);
+				else if (batteryVoltage >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+					lcd_putc(BATTERY_HALF);
+				else
+					lcd_putc(BATTERY_EMPTY);
 
 				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 				{
@@ -1519,9 +1647,21 @@ int main(void)
 						lcd_gotoxy(0,0);
 						lcd_puts("SLEEP");
 						lcd_gotoxy(0,1);
-						printDec4DigWZero(sleepTimeout_decisecs);
+						ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+						{
+							decisecs_tmp = sleepTimeout_decisecs;
+						}
+						printDec4DigWZero(decisecs_tmp);
 					}
 					else if(3 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						lcd_puts("PKT TIME");
+						lcd_gotoxy(0,1);
+						printDec4DigWZero(pktTimeout);
+					}
+					else if(4 == subscreenStatus)
 					{
 						lcdBacklightEnable();
 						lcd_gotoxy(0,0);
@@ -1533,7 +1673,7 @@ int main(void)
 						lcd_putc('0' + ((batteryVoltage*2)%10));
 						lcd_putc('V');
 					}
-					else if(4 == subscreenStatus)
+					else if(5 == subscreenStatus)
 					{
 						lcdBacklightEnable();
 						lcd_gotoxy(0,0);
@@ -1555,7 +1695,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 4)
+								if(subscreenStatus > 5)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
@@ -1598,6 +1738,20 @@ int main(void)
 		previousButton = button;
 
 		wdt_reset();
+
+
+		// Handle any packets that may have come in
+		if (mrbusPktQueueDepth(&mrbeeRxQueue))
+		{
+			pktTimeout = PKT_TIMEOUT_DECISECS;
+			PktHandler();
+		}
+
+		if (0 == pktTimeout)
+			led = LED_RED_FASTBLINK;
+		else
+			led = LED_GREEN;
+		
 
 		functionMask = 0;
 		if((controls & HORN_CONTROL) && !(hornFunction & OFF_FUNCTION))
