@@ -6,8 +6,8 @@
 #define BELL_CHAR             1
 #define HORN_CHAR             2
 
-#define SOFTKEY_INACTIVE_CHAR 4
-#define SOFTKEY_ACTIVE_CHAR   5
+#define FUNCTION_INACTIVE_CHAR 4
+#define FUNCTION_ACTIVE_CHAR   5
 #define BARGRAPH_BOTTOM_EMPTY 4
 #define BARGRAPH_BOTTOM_HALF  5
 #define BARGRAPH_TOP_EMPTY    6
@@ -185,8 +185,8 @@ void setupSoftkeyChars(SoftkeyState state)
 	switch(state)
 	{
 		case FUNCTION_KEYS:
-			lcd_setup_custom(SOFTKEY_INACTIVE_CHAR, SoftkeyInactive);
-			lcd_setup_custom(SOFTKEY_ACTIVE_CHAR, SoftkeyActive);
+			lcd_setup_custom(FUNCTION_INACTIVE_CHAR, SoftkeyInactive);
+			lcd_setup_custom(FUNCTION_ACTIVE_CHAR, SoftkeyActive);
 			break;
 		case BARGRAPH:
 			lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);

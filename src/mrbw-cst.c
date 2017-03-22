@@ -629,7 +629,7 @@ void init(void)
 	wdt_disable();
 #endif
 
-	pktTimeout = 0;
+	pktTimeout = PKT_TIMEOUT_DECISECS;
 
 	readConfig();
 
@@ -795,9 +795,9 @@ int main(void)
 				{
 					setupSoftkeyChars(FUNCTION_KEYS);
 					lcd_gotoxy(7,0);
-					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? SOFTKEY_ACTIVE_CHAR : SOFTKEY_INACTIVE_CHAR);
+					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 					lcd_gotoxy(7,1);
-					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? SOFTKEY_ACTIVE_CHAR : SOFTKEY_INACTIVE_CHAR);
+					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 				}
 
 				switch(button)
