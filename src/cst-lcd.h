@@ -1,16 +1,31 @@
 #ifndef _LCD_CHAR_H_
 #define _LCD_CHAR_H_
 
-#define BARGRAPH_BOTTOM_EMPTY 0
-#define BARGRAPH_BOTTOM_HALF  1
-#define BARGRAPH_TOP_EMPTY    2
-#define BARGRAPH_TOP_HALF     3
+#define BATTERY_CHAR          0
+
+#define BELL_CHAR             1
+#define HORN_CHAR             2
+
+#define SOFTKEY_INACTIVE_CHAR 4
+#define SOFTKEY_ACTIVE_CHAR   5
+#define BARGRAPH_BOTTOM_EMPTY 4
+#define BARGRAPH_BOTTOM_HALF  5
+#define BARGRAPH_TOP_EMPTY    6
+#define BARGRAPH_TOP_HALF     7
 #define BARGRAPH_FULL         0xFF
-#define BELL_CHAR             4
-#define HORN_CHAR             0x7E
-#define BATTERY_FULL          5
-#define BATTERY_HALF          6
-#define BATTERY_EMPTY         7
+
+typedef enum
+{
+	BATTERY_EMPTY = 0,
+	BATTERY_HALF,
+	BATTERY_FULL
+} BatteryState;
+
+typedef enum
+{
+	FUNCTION_KEYS = 0,
+	BARGRAPH
+} SoftkeyState;
 
 const uint8_t Bell[8] =
 {
@@ -84,18 +99,6 @@ const uint8_t BarGraphTopHalf[8] =
 	0b00011111
 };
 
-const uint8_t BarGraphFull[8] =
-{
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111
-};
-
 const uint8_t BatteryFull[8] =
 {
 	0b00001110,
@@ -131,19 +134,68 @@ const uint8_t BatteryEmpty[8] =
 	0b00000000
 };
 
+const uint8_t SoftkeyInactive[8] =
+{
+	0b00000000,
+	0b00001110,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00001110,
+	0b00000000,
+	0b00000000
+};
+const uint8_t SoftkeyActive[8] =
+{
+	0b00000000,
+	0b00001110,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00001110,
+	0b00000000,
+	0b00000000
+};
 
-void setupCustomChars(void)
+
+void setupDiagChars(void)
 {
 	lcd_setup_custom(BELL_CHAR, Bell);
-	lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
-	lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
-	lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
-	lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
-	lcd_setup_custom(BATTERY_FULL, BatteryFull);
-	lcd_setup_custom(BATTERY_HALF, BatteryHalf);
-	lcd_setup_custom(BATTERY_EMPTY, BatteryEmpty);
+	lcd_setup_custom(BELL_CHAR, Horn);
 }
 
+void setupBatteryChar(BatteryState state)
+{
+	switch(state)
+	{
+		case BATTERY_FULL:
+			lcd_setup_custom(BATTERY_CHAR, BatteryFull);
+			break;
+		case BATTERY_HALF:
+			lcd_setup_custom(BATTERY_CHAR, BatteryHalf);
+			break;
+		case BATTERY_EMPTY:
+			lcd_setup_custom(BATTERY_CHAR, BatteryEmpty);
+			break;
+	}
+}
+
+void setupSoftkeyChars(SoftkeyState state)
+{
+	switch(state)
+	{
+		case FUNCTION_KEYS:
+			lcd_setup_custom(SOFTKEY_INACTIVE_CHAR, SoftkeyInactive);
+			lcd_setup_custom(SOFTKEY_ACTIVE_CHAR, SoftkeyActive);
+			break;
+		case BARGRAPH:
+			lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
+			lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
+			lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
+			lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
+			break;
+	}
+}
 
 void printTonnage(uint8_t tonnage)
 {

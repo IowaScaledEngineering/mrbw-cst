@@ -653,10 +653,6 @@ void initLCD(void)
 
 	wdt_reset();
 
-	setupCustomChars();
-
-	wdt_reset();
-
 	wait100ms(20);
 	lcd_clrscr();
 }
@@ -780,24 +776,28 @@ int main(void)
 				lcd_gotoxy(1,1);
 				printTime();
 				
-				lcd_gotoxy(0,0);
 				if (batteryVoltage >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					lcd_putc(BATTERY_FULL);
+					setupBatteryChar(BATTERY_FULL);
 				else if (batteryVoltage >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					lcd_putc(BATTERY_HALF);
+					setupBatteryChar(BATTERY_HALF);
 				else
-					lcd_putc(BATTERY_EMPTY);
+					setupBatteryChar(BATTERY_EMPTY);
+
+				lcd_gotoxy(0,0);
+				lcd_putc(BATTERY_CHAR);
 
 				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 				{
+					setupSoftkeyChars(BARGRAPH);
 					printTonnage(tonnage);
 				}
 				else
 				{
+					setupSoftkeyChars(FUNCTION_KEYS);
 					lcd_gotoxy(7,0);
-					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? 'o' : ' ');
+					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? SOFTKEY_ACTIVE_CHAR : SOFTKEY_INACTIVE_CHAR);
 					lcd_gotoxy(7,1);
-					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? 'o' : ' ');
+					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? SOFTKEY_ACTIVE_CHAR : SOFTKEY_INACTIVE_CHAR);
 				}
 
 				switch(button)
@@ -1010,6 +1010,7 @@ int main(void)
 						lcd_puts("WEIGHT");
 						break;
 				}
+				setupSoftkeyChars(BARGRAPH);
 				printTonnage(tonnage);
 				switch(button)
 				{
@@ -1546,6 +1547,7 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								subscreenStatus = 1;
+								setupDiagChars();
 								lcd_clrscr();
 							}
 							break;
