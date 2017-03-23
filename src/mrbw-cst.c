@@ -34,7 +34,7 @@ LICENSE:
 
 #define VERSION_STRING "0.55"
 
-//#define FAST_SLEEP
+#define FAST_SLEEP
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -1743,13 +1743,14 @@ int main(void)
 
 		wdt_reset();
 
-
 		// Handle any packets that may have come in
 		if (mrbusPktQueueDepth(&mrbeeRxQueue))
 		{
 			pktTimeout = PKT_TIMEOUT_DECISECS;
 			PktHandler();
 		}
+
+		wdt_reset();
 
 		if (0 == pktTimeout)
 			led = LED_RED_FASTBLINK;
@@ -1770,6 +1771,9 @@ int main(void)
 			functionMask |= (uint32_t)1 << (upButtonFunction & 0x1F);
 		if((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (downButtonFunction & 0x1F);
+
+		wdt_reset();
+
 		switch(frontLight)
 		{
 			case LIGHT_OFF:
@@ -1791,6 +1795,9 @@ int main(void)
 					functionMask |= (uint32_t)1 << (frontDitchFunction & 0x1F);
 				break;
 		}
+
+		wdt_reset();
+
 		switch(rearLight)
 		{
 			case LIGHT_OFF:
@@ -1821,7 +1828,12 @@ int main(void)
 									(functionMask != lastFunctionMask);
 
 		// Reset sleep timer
-		if( (NO_BUTTON != button) || inputsChanged )
+		if( 
+			(NO_BUTTON != button) || 
+			(FORWARD == reverserPosition) || 
+			(REVERSE == reverserPosition) ||
+			inputsChanged
+			)
 		{
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
@@ -1904,6 +1916,8 @@ int main(void)
 		}
 		if (0 == decisecs_tmp)
 		{
+			wdt_reset();
+
 			// Time to nod off
 			led = LED_OFF;
 
