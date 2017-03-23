@@ -1655,7 +1655,9 @@ int main(void)
 						{
 							decisecs_tmp = sleepTimeout_decisecs;
 						}
-						printDec4DigWZero(decisecs_tmp);
+						printDec4Dig(decisecs_tmp/10);
+						lcd_gotoxy(5,1);
+						lcd_puts("sec");
 					}
 					else if(3 == subscreenStatus)
 					{
