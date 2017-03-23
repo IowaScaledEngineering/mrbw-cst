@@ -32,9 +32,9 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.55"
+#define VERSION_STRING "0.56"
 
-#define FAST_SLEEP
+//#define FAST_SLEEP
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
