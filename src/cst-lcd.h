@@ -24,7 +24,8 @@ typedef enum
 typedef enum
 {
 	FUNCTION_KEYS = 0,
-	BARGRAPH
+	BARGRAPH,
+	UNKNOWN
 } SoftkeyState;
 
 const uint8_t Bell[8] =
@@ -161,7 +162,7 @@ const uint8_t SoftkeyActive[8] =
 void setupDiagChars(void)
 {
 	lcd_setup_custom(BELL_CHAR, Bell);
-	lcd_setup_custom(BELL_CHAR, Horn);
+	lcd_setup_custom(HORN_CHAR, Horn);
 }
 
 void setupBatteryChar(BatteryState state)
@@ -193,6 +194,9 @@ void setupSoftkeyChars(SoftkeyState state)
 			lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
 			lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
 			lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
+			break;
+		case UNKNOWN:
+			// Should never be here, so do nothing
 			break;
 	}
 }

@@ -32,7 +32,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.56"
+#define VERSION_STRING "0.57"
 
 //#define FAST_SLEEP
 
@@ -637,6 +637,8 @@ void init(void)
 	initADC();
 	enableThrottle();
 	initialize100HzTimer();
+	
+	DDRB |= _BV(PB3);
 }
 
 void initLCD(void)
@@ -691,6 +693,13 @@ int main(void)
 	
 	ReverserPosition direction = FORWARD;
 
+	BatteryState batteryState = BATTERY_FULL, lastBatteryState = batteryState;
+	SoftkeyState softkeyState = BARGRAPH, lastSoftkeyState = softkeyState;
+	
+	// Setup once so the character is there if the first pass through the screen logic below results in skipping the setup
+  	setupBatteryChar(batteryState);
+	setupSoftkeyChars(softkeyState);
+
 	init();
 
 	// Assign after init() so values are read from EEPROM first
@@ -741,6 +750,10 @@ int main(void)
 	{
 		wdt_reset();
 
+		// Heartbeat (or loop timer)
+		PORTB |= _BV(PB3);
+		PORTB &= ~_BV(PB3);
+
 		if (status & STATUS_READ_SWITCHES)
 		{
 			// Read switches every 10ms
@@ -777,27 +790,50 @@ int main(void)
 				printTime();
 				
 				if (batteryVoltage >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					setupBatteryChar(BATTERY_FULL);
+					batteryState = BATTERY_FULL;
 				else if (batteryVoltage >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					setupBatteryChar(BATTERY_HALF);
+					batteryState = BATTERY_HALF;
 				else
-					setupBatteryChar(BATTERY_EMPTY);
+					batteryState = BATTERY_EMPTY;
+				
+				if(batteryState != lastBatteryState)
+				{
+					setupBatteryChar(batteryState);
+					lastBatteryState = batteryState;
+				}
 
 				lcd_gotoxy(0,0);
 				lcd_putc(BATTERY_CHAR);
 
 				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 				{
-					setupSoftkeyChars(BARGRAPH);
-					printTonnage(tonnage);
+					softkeyState = BARGRAPH;
 				}
 				else
 				{
-					setupSoftkeyChars(FUNCTION_KEYS);
-					lcd_gotoxy(7,0);
-					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-					lcd_gotoxy(7,1);
-					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+					softkeyState = FUNCTION_KEYS;
+				}
+				
+				if(softkeyState != lastSoftkeyState)
+				{
+					setupSoftkeyChars(softkeyState);
+					lastSoftkeyState = softkeyState;
+				}
+
+				switch(softkeyState)
+				{
+					case BARGRAPH:
+						printTonnage(tonnage);
+						break;
+					case FUNCTION_KEYS:
+						lcd_gotoxy(7,0);
+						lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+						lcd_gotoxy(7,1);
+						lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+						break;
+					case UNKNOWN:
+						// Should never be here, so do nothing
+						break;
 				}
 
 				switch(button)
@@ -850,6 +886,8 @@ int main(void)
 						}
 						break;
 					case MENU_BUTTON:
+						lastSoftkeyState = UNKNOWN;  // Force LCD character update next time since we are leaving this menu
+						// Fall through to next case so buttons get processed.
 					case NO_BUTTON:
 						// Release buttons if momentary
 						if(!(upButtonFunction & LATCH_FUNCTION))
