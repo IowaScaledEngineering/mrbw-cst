@@ -654,6 +654,7 @@ void initLCD(void)
 	lcd_puts("Throttle");
 
 	wdt_reset();
+	setupSoftkeyChars();
 
 	wait100ms(20);
 	lcd_clrscr();
@@ -693,13 +694,8 @@ int main(void)
 	
 	ReverserPosition direction = FORWARD;
 
-	BatteryState batteryState = BATTERY_FULL, lastBatteryState = batteryState;
-	SoftkeyState softkeyState = BARGRAPH, lastSoftkeyState = softkeyState;
+	BatteryState batteryState = UNKNOWN, lastBatteryState = batteryState;
 	
-	// Setup once so the character is there if the first pass through the screen logic below results in skipping the setup
-  	setupBatteryChar(batteryState);
-	setupSoftkeyChars(softkeyState);
-
 	init();
 
 	// Assign after init() so values are read from EEPROM first
@@ -790,13 +786,13 @@ int main(void)
 				printTime();
 				
 				if (batteryVoltage >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					batteryState = BATTERY_FULL;
+					batteryState = FULL;
 				else if (batteryVoltage >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					batteryState = BATTERY_HALF;
+					batteryState = HALF;
 				else
-					batteryState = BATTERY_EMPTY;
+					batteryState = EMPTY;
 				
-				if(batteryState != lastBatteryState)
+				if( (batteryState != lastBatteryState) || (UNKNOWN == lastBatteryState) )
 				{
 					setupBatteryChar(batteryState);
 					lastBatteryState = batteryState;
@@ -807,33 +803,14 @@ int main(void)
 
 				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 				{
-					softkeyState = BARGRAPH;
+					printTonnage(tonnage);
 				}
 				else
 				{
-					softkeyState = FUNCTION_KEYS;
-				}
-				
-				if(softkeyState != lastSoftkeyState)
-				{
-					setupSoftkeyChars(softkeyState);
-					lastSoftkeyState = softkeyState;
-				}
-
-				switch(softkeyState)
-				{
-					case BARGRAPH:
-						printTonnage(tonnage);
-						break;
-					case FUNCTION_KEYS:
-						lcd_gotoxy(7,0);
-						lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-						lcd_gotoxy(7,1);
-						lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-						break;
-					case UNKNOWN:
-						// Should never be here, so do nothing
-						break;
+					lcd_gotoxy(7,0);
+					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+					lcd_gotoxy(7,1);
+					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 				}
 
 				switch(button)
@@ -886,8 +863,6 @@ int main(void)
 						}
 						break;
 					case MENU_BUTTON:
-						lastSoftkeyState = UNKNOWN;  // Force LCD character update next time since we are leaving this menu
-						// Fall through to next case so buttons get processed.
 					case NO_BUTTON:
 						// Release buttons if momentary
 						if(!(upButtonFunction & LATCH_FUNCTION))
@@ -1048,7 +1023,6 @@ int main(void)
 						lcd_puts("WEIGHT");
 						break;
 				}
-				setupSoftkeyChars(BARGRAPH);
 				printTonnage(tonnage);
 				switch(button)
 				{
@@ -2007,6 +1981,8 @@ int main(void)
 			processButtons(inputButtons);
 			processSwitches(inputButtons);
 			previousButton = button;  // Prevent extraneous menu advances
+
+			lastBatteryState = UNKNOWN;
 
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{

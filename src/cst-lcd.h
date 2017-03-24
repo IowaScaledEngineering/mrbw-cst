@@ -1,32 +1,21 @@
 #ifndef _LCD_CHAR_H_
 #define _LCD_CHAR_H_
 
-#define BATTERY_CHAR          0
-
-#define BELL_CHAR             1
-#define HORN_CHAR             2
-
-#define FUNCTION_INACTIVE_CHAR 4
-#define FUNCTION_ACTIVE_CHAR   5
-#define BARGRAPH_BOTTOM_EMPTY 4
-#define BARGRAPH_BOTTOM_HALF  5
-#define BARGRAPH_TOP_EMPTY    6
-#define BARGRAPH_TOP_HALF     7
-#define BARGRAPH_FULL         0xFF
+#define BATTERY_CHAR            0
+#define BELL_CHAR               1
+#define HORN_CHAR               2
+#define FUNCTION_INACTIVE_CHAR  3
+#define FUNCTION_ACTIVE_CHAR    4
+#define TONNAGE_TOP             5
+#define TONNAGE_BOTTOM          6
 
 typedef enum
 {
-	BATTERY_EMPTY = 0,
-	BATTERY_HALF,
-	BATTERY_FULL
-} BatteryState;
-
-typedef enum
-{
-	FUNCTION_KEYS = 0,
-	BARGRAPH,
+	EMPTY = 0,
+	HALF,
+	FULL,
 	UNKNOWN
-} SoftkeyState;
+} BatteryState;
 
 const uint8_t Bell[8] =
 {
@@ -95,6 +84,18 @@ const uint8_t BarGraphTopHalf[8] =
 	0b00010001,
 	0b00010001,
 	0b00010001,
+	0b00011111,
+	0b00011111,
+	0b00011111
+};
+
+const uint8_t BarGraphFull[8] =
+{
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
 	0b00011111,
 	0b00011111,
 	0b00011111
@@ -169,36 +170,24 @@ void setupBatteryChar(BatteryState state)
 {
 	switch(state)
 	{
-		case BATTERY_FULL:
+		case FULL:
 			lcd_setup_custom(BATTERY_CHAR, BatteryFull);
 			break;
-		case BATTERY_HALF:
+		case HALF:
 			lcd_setup_custom(BATTERY_CHAR, BatteryHalf);
 			break;
-		case BATTERY_EMPTY:
+		case EMPTY:
 			lcd_setup_custom(BATTERY_CHAR, BatteryEmpty);
+			break;
+		case UNKNOWN:
 			break;
 	}
 }
 
-void setupSoftkeyChars(SoftkeyState state)
+void setupSoftkeyChars(void)
 {
-	switch(state)
-	{
-		case FUNCTION_KEYS:
-			lcd_setup_custom(FUNCTION_INACTIVE_CHAR, SoftkeyInactive);
-			lcd_setup_custom(FUNCTION_ACTIVE_CHAR, SoftkeyActive);
-			break;
-		case BARGRAPH:
-			lcd_setup_custom(BARGRAPH_BOTTOM_EMPTY, BarGraphBottomEmpty);
-			lcd_setup_custom(BARGRAPH_BOTTOM_HALF, BarGraphBottomHalf);
-			lcd_setup_custom(BARGRAPH_TOP_EMPTY, BarGraphTopEmpty);
-			lcd_setup_custom(BARGRAPH_TOP_HALF, BarGraphTopHalf);
-			break;
-		case UNKNOWN:
-			// Should never be here, so do nothing
-			break;
-	}
+	lcd_setup_custom(FUNCTION_INACTIVE_CHAR, SoftkeyInactive);
+	lcd_setup_custom(FUNCTION_ACTIVE_CHAR, SoftkeyActive);
 }
 
 void printTonnage(uint8_t tonnage)
@@ -206,30 +195,26 @@ void printTonnage(uint8_t tonnage)
 	switch(tonnage)
 	{
 		case 0:
-			lcd_gotoxy(7,0);
-			lcd_putc(BARGRAPH_TOP_EMPTY);
-			lcd_gotoxy(7,1);
-			lcd_putc(BARGRAPH_BOTTOM_EMPTY);
+			lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
+			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomEmpty);
 			break;
 		case 1:
-			lcd_gotoxy(7,0);
-			lcd_putc(BARGRAPH_TOP_EMPTY);
-			lcd_gotoxy(7,1);
-			lcd_putc(BARGRAPH_BOTTOM_HALF);
+			lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
+			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomHalf);
 			break;
 		case 2:
-			lcd_gotoxy(7,0);
-			lcd_putc(BARGRAPH_TOP_HALF);
-			lcd_gotoxy(7,1);
-			lcd_putc(BARGRAPH_FULL);
+			lcd_setup_custom(TONNAGE_TOP, BarGraphTopHalf);
+			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
 			break;
 		case 3:
-			lcd_gotoxy(7,0);
-			lcd_putc(BARGRAPH_FULL);
-			lcd_gotoxy(7,1);
-			lcd_putc(BARGRAPH_FULL);
+			lcd_setup_custom(TONNAGE_TOP, BarGraphFull);
+			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
 			break;
 		}
+	lcd_gotoxy(7,0);
+	lcd_putc(TONNAGE_TOP);
+	lcd_gotoxy(7,1);
+	lcd_putc(TONNAGE_BOTTOM);
 }
 
 void printTime()
