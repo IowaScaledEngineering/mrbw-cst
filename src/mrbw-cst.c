@@ -68,24 +68,23 @@ volatile uint8_t pktTimeout = 0;
 
 // Set EEPROM locations
 #define EE_DEVICE_SLEEP_TIMEOUT       0x10
-#define EE_LOCO_ADDRESS               0x11
-
 #define EE_BASE_ADDR                  0x1F
 
-#define EE_HORN_FUNCTION              0x20
-#define EE_BELL_FUNCTION              0x21
-#define EE_FRONT_DIM1_FUNCTION        0x22
-#define EE_FRONT_DIM2_FUNCTION        0x23
-#define EE_FRONT_HEADLIGHT_FUNCTION   0x24
-#define EE_FRONT_DITCH_FUNCTION       0x25
-#define EE_REAR_DIM1_FUNCTION         0x26
-#define EE_REAR_DIM2_FUNCTION         0x27
-#define EE_REAR_HEADLIGHT_FUNCTION    0x28
-#define EE_REAR_DITCH_FUNCTION        0x29
-#define EE_DYNAMIC_FUNCTION           0x2A
-#define EE_ENGINE_FUNCTION            0x2B
-#define EE_UP_BUTTON_FUNCTION         0x2C
-#define EE_DOWN_BUTTON_FUNCTION       0x2D
+#define EE_LOCO_ADDRESS               0x20
+#define EE_HORN_FUNCTION              0x22
+#define EE_BELL_FUNCTION              0x23
+#define EE_FRONT_DIM1_FUNCTION        0x24
+#define EE_FRONT_DIM2_FUNCTION        0x25
+#define EE_FRONT_HEADLIGHT_FUNCTION   0x26
+#define EE_FRONT_DITCH_FUNCTION       0x27
+#define EE_REAR_DIM1_FUNCTION         0x28
+#define EE_REAR_DIM2_FUNCTION         0x29
+#define EE_REAR_HEADLIGHT_FUNCTION    0x2A
+#define EE_REAR_DITCH_FUNCTION        0x2B
+#define EE_DYNAMIC_FUNCTION           0x2C
+#define EE_ENGINE_FUNCTION            0x2D
+#define EE_UP_BUTTON_FUNCTION         0x2E
+#define EE_DOWN_BUTTON_FUNCTION       0x2F
 #define EE_FUNC_FORCE_ON              0x30
 #define EE_FUNC_FORCE_OFF             0x34
 
