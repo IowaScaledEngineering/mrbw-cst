@@ -36,6 +36,8 @@ LICENSE:
 
 //#define FAST_SLEEP
 
+#define MAX_CONFIGS 8
+
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
 #define BUTTON_AUTOINCREMENT_ACCEL         10
@@ -68,25 +70,31 @@ volatile uint8_t pktTimeout = 0;
 
 // Set EEPROM locations
 #define EE_DEVICE_SLEEP_TIMEOUT       0x10
+#define EE_CURRENT_CONFIG             0x11
 #define EE_BASE_ADDR                  0x1F
 
-#define EE_LOCO_ADDRESS               0x20
-#define EE_HORN_FUNCTION              0x22
-#define EE_BELL_FUNCTION              0x23
-#define EE_FRONT_DIM1_FUNCTION        0x24
-#define EE_FRONT_DIM2_FUNCTION        0x25
-#define EE_FRONT_HEADLIGHT_FUNCTION   0x26
-#define EE_FRONT_DITCH_FUNCTION       0x27
-#define EE_REAR_DIM1_FUNCTION         0x28
-#define EE_REAR_DIM2_FUNCTION         0x29
-#define EE_REAR_HEADLIGHT_FUNCTION    0x2A
-#define EE_REAR_DITCH_FUNCTION        0x2B
-#define EE_DYNAMIC_FUNCTION           0x2C
-#define EE_ENGINE_FUNCTION            0x2D
-#define EE_UP_BUTTON_FUNCTION         0x2E
-#define EE_DOWN_BUTTON_FUNCTION       0x2F
-#define EE_FUNC_FORCE_ON              0x30
-#define EE_FUNC_FORCE_OFF             0x34
+#define CONFIG_START                  0x20
+
+// These are offsets from CONFIG_START
+#define EE_LOCO_ADDRESS               (0x00 + configOffset)
+#define EE_HORN_FUNCTION              (0x02 + configOffset)
+#define EE_BELL_FUNCTION              (0x03 + configOffset)
+#define EE_FRONT_DIM1_FUNCTION        (0x04 + configOffset)
+#define EE_FRONT_DIM2_FUNCTION        (0x05 + configOffset)
+#define EE_FRONT_HEADLIGHT_FUNCTION   (0x06 + configOffset)
+#define EE_FRONT_DITCH_FUNCTION       (0x07 + configOffset)
+#define EE_REAR_DIM1_FUNCTION         (0x08 + configOffset)
+#define EE_REAR_DIM2_FUNCTION         (0x09 + configOffset)
+#define EE_REAR_HEADLIGHT_FUNCTION    (0x0A + configOffset)
+#define EE_REAR_DITCH_FUNCTION        (0x0B + configOffset)
+#define EE_DYNAMIC_FUNCTION           (0x0C + configOffset)
+#define EE_ENGINE_FUNCTION            (0x0D + configOffset)
+#define EE_UP_BUTTON_FUNCTION         (0x0E + configOffset)
+#define EE_DOWN_BUTTON_FUNCTION       (0x0F + configOffset)
+#define EE_FUNC_FORCE_ON              (0x10 + configOffset)
+#define EE_FUNC_FORCE_OFF             (0x14 + configOffset)
+
+uint16_t configOffset;
 
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
@@ -589,9 +597,22 @@ void readConfig(void)
 		mrbus_base_addr = 0xF0;
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
+
+	configOffset = eeprom_read_byte((uint8_t*)EE_CURRENT_CONFIG);
+	if (configOffset < 1 || configOffset > MAX_CONFIGS)
+	{
+		configOffset = 1;
+		eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, configOffset);
+	}
+	configOffset = ((configOffset - 1) * 0x40) + CONFIG_START;
 	
 	// Locomotive Address
 	locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
+	if (locoAddress > 9999)
+	{
+		locoAddress = 9999;
+		eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, locoAddress);
+	}
 
 	// Function configs
 	hornFunction = eeprom_read_byte((uint8_t*)EE_HORN_FUNCTION);
