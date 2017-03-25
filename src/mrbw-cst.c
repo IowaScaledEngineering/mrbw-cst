@@ -129,6 +129,7 @@ typedef enum
 	MAIN_SCREEN = 0,
 //	DEBUG2_SCREEN,
 	ENGINE_SCREEN,
+	LOAD_CONFIG_SCREEN,
 	LOCO_SCREEN,
 	TONNAGE_SCREEN,
 	FUNC_SET_SCREEN,
@@ -719,6 +720,7 @@ int main(void)
 	init();
 
 	// Assign after init() so values are read from EEPROM first
+	uint8_t newConfigNumber = ((configOffset - CONFIG_START) / 0x40) + 1;
 	uint16_t newLocoAddress = locoAddress;
 	uint8_t newDevAddr = mrbus_dev_addr;
 	uint8_t newBaseAddr = mrbus_base_addr;
@@ -914,6 +916,55 @@ int main(void)
 							screenState = LAST_SCREEN;
 							break;
 					case MENU_BUTTON:
+					case NO_BUTTON:
+						break;
+				}
+				break;
+
+			case LOAD_CONFIG_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				lcd_puts("LOAD CFG");
+				lcd_gotoxy(0,1);
+				lcd_puts("<--");
+				lcd_gotoxy(6,1);
+				printDec2Dig(newConfigNumber);
+				switch(button)
+				{
+					case UP_BUTTON:
+						if((UP_BUTTON != previousButton) && (newConfigNumber < MAX_CONFIGS))
+						{
+							newConfigNumber++;
+						}
+						break;
+					case DOWN_BUTTON:
+						if((DOWN_BUTTON != previousButton) && (newConfigNumber > 1))
+						{
+							newConfigNumber--;
+						}
+						break;
+					case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, newConfigNumber);
+								readConfig();
+								lcd_clrscr();
+								lcd_gotoxy(0,0);
+								lcd_puts("LOADING");
+								lcd_gotoxy(0,1);
+								for(i=0; i<8; i++)
+								{
+									// Do something to make it look active
+									wait100ms(1);
+									lcd_putc('.');
+								}
+								wait100ms(5);
+								screenState = LAST_SCREEN;
+							}
+							break;
+					case MENU_BUTTON:
+						newConfigNumber = ((configOffset - CONFIG_START) / 0x40) + 1;  // Reset since leaving menu without saving
+						break;
 					case NO_BUTTON:
 						break;
 				}
