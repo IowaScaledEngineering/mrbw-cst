@@ -32,11 +32,9 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.57"
+#define VERSION_STRING "0.58"
 
 //#define FAST_SLEEP
-
-#define MAX_CONFIGS 8
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -73,7 +71,12 @@ volatile uint8_t pktTimeout = 0;
 #define EE_CURRENT_CONFIG             0x11
 #define EE_BASE_ADDR                  0x1F
 
-#define CONFIG_START                  0x20
+#define MAX_CONFIGS 15
+
+#define CONFIG_START                  0x80
+#define CONFIG_SIZE                   0x80
+
+// 15 configs * 128 bytes = 1920 bytes
 
 // These are offsets from CONFIG_START
 #define EE_LOCO_ADDRESS               (0x00 + configOffset)
@@ -181,6 +184,16 @@ uint32_t functionForceOff = 0;
 #define DOWN_OPTION_BUTTON 0x02
 
 uint8_t controls = 0;
+
+inline uint16_t calculateConfigOffset(uint8_t cfgNum)
+{
+	return(((cfgNum - 1) * CONFIG_SIZE) + CONFIG_START);
+}
+
+inline uint8_t calculateConfigNumber(uint16_t cfgOffset)
+{
+	return(((configOffset - CONFIG_START) / CONFIG_SIZE) + 1);
+}
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
 {
@@ -599,13 +612,13 @@ void readConfig(void)
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
 
-	configOffset = eeprom_read_byte((uint8_t*)EE_CURRENT_CONFIG);
+	configOffset = eeprom_read_byte((uint8_t*)EE_CURRENT_CONFIG);  // Abuse configOffset to read the config number
 	if (configOffset < 1 || configOffset > MAX_CONFIGS)
 	{
 		configOffset = 1;
 		eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, configOffset);
 	}
-	configOffset = ((configOffset - 1) * 0x40) + CONFIG_START;
+	configOffset = calculateConfigOffset(configOffset);
 	
 	// Locomotive Address
 	locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
@@ -720,7 +733,7 @@ int main(void)
 	init();
 
 	// Assign after init() so values are read from EEPROM first
-	uint8_t newConfigNumber = ((configOffset - CONFIG_START) / 0x40) + 1;
+	uint8_t newConfigNumber = calculateConfigNumber(configOffset);
 	uint16_t newLocoAddress = locoAddress;
 	uint8_t newDevAddr = mrbus_dev_addr;
 	uint8_t newBaseAddr = mrbus_base_addr;
@@ -925,10 +938,20 @@ int main(void)
 				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
 				lcd_puts("LOAD CFG");
-				lcd_gotoxy(0,1);
-				lcd_puts("<--");
-				lcd_gotoxy(6,1);
-				printDec2Dig(newConfigNumber);
+				lcd_gotoxy(1,1);
+				printDec2DigWZero(newConfigNumber);
+				lcd_puts(":");
+				{
+					uint16_t tmpConfigOffset = configOffset;  // Save configOffset
+					configOffset = calculateConfigOffset(newConfigNumber);
+					uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
+					if (tmpLocoAddress > 9999)
+					{
+						tmpLocoAddress = 9999;
+					}
+					printDec4DigWZero(tmpLocoAddress);
+					configOffset = tmpConfigOffset;  // Restore old configOffset value
+				}
 				switch(button)
 				{
 					case UP_BUTTON:
@@ -958,12 +981,12 @@ int main(void)
 									wait100ms(1);
 									lcd_putc('.');
 								}
-								wait100ms(5);
+								wait100ms(3);
 								screenState = LAST_SCREEN;
 							}
 							break;
 					case MENU_BUTTON:
-						newConfigNumber = ((configOffset - CONFIG_START) / 0x40) + 1;  // Reset since leaving menu without saving
+						newConfigNumber = calculateConfigNumber(configOffset);  // Reset since leaving menu without saving
 						break;
 					case NO_BUTTON:
 						break;
@@ -974,10 +997,11 @@ int main(void)
 				lcdBacklightEnable();
 				if(!subscreenStatus)
 				{
-					lcd_gotoxy(0,0);
-					lcd_puts(" GET NEW");
+					lcd_gotoxy(5,0);
+					lcd_puts("SET");
 					lcd_gotoxy(0,1);
-					lcd_puts("<-- LOCO");
+					lcd_putc(0x7F);
+					lcd_puts("-  LOCO");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -1131,7 +1155,8 @@ int main(void)
 					lcd_gotoxy(5,0);
 					lcd_puts("SET");
 					lcd_gotoxy(0,1);
-					lcd_puts("<-- FUNC");
+					lcd_putc(0x7F);
+					lcd_puts("-  FUNC");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -1236,7 +1261,8 @@ int main(void)
 					lcd_gotoxy(2,0);
 					lcd_puts("CONFIG");
 					lcd_gotoxy(0,1);
-					lcd_puts("<-- FUNC");
+					lcd_putc(0x7F);
+					lcd_puts("-  FUNC");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -1440,7 +1466,8 @@ int main(void)
 					lcd_gotoxy(4,0);
 					lcd_puts("COMM");
 					lcd_gotoxy(0,1);
-					lcd_puts("<--  CFG");
+					lcd_putc(0x7F);
+					lcd_puts("-   CFG");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -1539,7 +1566,8 @@ int main(void)
 					lcd_gotoxy(3,0);
 					lcd_puts("PREFS");
 					lcd_gotoxy(0,1);
-					lcd_puts("<--");
+					lcd_putc(0x7F);
+					lcd_puts("-");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -1623,7 +1651,8 @@ int main(void)
 					lcd_gotoxy(3,0);
 					lcd_puts("DIAGS");
 					lcd_gotoxy(0,1);
-					lcd_puts("<--");
+					lcd_putc(0x7F);
+					lcd_puts("-");
 					switch(button)
 					{
 						case SELECT_BUTTON:
