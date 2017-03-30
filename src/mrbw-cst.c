@@ -702,8 +702,12 @@ int main(void)
 	uint8_t inputButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 
-	uint8_t lastThrottlePosition = throttlePosition;
-	ReverserPosition lastReverserPosition = reverserPosition;
+	uint8_t actualThrottleSetting = throttlePosition;
+	uint8_t lastActualThrottleSetting = actualThrottleSetting;
+
+	ReverserPosition actualReverserSetting = reverserPosition;
+	ReverserPosition lastActualReverserSetting = actualReverserSetting;
+
 	uint8_t optionButtonState = 0;
 
 	uint8_t tonnage = 0;
@@ -805,6 +809,22 @@ int main(void)
 		else
 		{
 			controls |= HORN_CONTROL;
+		}
+		
+		// Calculate actual throttle and reverser settings
+		if( (actualReverserSetting != reverserPosition) && (0 == throttlePosition) )
+		{
+			// Only allow reverser to change when throttle is in idle
+			actualReverserSetting = reverserPosition;
+		}
+		
+		if(NEUTRAL == actualReverserSetting)
+		{
+			actualThrottleSetting = 0;
+		}
+		else
+		{
+			actualThrottleSetting = throttlePosition;
 		}
 
 		switch(screenState)
@@ -1676,13 +1696,13 @@ int main(void)
 					{
 						lcdBacklightEnable();
 						lcd_gotoxy(0,0);
-						if(0 == throttlePosition)
+						if(0 == actualThrottleSetting)
 						{
 							lcd_putc('I');
 						}
 						else
 						{
-							lcd_putc('0' + throttlePosition);
+							lcd_putc('0' + actualThrottleSetting);
 						}
 						lcd_putc(' ');		
 		
@@ -1703,7 +1723,7 @@ int main(void)
 						}
 
 						lcd_gotoxy(7,0);
-						switch(reverserPosition)
+						switch(actualReverserSetting)
 						{
 							case FORWARD:
 								lcd_putc('F');
@@ -1937,8 +1957,8 @@ int main(void)
 		functionMask |= functionForceOn;
 		functionMask &= ~functionForceOff;
 
-		uint8_t inputsChanged =	(reverserPosition != lastReverserPosition) ||
-									(throttlePosition != lastThrottlePosition) ||
+		uint8_t inputsChanged =	(actualReverserSetting != lastActualReverserSetting) ||
+									(actualThrottleSetting != lastActualThrottleSetting) ||
 									(functionMask != lastFunctionMask);
 
 		// Reset sleep timer
@@ -1974,8 +1994,8 @@ int main(void)
 			)
 		{
 			inputsChanged = 0;
-			lastReverserPosition = reverserPosition;
-			lastThrottlePosition = throttlePosition;
+			lastActualReverserSetting = actualReverserSetting;
+			lastActualThrottleSetting = actualThrottleSetting;
 			lastFunctionMask = functionMask;
 			
 			txBuffer[MRBUS_PKT_DEST] = mrbus_base_addr;
@@ -1986,10 +2006,10 @@ int main(void)
 			txBuffer[6] = locoAddress >> 8;
 			txBuffer[7] = locoAddress & 0xFF;
 			
-			uint8_t throttleTemp = throttlePosition * 16;
+			uint8_t throttleTemp = actualThrottleSetting * 16;
 			txBuffer[8] = (throttleTemp > 127) ? 127 : throttleTemp;
 			
-			switch(reverserPosition)
+			switch(actualReverserSetting)
 			{
 				case FORWARD:
 					direction = FORWARD;
@@ -1998,7 +2018,7 @@ int main(void)
 					direction = REVERSE;
 					break;
 				case NEUTRAL:
-					// Preserve previous direction
+					// Preserve previous direction for DCC purposes (mainly if auto-directional lighting is enabled)
 					break;
 			}
 			
