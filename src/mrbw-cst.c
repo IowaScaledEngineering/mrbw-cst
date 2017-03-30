@@ -96,6 +96,7 @@ volatile uint8_t pktTimeout = 0;
 #define EE_DOWN_BUTTON_FUNCTION       (0x0F + configOffset)
 #define EE_FUNC_FORCE_ON              (0x10 + configOffset)
 #define EE_FUNC_FORCE_OFF             (0x14 + configOffset)
+#define EE_NEUTRAL_FUNCTION           (0x18 + configOffset)
 
 uint16_t configOffset;
 
@@ -113,6 +114,7 @@ uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunc
 uint8_t dynamicFunction = OFF_FUNCTION;
 uint8_t engineFunction = 8;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
+uint8_t neutralFunction = 9;
 
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
@@ -162,6 +164,7 @@ typedef enum
 	BELL_FN,
 	DYNAMIC_FN,
 	ENGINE_FN,
+	NEUTRAL_FN,
 	FRONT_HEADLIGHT_FN,
 	FRONT_DITCH_FN,
 	FRONT_DIM1_FN,
@@ -643,6 +646,7 @@ void readConfig(void)
 	engineFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_FUNCTION);
 	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
 	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
+	neutralFunction = eeprom_read_byte((uint8_t*)EE_NEUTRAL_FUNCTION);
 	
 	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
 	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
@@ -820,7 +824,16 @@ int main(void)
 		
 		if(NEUTRAL == actualReverserSetting)
 		{
-			actualThrottleSetting = 0;
+			if(!(neutralFunction & OFF_FUNCTION))
+			{
+				// If a function is assigned to neutral (e.g. Drive Hold), allow the throttle to change
+				actualThrottleSetting = throttlePosition;
+			}
+			else
+			{
+				// Otherwise force the throttle to idle to prevent movement
+				actualThrottleSetting = 0;
+			}
 		}
 		else
 		{
@@ -1325,6 +1338,11 @@ int main(void)
 							lcd_puts("ENGINE");
 							functionPtr = &engineFunction;
 							break;
+						case NEUTRAL_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("NEUTRAL");
+							functionPtr = &neutralFunction;
+							break;
 						case FRONT_DIM1_FN:
 							lcd_gotoxy(0,0);
 							lcd_puts("F.DIM #1");
@@ -1455,6 +1473,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, engineFunction);
 								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
+								eeprom_write_byte((uint8_t*)EE_NEUTRAL_FUNCTION, neutralFunction);
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1905,6 +1924,7 @@ int main(void)
 			functionMask |= (uint32_t)1 << (upButtonFunction & 0x1F);
 		if((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (downButtonFunction & 0x1F);
+// FIXME: Add neutral function logic
 
 		wdt_reset();
 
