@@ -32,7 +32,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.58"
+#define VERSION_STRING "0.6"
 
 //#define FAST_SLEEP
 
@@ -96,7 +96,7 @@ volatile uint8_t pktTimeout = 0;
 #define EE_DOWN_BUTTON_FUNCTION       (0x0F + configOffset)
 #define EE_FUNC_FORCE_ON              (0x10 + configOffset)
 #define EE_FUNC_FORCE_OFF             (0x14 + configOffset)
-#define EE_NEUTRAL_FUNCTION           (0x18 + configOffset)
+#define EE_THR_UNLOCK_FUNCTION           (0x18 + configOffset)
 
 uint16_t configOffset;
 
@@ -114,7 +114,7 @@ uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunc
 uint8_t dynamicFunction = OFF_FUNCTION;
 uint8_t engineFunction = 8;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
-uint8_t neutralFunction = 9;
+uint8_t throttleUnlockFunction = 9;
 
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
@@ -646,7 +646,7 @@ void readConfig(void)
 	engineFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_FUNCTION);
 	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
 	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
-	neutralFunction = eeprom_read_byte((uint8_t*)EE_NEUTRAL_FUNCTION);
+	throttleUnlockFunction = eeprom_read_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION);
 	
 	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
 	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
@@ -815,31 +815,6 @@ int main(void)
 			controls |= HORN_CONTROL;
 		}
 		
-		// Calculate actual throttle and reverser settings
-		if( (actualReverserSetting != reverserPosition) && (0 == throttlePosition) )
-		{
-			// Only allow reverser to change when throttle is in idle
-			actualReverserSetting = reverserPosition;
-		}
-		
-		if(NEUTRAL == actualReverserSetting)
-		{
-			if(!(neutralFunction & OFF_FUNCTION))
-			{
-				// If a function is assigned to neutral (e.g. Drive Hold), allow the throttle to change
-				actualThrottleSetting = throttlePosition;
-			}
-			else
-			{
-				// Otherwise force the throttle to idle to prevent movement
-				actualThrottleSetting = 0;
-			}
-		}
-		else
-		{
-			actualThrottleSetting = throttlePosition;
-		}
-
 		switch(screenState)
 		{
 			case MAIN_SCREEN:
@@ -970,10 +945,10 @@ int main(void)
 			case LOAD_CONFIG_SCREEN:
 				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
-				lcd_puts("LOAD CFG");
-				lcd_gotoxy(1,1);
+				lcd_puts("RCL CONF");
+				lcd_gotoxy(0,1);
 				printDec2DigWZero(newConfigNumber);
-				lcd_puts(":");
+				lcd_puts(": ");
 				{
 					uint16_t tmpConfigOffset = configOffset;  // Save configOffset
 					configOffset = calculateConfigOffset(newConfigNumber);
@@ -1340,8 +1315,8 @@ int main(void)
 							break;
 						case NEUTRAL_FN:
 							lcd_gotoxy(0,0);
-							lcd_puts("NEUTRAL");
-							functionPtr = &neutralFunction;
+							lcd_puts("THR UNLK");
+							functionPtr = &throttleUnlockFunction;
 							break;
 						case FRONT_DIM1_FN:
 							lcd_gotoxy(0,0);
@@ -1473,7 +1448,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, engineFunction);
 								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
-								eeprom_write_byte((uint8_t*)EE_NEUTRAL_FUNCTION, neutralFunction);
+								eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, throttleUnlockFunction);
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1911,6 +1886,7 @@ int main(void)
 			led = LED_GREEN;
 		
 
+		// Figure out which functions should be on and which should be off
 		functionMask = 0;
 		if((controls & HORN_CONTROL) && !(hornFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (hornFunction & 0x1F);
@@ -1924,7 +1900,6 @@ int main(void)
 			functionMask |= (uint32_t)1 << (upButtonFunction & 0x1F);
 		if((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (downButtonFunction & 0x1F);
-// FIXME: Add neutral function logic
 
 		wdt_reset();
 
@@ -1974,8 +1949,38 @@ int main(void)
 				break;
 		}
 
+
+		// Force specific functions on or off
 		functionMask |= functionForceOn;
 		functionMask &= ~functionForceOff;
+
+
+		// Calculate actual throttle and reverser settings
+		if( (actualReverserSetting != reverserPosition) && (0 == throttlePosition) )
+		{
+			// Only allow reverser to change when throttle is in idle
+			actualReverserSetting = reverserPosition;
+		}
+		
+		if(NEUTRAL == actualReverserSetting)
+		{
+			if( (!(throttleUnlockFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (throttleUnlockFunction & 0x1F))) )
+			{
+				// If a function is assigned to the throttle unlock (e.g. Drive Hold) and the function is active, allow the throttle to change
+				actualThrottleSetting = throttlePosition;
+			}
+			else
+			{
+				// Otherwise force the throttle to idle to prevent movement
+				actualThrottleSetting = 0;
+			}
+		}
+
+		else
+		{
+			actualThrottleSetting = throttlePosition;
+		}
+
 
 		uint8_t inputsChanged =	(actualReverserSetting != lastActualReverserSetting) ||
 									(actualThrottleSetting != lastActualThrottleSetting) ||
