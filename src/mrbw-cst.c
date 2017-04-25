@@ -34,7 +34,7 @@ LICENSE:
 
 #define VERSION_STRING "0.61"
 
-//#define FAST_SLEEP
+#define FAST_SLEEP
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -1673,7 +1673,6 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								subscreenStatus = 1;
-								setupDiagChars();
 								lcd_clrscr();
 							}
 							break;
@@ -1688,6 +1687,7 @@ int main(void)
 				{
 					if(1 == subscreenStatus)
 					{
+						setupDiagChars();
 						lcdBacklightEnable();
 						lcd_gotoxy(5,0);
 						if(0 == actualThrottleSetting)
