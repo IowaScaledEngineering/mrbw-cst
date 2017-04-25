@@ -32,7 +32,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.6"
+#define VERSION_STRING "0.61"
 
 //#define FAST_SLEEP
 
@@ -1689,7 +1689,7 @@ int main(void)
 					if(1 == subscreenStatus)
 					{
 						lcdBacklightEnable();
-						lcd_gotoxy(0,0);
+						lcd_gotoxy(5,0);
 						if(0 == actualThrottleSetting)
 						{
 							lcd_putc('I');
@@ -1698,9 +1698,7 @@ int main(void)
 						{
 							lcd_putc('0' + actualThrottleSetting);
 						}
-						lcd_putc(' ');		
-		
-						lcd_gotoxy(2,0);
+						lcd_gotoxy(0,0);
 						if(brakePosition & 0x80)
 						{
 							lcd_putc('E');
@@ -1711,9 +1709,8 @@ int main(void)
 						else
 						{
 							uint8_t brakePcnt = 100 * brakePosition / 128;
-							lcd_putc(' ');
 							printDec2Dig(brakePcnt);
-							lcd_putc('%');
+							lcd_puts("% ");
 						}
 
 						lcd_gotoxy(7,0);
