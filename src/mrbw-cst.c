@@ -34,7 +34,7 @@ LICENSE:
 
 #define VERSION_STRING "0.61"
 
-#define FAST_SLEEP
+//#define FAST_SLEEP
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -1984,6 +1984,7 @@ int main(void)
 									(functionMask != lastFunctionMask);
 
 		// Reset sleep timer
+		// Using actualReverserSetting also guarantees the throttle (actualThrottleSetting) was in idle when entering sleep, so it will unsleep in the idle position.
 		if( 
 			(NO_BUTTON != button) || 
 			(FORWARD == actualReverserSetting) || 
