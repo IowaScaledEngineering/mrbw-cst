@@ -1986,8 +1986,8 @@ int main(void)
 		// Reset sleep timer
 		if( 
 			(NO_BUTTON != button) || 
-			(FORWARD == reverserPosition) || 
-			(REVERSE == reverserPosition) ||
+			(FORWARD == actualReverserSetting) || 
+			(REVERSE == actualReverserSetting) ||
 			inputsChanged
 			)
 		{
@@ -2096,8 +2096,8 @@ int main(void)
 			// Wake up from sleep on a button press or taking the reverser out of neutral
 			while(
 				(NO_BUTTON == button) &&
-				(FORWARD != reverserPosition) &&
-				(REVERSE != reverserPosition)
+				(FORWARD != actualReverserSetting) &&
+				(REVERSE != actualReverserSetting)
 				)
 			{
 				system_sleep(10);
