@@ -32,7 +32,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.61"
+#define VERSION_STRING "0.62"
 
 //#define FAST_SLEEP
 
@@ -98,7 +98,7 @@ volatile uint8_t pktTimeout = 0;
 #define EE_DOWN_BUTTON_FUNCTION       (0x0F + configOffset)
 #define EE_FUNC_FORCE_ON              (0x10 + configOffset)
 #define EE_FUNC_FORCE_OFF             (0x14 + configOffset)
-#define EE_THR_UNLOCK_FUNCTION           (0x18 + configOffset)
+#define EE_THR_UNLOCK_FUNCTION        (0x18 + configOffset)
 
 uint16_t configOffset;
 
@@ -136,11 +136,13 @@ typedef enum
 	MAIN_SCREEN = 0,
 //	DEBUG2_SCREEN,
 	ENGINE_SCREEN,
+	TONNAGE_SCREEN,
 	LOAD_CONFIG_SCREEN,
 	LOCO_SCREEN,
-	TONNAGE_SCREEN,
 	FUNC_SET_SCREEN,
 	FUNC_CONFIG_SCREEN,
+	THRESHOLD_CAL_SCREEN,
+	THROTTLE_CONFIG_SCREEN,
 	COMM_SCREEN,
 	PREFS_SCREEN,
 	DIAG_SCREEN,
@@ -987,6 +989,66 @@ int main(void)
 				}
 				break;
 
+			case TONNAGE_SCREEN:
+				lcdBacklightEnable();
+				lcd_gotoxy(0,0);
+				switch(tonnage)
+				{
+					case 0:
+						lcd_puts("LIGHT ");
+						break;
+					case 1:
+						lcd_puts("LOW   ");
+						break;
+					case 2:
+						lcd_puts("MEDIUM");
+						break;
+					case 3:
+						lcd_puts("HEAVY ");
+						break;
+				}
+				lcd_gotoxy(0,1);
+				switch(tonnage)
+				{
+					case 0:
+						lcd_puts("ENGINE");
+						break;
+					case 1:
+					case 2:
+					case 3:
+						lcd_puts("WEIGHT");
+						break;
+				}
+				printTonnage(tonnage);
+				switch(button)
+				{
+					case UP_BUTTON:
+						if(UP_BUTTON != previousButton)
+						{
+							if(tonnage >= 3)
+								tonnage = 3;
+							else
+								tonnage++;
+						}
+						break;
+					case DOWN_BUTTON:
+						if(DOWN_BUTTON != previousButton)
+						{
+							if((0 == tonnage) || (tonnage > 3))
+								tonnage = 0;
+							else
+								tonnage--;
+						}
+						break;
+					case SELECT_BUTTON:
+							screenState = LAST_SCREEN;
+							break;
+					case MENU_BUTTON:
+					case NO_BUTTON:
+						break;
+				}
+				break;
+
 			case LOAD_CONFIG_SCREEN:
 				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
@@ -1138,66 +1200,6 @@ int main(void)
 						case NO_BUTTON:
 							break;
 					}
-				}
-				break;
-
-			case TONNAGE_SCREEN:
-				lcdBacklightEnable();
-				lcd_gotoxy(0,0);
-				switch(tonnage)
-				{
-					case 0:
-						lcd_puts("LIGHT ");
-						break;
-					case 1:
-						lcd_puts("LOW   ");
-						break;
-					case 2:
-						lcd_puts("MEDIUM");
-						break;
-					case 3:
-						lcd_puts("HEAVY ");
-						break;
-				}
-				lcd_gotoxy(0,1);
-				switch(tonnage)
-				{
-					case 0:
-						lcd_puts("ENGINE");
-						break;
-					case 1:
-					case 2:
-					case 3:
-						lcd_puts("WEIGHT");
-						break;
-				}
-				printTonnage(tonnage);
-				switch(button)
-				{
-					case UP_BUTTON:
-						if(UP_BUTTON != previousButton)
-						{
-							if(tonnage >= 3)
-								tonnage = 3;
-							else
-								tonnage++;
-						}
-						break;
-					case DOWN_BUTTON:
-						if(DOWN_BUTTON != previousButton)
-						{
-							if((0 == tonnage) || (tonnage > 3))
-								tonnage = 0;
-							else
-								tonnage--;
-						}
-						break;
-					case SELECT_BUTTON:
-							screenState = LAST_SCREEN;
-							break;
-					case MENU_BUTTON:
-					case NO_BUTTON:
-						break;
 				}
 				break;
 
@@ -1512,6 +1514,145 @@ int main(void)
 								lcd_clrscr();
 							}
 							break;
+						case NO_BUTTON:
+							break;
+					}
+				}
+				break;
+
+			case THRESHOLD_CAL_SCREEN:
+				lcdBacklightEnable();
+				if(!subscreenStatus)
+				{
+					lcd_gotoxy(0,0);
+					lcd_puts("THRSHOLD");
+					lcd_gotoxy(0,1);
+					lcd_putc(0x7F);
+					lcd_puts("-   CAL");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					lcdBacklightEnable();
+					lcd_gotoxy(0,0);
+					if(1 == subscreenStatus)
+					{
+						lcd_puts("HORN THR");
+					}
+					else if(2 == subscreenStatus)
+					{
+						lcd_puts(" BRK THR");
+					}
+					else if(3 == subscreenStatus)
+					{
+						lcd_puts(" BRK LOW");
+					}
+					else
+					{
+						lcd_puts("EMRG THR");
+					}
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenStatus++;
+								if(subscreenStatus > 4)
+									subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				break;
+
+			case THROTTLE_CONFIG_SCREEN:
+				lcdBacklightEnable();
+				if(!subscreenStatus)
+				{
+					lcd_gotoxy(0,0);
+					lcd_puts("THROTTLE");
+					lcd_gotoxy(0,1);
+					lcd_putc(0x7F);
+					lcd_puts("-   CFG");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					lcdBacklightEnable();
+					lcd_gotoxy(0,0);
+					lcd_puts("NOTCH ");
+					lcd_putc('0' + subscreenStatus);
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenStatus++;
+								if(subscreenStatus > 8)
+									subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+// FIXME: add functionality to up and down
+						case UP_BUTTON:
+						case DOWN_BUTTON:
 						case NO_BUTTON:
 							break;
 					}
