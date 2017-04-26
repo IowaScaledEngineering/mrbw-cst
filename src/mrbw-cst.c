@@ -188,6 +188,95 @@ uint32_t functionForceOff = 0;
 
 uint8_t controls = 0;
 
+
+#define TIME_FLAGS_DISP_FAST       0x01
+#define TIME_FLAGS_DISP_FAST_HOLD  0x02
+#define TIME_FLAGS_DISP_REAL_AMPM  0x04
+#define TIME_FLAGS_DISP_FAST_AMPM  0x08
+
+uint16_t timeScaleFactor = 10;
+uint8_t timeFlags = 0;
+
+typedef struct
+{
+	uint8_t seconds;
+	uint8_t minutes;
+	uint8_t hours;
+	uint8_t dayOfWeek;
+	uint8_t day;
+	uint8_t month;
+	uint16_t year;
+} TimeData;
+
+TimeData realTime;
+TimeData fastTime;
+
+volatile uint16_t fastDecisecs = 0;
+volatile uint8_t scaleTenthsAccum = 0;
+uint8_t maxDeadReckoningTime = 50;
+uint8_t deadReckoningTime = 0;
+uint8_t timeSourceAddress = 0xFF;
+
+void incrementTime(TimeData* t, uint8_t incSeconds)
+{
+	uint16_t i = t->seconds + incSeconds;
+
+	while(i >= 60)
+	{
+		t->minutes++;
+		i -= 60;
+	}
+	t->seconds = (uint8_t)i;
+	
+	while(t->minutes >= 60)
+	{
+		t->hours++;
+		t->minutes -= 60;
+	}
+	
+	if (t->hours >= 24)
+		t->hours %= 24;
+}
+
+void displayTime(TimeData* time)
+{
+	uint8_t i=0;
+
+	i = (time->hours / 10) % 10;
+	lcd_putc('0' + i);
+	lcd_putc('0' + time->hours % 10);
+	lcd_putc(':');
+	lcd_putc('0' + (time->minutes / 10) % 10);
+	lcd_putc('0' + time->minutes % 10);
+}
+
+void printTime(void)
+{
+	if(0 == deadReckoningTime)
+	{
+		lcd_puts("--:--");
+	}
+	else if ((TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD) == (timeFlags & (TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD)) )  // Hold state
+	{
+		lcd_puts(" HOLD");
+	}
+	else if (timeFlags & TIME_FLAGS_DISP_FAST)
+		displayTime(&fastTime);
+	else
+		displayTime(&realTime);
+
+	if ((timeFlags & TIME_FLAGS_DISP_FAST) && !(timeFlags & TIME_FLAGS_DISP_FAST_HOLD) && fastDecisecs >= 10)
+	{
+		uint8_t fastTimeSecs;
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			fastTimeSecs = fastDecisecs / 10;
+			fastDecisecs -= fastTimeSecs * 10;
+		}
+		incrementTime(&fastTime, fastTimeSecs);
+	}
+}
+
 inline uint16_t calculateConfigOffset(uint8_t cfgNum)
 {
 	return(((cfgNum - 1) * CONFIG_SIZE) + CONFIG_START);
@@ -335,6 +424,28 @@ void PktHandler(void)
 		while(1);  // Force a watchdog reset
 		sei();
 	}
+	else if ('T' == rxBuffer[MRBUS_PKT_TYPE] &&
+		((0xFF == timeSourceAddress) || (rxBuffer[MRBUS_PKT_SRC] == timeSourceAddress)) )
+	{
+		// It's a time packet from our time reference source
+		realTime.hours = rxBuffer[6];
+		realTime.minutes = rxBuffer[7];
+		realTime.seconds = rxBuffer[8];
+		timeFlags = rxBuffer[9];
+		// Time source packets aren't required to have a fast section
+		// Doesn't really make sense outside model railroading applications, so...
+		if (rxBuffer[MRBUS_PKT_LEN] >= 14)
+		{
+			fastTime.hours =  rxBuffer[10];
+			fastTime.minutes =  rxBuffer[11];
+			fastTime.seconds = rxBuffer[12];
+			timeScaleFactor = (((uint16_t)rxBuffer[13])<<8) + (uint16_t)rxBuffer[14];
+		}		
+		// If we got a packet, there's no dead reckoning time anymore
+		fastDecisecs = 0;
+		scaleTenthsAccum = 0;
+		deadReckoningTime = maxDeadReckoningTime;
+	}
 	//*************** END PACKET HANDLER  ***************
 
 	
@@ -469,6 +580,20 @@ ISR(TIMER0_COMPA_vect)
 		}
 
 		ledUpdate();
+
+		if (deadReckoningTime)
+			deadReckoningTime--;
+		if (TIME_FLAGS_DISP_FAST == (timeFlags & (TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD)))
+		{
+			fastDecisecs += timeScaleFactor / 10;
+			scaleTenthsAccum += timeScaleFactor % 10;
+			if (scaleTenthsAccum > 10)
+			{
+				fastDecisecs++;
+				scaleTenthsAccum -= 10;
+			}		
+		
+		}
 	}
 
 	if(ticks_autoincrement < button_autoincrement_10ms_ticks)
@@ -578,14 +703,16 @@ void init(void)
 #endif
 
 	pktTimeout = PKT_TIMEOUT_DECISECS;
-
+	deadReckoningTime = 0;
+	fastDecisecs = 0;
+	
 	readConfig();
 
 	initPorts();
 	initADC();
 	enableThrottle();
 	initialize100HzTimer();
-	
+
 	DDRB |= _BV(PB3);
 }
 

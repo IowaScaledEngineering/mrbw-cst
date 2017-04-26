@@ -217,10 +217,5 @@ void printTonnage(uint8_t tonnage)
 	lcd_putc(TONNAGE_BOTTOM);
 }
 
-void printTime()
-{
-	lcd_puts("00:00");
-}
-
 #endif
 
