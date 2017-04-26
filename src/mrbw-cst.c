@@ -67,8 +67,10 @@ volatile uint8_t pktTimeout = 0;
 #define LATCH_FUNCTION    0x40
 
 // Set EEPROM locations
-#define EE_DEVICE_SLEEP_TIMEOUT       0x10
-#define EE_CURRENT_CONFIG             0x11
+#define EE_CURRENT_CONFIG             0x10
+#define EE_DEVICE_SLEEP_TIMEOUT       0x11
+#define EE_MAX_DEAD_RECKONING         0x12
+#define EE_TIME_SOURCE_ADDRESS        0x1E
 #define EE_BASE_ADDR                  0x1F
 
 #define MAX_CONFIGS 15
@@ -213,7 +215,7 @@ TimeData fastTime;
 
 volatile uint16_t fastDecisecs = 0;
 volatile uint8_t scaleTenthsAccum = 0;
-uint8_t maxDeadReckoningTime = 50;
+uint8_t maxDeadReckoningTime = 150;
 uint8_t deadReckoningTime = 0;
 uint8_t timeSourceAddress = 0xFF;
 
@@ -686,6 +688,9 @@ void readConfig(void)
 	
 	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
 	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
+
+	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
+	maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
 }
 
 void init(void)
@@ -782,9 +787,12 @@ int main(void)
 	uint16_t newLocoAddress = locoAddress;
 	uint8_t newDevAddr = mrbus_dev_addr;
 	uint8_t newBaseAddr = mrbus_base_addr;
+	uint8_t newTimeAddr = timeSourceAddress;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
+	uint8_t newMaxDeadReckoningTime = maxDeadReckoningTime / 10;
 
 	uint8_t *addrPtr = &newDevAddr;
+	uint8_t *prefsPtr = &newSleepTimeout;
 
 	setXbeeActive();
 
@@ -1544,13 +1552,18 @@ int main(void)
 						lcd_puts("THR ADR");
 						addrPtr = &newDevAddr;
 					}
-					else
+					else if(2 == subscreenStatus)
 					{
 						lcd_puts("BASE ADR");
 						addrPtr = &newBaseAddr;
 					}
+					else
+					{
+						lcd_puts("TIME ADR");
+						addrPtr = &newTimeAddr;
+					}
 					lcd_gotoxy(2,1);
-					if( (addrPtr == &newBaseAddr) && (0xFF == *addrPtr) )
+					if( ((addrPtr == &newBaseAddr)||(addrPtr == &newTimeAddr)) && (0xFF == *addrPtr) )
 					{
 						lcd_puts("ALL ");
 					}
@@ -1564,10 +1577,10 @@ int main(void)
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(*addrPtr < 0xFE)
+								if(*addrPtr < 0xFF)
 									(*addrPtr)++;
 								if( (0xFF == newDevAddr) )
-									newDevAddr = 0;  // Don't allow 0xFF for device address
+									newDevAddr = 0xFE;  // Don't allow 0xFF for device address
 								ticks_autoincrement = 0;
 							}
 							break;
@@ -1584,8 +1597,10 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, newDevAddr);
 								eeprom_write_byte((uint8_t*)EE_BASE_ADDR, newBaseAddr);
+								eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, newTimeAddr);
 								mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
 								mrbus_base_addr = eeprom_read_byte((uint8_t*)EE_BASE_ADDR);
+								timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1599,7 +1614,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 2)
+								if(subscreenStatus > 3)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
@@ -1639,30 +1654,46 @@ int main(void)
 				{
 					lcdBacklightEnable();
 					lcd_gotoxy(0,0);
-					lcd_puts("SLEEP");
-					lcd_gotoxy(0,1);
-					lcd_puts("DLY: ");
-					printDec2Dig(newSleepTimeout);
-					lcd_puts("M");
+					if(1 == subscreenStatus)
+					{
+						lcd_puts("SLEEP");
+						lcd_gotoxy(0,1);
+						lcd_puts("DLY: ");
+						printDec2Dig(newSleepTimeout);
+						lcd_puts("M");
+						prefsPtr = &newSleepTimeout;
+					}
+					else
+					{
+						lcd_puts("TIMEOUT");
+						lcd_gotoxy(0,1);
+						lcd_puts("CLK: ");
+						printDec2Dig(newMaxDeadReckoningTime);
+						lcd_puts("s");
+						prefsPtr = &newMaxDeadReckoningTime;
+					}
+					
 					switch(button)
 					{
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(newSleepTimeout < 99)
-									newSleepTimeout++;
-								else
+								if(*prefsPtr < 0xFF)
+									(*prefsPtr)++;
+								if(newSleepTimeout > 99)
 									newSleepTimeout = 99;
+								if(newMaxDeadReckoningTime > 25)
+									newMaxDeadReckoningTime = 25;
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(newSleepTimeout > 1)
-									newSleepTimeout--;
+								if(*prefsPtr > 1)
+									(*prefsPtr)--;
 								else
-									newSleepTimeout = 1;
+									*prefsPtr = 1;
 								ticks_autoincrement = 0;
 							}
 							break;
@@ -1671,6 +1702,8 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT) * 600;
+								eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, newMaxDeadReckoningTime * 10);
+								maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1684,7 +1717,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 1)
+								if(subscreenStatus > 2)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
