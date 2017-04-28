@@ -180,22 +180,7 @@ void processADC()
 
 			case ADC_STATE_READ_VBRAKE:
 				disablePots();
-				adcAccumulator >>= 8;
-				if(adcAccumulator >= 160)
-				{
-					brakePosition = 0x80;
-				}
-				else
-				{
-					if(adcAccumulator < 96)
-					{
-						brakePosition = 0;
-					}
-					else
-					{
-						brakePosition = 128 * (adcAccumulator - 96) / 64;
-					}
-				}
+				brakePosition = adcAccumulator >> 8;
 				adcState++;
 				break;
 
@@ -207,19 +192,7 @@ void processADC()
 
 			case ADC_STATE_READ_VHORN:
 				disablePots();
-				adcAccumulator >>= 8;
-				if(adcAccumulator < 96)
-				{
-					hornPosition = 0;
-				}
-				else if(adcAccumulator > 160)
-				{
-					hornPosition = 255;
-				}
-				else
-				{
-					hornPosition = 128 * (adcAccumulator - 96) / 64;
-				}
+				hornPosition = 255 - (adcAccumulator >> 8);
 				adcState++;
 				break;
 

@@ -72,6 +72,10 @@ volatile uint8_t pktTimeout = 0;
 #define EE_MAX_DEAD_RECKONING         0x12
 #define EE_TIME_SOURCE_ADDRESS        0x1E
 #define EE_BASE_ADDR                  0x1F
+#define EE_HORN_THRESHOLD             0x20
+#define EE_BRAKE_THRESHOLD            0x21
+#define EE_BRAKE_LOW_THRESHOLD        0x22
+#define EE_EMERGENCY_THRESHOLD        0x23
 
 #define MAX_CONFIGS 15
 
@@ -117,6 +121,12 @@ uint8_t dynamicFunction = OFF_FUNCTION;
 uint8_t engineFunction = 8;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
 uint8_t throttleUnlockFunction = 9;
+
+uint8_t hornThreshold;
+uint8_t brakeThreshold;
+uint8_t brakeLowThreshold;
+uint8_t emergencyThreshold;
+uint8_t brakeDeadZone = 2;
 
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
@@ -691,6 +701,13 @@ void readConfig(void)
 	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
 	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
 
+	// Thresholds
+	hornThreshold = eeprom_read_byte((uint8_t*)EE_HORN_THRESHOLD);
+	brakeThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_THRESHOLD);
+	brakeLowThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_LOW_THRESHOLD);
+	emergencyThreshold = eeprom_read_byte((uint8_t*)EE_EMERGENCY_THRESHOLD);
+
+	// Fast clock
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 	maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
 }
@@ -777,7 +794,7 @@ int main(void)
 
 	uint32_t functionMask = 0;
 	uint32_t lastFunctionMask = 0;
-	
+
 	ReverserPosition direction = FORWARD;
 
 	BatteryState batteryState = UNKNOWN, lastBatteryState = batteryState;
@@ -795,7 +812,7 @@ int main(void)
 
 	uint8_t *addrPtr = &newDevAddr;
 	uint8_t *prefsPtr = &newSleepTimeout;
-
+	
 	setXbeeActive();
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -853,7 +870,7 @@ int main(void)
 
 		// Convert horn to on/off control
 		// FIXME: eventually add analog horn functionality
-		if(hornPosition > 127)
+		if(hornPosition < hornThreshold)
 		{
 			controls &= ~(HORN_CONTROL);
 		}
@@ -861,7 +878,7 @@ int main(void)
 		{
 			controls |= HORN_CONTROL;
 		}
-		
+
 		switch(screenState)
 		{
 			case MAIN_SCREEN:
@@ -1547,29 +1564,54 @@ int main(void)
 				}
 				else
 				{
+					uint8_t *positionPtr = &hornPosition;
+					uint8_t *thresholdPtr = &hornThreshold;
 					lcdBacklightEnable();
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
 					{
-						lcd_puts("HORN THR");
+						lcd_puts("HORN");
+						positionPtr = &hornPosition;
+						thresholdPtr = &hornThreshold;
 					}
 					else if(2 == subscreenStatus)
 					{
-						lcd_puts(" BRK THR");
+						lcd_puts("BRAKE");
+						positionPtr = &brakePosition;
+						thresholdPtr = &brakeThreshold;
 					}
 					else if(3 == subscreenStatus)
 					{
-						lcd_puts(" BRK LOW");
+						lcd_puts("BRAKE");
+						lcd_gotoxy(0,1);
+						lcd_puts("LOW");
+						positionPtr = &brakePosition;
+						thresholdPtr = &brakeLowThreshold;
 					}
 					else
 					{
-						lcd_puts("EMRG THR");
+						lcd_puts("EMRG");
+						positionPtr = &brakePosition;
+						thresholdPtr = &emergencyThreshold;
 					}
+					lcd_gotoxy(7,0);
+					lcd_putc((*positionPtr >= *thresholdPtr) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 					switch(button)
 					{
+						case UP_BUTTON:
+							if(UP_BUTTON != previousButton)
+							{
+								// Update threshold to current position
+								*thresholdPtr = *positionPtr;
+							}
+							break;
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
+								eeprom_write_byte((uint8_t*)EE_HORN_THRESHOLD, hornThreshold);
+								eeprom_write_byte((uint8_t*)EE_BRAKE_THRESHOLD, brakeThreshold);
+								eeprom_write_byte((uint8_t*)EE_BRAKE_LOW_THRESHOLD, brakeLowThreshold);
+								eeprom_write_byte((uint8_t*)EE_EMERGENCY_THRESHOLD, emergencyThreshold);
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1588,8 +1630,8 @@ int main(void)
 								lcd_clrscr();
 							}
 							break;
-						case UP_BUTTON:
 						case DOWN_BUTTON:
+							// DOWN does nothing
 						case NO_BUTTON:
 							break;
 					}
@@ -1910,7 +1952,7 @@ int main(void)
 							lcd_putc('0' + actualThrottleSetting);
 						}
 						lcd_gotoxy(0,0);
-						if(brakePosition & 0x80)
+						if(brakePosition > emergencyThreshold)
 						{
 							lcd_putc('E');
 							lcd_putc('M');
@@ -1919,11 +1961,20 @@ int main(void)
 						}
 						else
 						{
-							uint8_t brakePcnt = 100 * brakePosition / 128;
-							printDec2Dig(brakePcnt);
-							lcd_puts("% ");
-						}
+							if(brakePosition > brakeThreshold)
+								lcd_putc(FUNCTION_ACTIVE_CHAR);
+							else
+								lcd_putc(FUNCTION_INACTIVE_CHAR);
 
+							if(brakePosition < (brakeLowThreshold + brakeDeadZone))
+								brakePosition = brakeLowThreshold;
+							uint8_t brakePcnt = 100 * (brakePosition - brakeLowThreshold) / (emergencyThreshold - brakeLowThreshold);
+							if(brakePcnt > 99)
+								brakePcnt = 99;  // Can't display 100%...
+							printDec2Dig(brakePcnt);
+							lcd_putc('%');
+						}
+						
 						lcd_gotoxy(7,0);
 						switch(actualReverserSetting)
 						{
