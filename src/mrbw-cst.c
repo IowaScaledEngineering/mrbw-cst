@@ -89,21 +89,25 @@ volatile uint8_t pktTimeout = 0;
 #define EE_LOCO_ADDRESS               (0x00 + configOffset)
 #define EE_HORN_FUNCTION              (0x02 + configOffset)
 #define EE_BELL_FUNCTION              (0x03 + configOffset)
-#define EE_FRONT_DIM1_FUNCTION        (0x04 + configOffset)
-#define EE_FRONT_DIM2_FUNCTION        (0x05 + configOffset)
-#define EE_FRONT_HEADLIGHT_FUNCTION   (0x06 + configOffset)
-#define EE_FRONT_DITCH_FUNCTION       (0x07 + configOffset)
-#define EE_REAR_DIM1_FUNCTION         (0x08 + configOffset)
-#define EE_REAR_DIM2_FUNCTION         (0x09 + configOffset)
-#define EE_REAR_HEADLIGHT_FUNCTION    (0x0A + configOffset)
-#define EE_REAR_DITCH_FUNCTION        (0x0B + configOffset)
-#define EE_DYNAMIC_FUNCTION           (0x0C + configOffset)
-#define EE_ENGINE_FUNCTION            (0x0D + configOffset)
-#define EE_UP_BUTTON_FUNCTION         (0x0E + configOffset)
-#define EE_DOWN_BUTTON_FUNCTION       (0x0F + configOffset)
-#define EE_FUNC_FORCE_ON              (0x10 + configOffset)
-#define EE_FUNC_FORCE_OFF             (0x14 + configOffset)
-#define EE_THR_UNLOCK_FUNCTION        (0x18 + configOffset)
+#define EE_BRAKE_FUNCTION             (0x04 + configOffset)
+#define EE_DYNAMIC_FUNCTION           (0x05 + configOffset)
+#define EE_ENGINE_FUNCTION            (0x06 + configOffset)
+
+#define EE_FRONT_DIM1_FUNCTION        (0x08 + configOffset)
+#define EE_FRONT_DIM2_FUNCTION        (0x09 + configOffset)
+#define EE_FRONT_HEADLIGHT_FUNCTION   (0x0A + configOffset)
+#define EE_FRONT_DITCH_FUNCTION       (0x0B + configOffset)
+#define EE_REAR_DIM1_FUNCTION         (0x0C + configOffset)
+#define EE_REAR_DIM2_FUNCTION         (0x0D + configOffset)
+#define EE_REAR_HEADLIGHT_FUNCTION    (0x0E + configOffset)
+#define EE_REAR_DITCH_FUNCTION        (0x0F + configOffset)
+
+#define EE_UP_BUTTON_FUNCTION         (0x10 + configOffset)
+#define EE_DOWN_BUTTON_FUNCTION       (0x11 + configOffset)
+#define EE_THR_UNLOCK_FUNCTION        (0x12 + configOffset)
+
+#define EE_FUNC_FORCE_ON              (0x18 + configOffset)
+#define EE_FUNC_FORCE_OFF             (0x1C + configOffset)
 
 uint16_t configOffset;
 
@@ -118,6 +122,7 @@ uint8_t hornFunction = 2;
 uint8_t bellFunction = 7;
 uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
 uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
+uint8_t brakeFunction = OFF_FUNCTION;
 uint8_t dynamicFunction = OFF_FUNCTION;
 uint8_t engineFunction = 8;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
@@ -177,6 +182,7 @@ typedef enum
 {
 	HORN_FN = 0,
 	BELL_FN,
+	BRAKE_FN,
 	DYNAMIC_FN,
 	ENGINE_FN,
 	NEUTRAL_FN,
@@ -693,6 +699,7 @@ void readConfig(void)
 	rearDim2Function = eeprom_read_byte((uint8_t*)EE_REAR_DIM2_FUNCTION);
 	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
 	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
+	brakeFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
 	dynamicFunction = eeprom_read_byte((uint8_t*)EE_DYNAMIC_FUNCTION);
 	engineFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_FUNCTION);
 	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
@@ -1387,6 +1394,11 @@ int main(void)
 							lcd_puts("BELL");
 							functionPtr = &bellFunction;
 							break;
+						case BRAKE_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("BRAKE");
+							functionPtr = &brakeFunction;
+							break;
 						case DYNAMIC_FN:
 							lcd_gotoxy(0,0);
 							lcd_puts("D.BRAKE");
@@ -1528,6 +1540,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, rearDim2Function);
 								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);
 								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);
+								eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, brakeFunction);
 								eeprom_write_byte((uint8_t*)EE_DYNAMIC_FUNCTION, dynamicFunction);
 								eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, engineFunction);
 								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
@@ -2164,6 +2177,8 @@ int main(void)
 			functionMask |= (uint32_t)1 << (bellFunction & 0x1F);
 		if((controls & DYNAMIC_CONTROL) && !(dynamicFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (dynamicFunction & 0x1F);
+		if((controls & BRAKE_CONTROL) && !(brakeFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (brakeFunction & 0x1F);
 		if(engineState && !(engineFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (engineFunction & 0x1F);
 		if((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION))
