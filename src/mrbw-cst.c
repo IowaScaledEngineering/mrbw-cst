@@ -32,7 +32,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.62"
+#define VERSION_STRING "0.63"
 
 //#define FAST_SLEEP
 
@@ -62,6 +62,7 @@ volatile uint8_t pktTimeout = 0;
 #define HORN_CONTROL      0x01
 #define BELL_CONTROL      0x02
 #define DYNAMIC_CONTROL   0x04
+#define BRAKE_CONTROL     0x08
 
 #define OFF_FUNCTION      0x80
 #define LATCH_FUNCTION    0x40
@@ -126,7 +127,7 @@ uint8_t hornThreshold;
 uint8_t brakeThreshold;
 uint8_t brakeLowThreshold;
 uint8_t emergencyThreshold;
-uint8_t brakeDeadZone = 2;
+uint8_t brakeDeadZone = 3;
 
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
@@ -772,6 +773,8 @@ int main(void)
 
 	ReverserPosition actualReverserSetting = reverserPosition;
 	ReverserPosition lastActualReverserSetting = actualReverserSetting;
+	
+	uint8_t brakePcnt = 0;
 
 	uint8_t optionButtonState = 0;
 
@@ -877,6 +880,23 @@ int main(void)
 		else
 		{
 			controls |= HORN_CONTROL;
+		}
+
+		// Sanity check brake position and calculate percentage
+		if(brakePosition < (brakeLowThreshold + brakeDeadZone))
+			brakePcnt = 0;
+		else
+			brakePcnt = 100 * (brakePosition - brakeLowThreshold) / (emergencyThreshold - brakeLowThreshold);
+
+		// Convert brake to on/off control
+		// FIXME: eventually add analog brake functionality
+		if(brakePosition < brakeThreshold)
+		{
+			controls &= ~(BRAKE_CONTROL);
+		}
+		else
+		{
+			controls |= BRAKE_CONTROL;
 		}
 
 		switch(screenState)
@@ -1961,17 +1981,8 @@ int main(void)
 						}
 						else
 						{
-							if(brakePosition > brakeThreshold)
-								lcd_putc(FUNCTION_ACTIVE_CHAR);
-							else
-								lcd_putc(FUNCTION_INACTIVE_CHAR);
-
-							if(brakePosition < (brakeLowThreshold + brakeDeadZone))
-								brakePosition = brakeLowThreshold;
-							uint8_t brakePcnt = 100 * (brakePosition - brakeLowThreshold) / (emergencyThreshold - brakeLowThreshold);
-							if(brakePcnt > 99)
-								brakePcnt = 99;  // Can't display 100%...
-							printDec2Dig(brakePcnt);
+							lcd_putc((controls & BRAKE_CONTROL) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+							printDec2Dig((brakePcnt>99)?99:brakePcnt);
 							lcd_putc('%');
 						}
 						
