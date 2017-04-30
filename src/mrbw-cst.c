@@ -32,7 +32,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.63"
+#define VERSION_STRING "0.64"
 
 //#define FAST_SLEEP
 
@@ -87,6 +87,7 @@ volatile uint8_t pktTimeout = 0;
 
 // These are offsets from CONFIG_START
 #define EE_LOCO_ADDRESS               (0x00 + configOffset)
+//      EE_LOCO_ADDRESS                0x01
 #define EE_HORN_FUNCTION              (0x02 + configOffset)
 #define EE_BELL_FUNCTION              (0x03 + configOffset)
 #define EE_BRAKE_FUNCTION             (0x04 + configOffset)
@@ -107,7 +108,22 @@ volatile uint8_t pktTimeout = 0;
 #define EE_THR_UNLOCK_FUNCTION        (0x12 + configOffset)
 
 #define EE_FUNC_FORCE_ON              (0x18 + configOffset)
+//      EE_FUNC_FORCE_ON               0x19
+//      EE_FUNC_FORCE_ON               0x1A
+//      EE_FUNC_FORCE_ON               0x1B
 #define EE_FUNC_FORCE_OFF             (0x1C + configOffset)
+//      EE_FUNC_FORCE_OFF              0x1D
+//      EE_FUNC_FORCE_OFF              0x1E
+//      EE_FUNC_FORCE_OFF              0x1F
+
+#define EE_NOTCH_SPEED                (0x20 + configOffset)
+//      EE_NOTCH_SPEED                 0x21
+//      EE_NOTCH_SPEED                 0x22
+//      EE_NOTCH_SPEED                 0x23
+//      EE_NOTCH_SPEED                 0x24
+//      EE_NOTCH_SPEED                 0x25
+//      EE_NOTCH_SPEED                 0x26
+//      EE_NOTCH_SPEED                 0x27
 
 uint16_t configOffset;
 
@@ -134,6 +150,8 @@ uint8_t brakeLowThreshold;
 uint8_t emergencyThreshold;
 uint8_t brakeDeadZone = 3;
 
+uint8_t notchSpeed[8];
+
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
 
@@ -157,8 +175,8 @@ typedef enum
 	LOCO_SCREEN,
 	FUNC_SET_SCREEN,
 	FUNC_CONFIG_SCREEN,
+	NOTCH_CONFIG_SCREEN,
 	THRESHOLD_CAL_SCREEN,
-	THROTTLE_CONFIG_SCREEN,
 	COMM_SCREEN,
 	PREFS_SCREEN,
 	DIAG_SCREEN,
@@ -634,6 +652,8 @@ void wait100ms(uint16_t loops)
 
 void readConfig(void)
 {
+	uint8_t i;
+
 	// Read the number of minutes before sleeping from EEP and store it.
 	// If it's not in range, clamp it.
 	// Abuse sleep_tmr_reset_value to read the EEPROM value in minutes before converting to decisecs
@@ -714,6 +734,16 @@ void readConfig(void)
 	brakeThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_THRESHOLD);
 	brakeLowThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_LOW_THRESHOLD);
 	emergencyThreshold = eeprom_read_byte((uint8_t*)EE_EMERGENCY_THRESHOLD);
+
+	// Notches
+	eeprom_read_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+	for(i=0; i<8; i++)
+	{
+		if(notchSpeed[i] > 126)
+			notchSpeed[i] = 126;
+		if(notchSpeed[i] < 1)
+			notchSpeed[i] = 1;
+	}
 
 	// Fast clock
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
@@ -1570,6 +1600,91 @@ int main(void)
 				}
 				break;
 
+			case NOTCH_CONFIG_SCREEN:
+				lcdBacklightEnable();
+				if(!subscreenStatus)
+				{
+					lcd_gotoxy(3,0);
+					lcd_puts("NOTCH");
+					lcd_gotoxy(0,1);
+					lcd_putc(0x7F);
+					lcd_puts("-   CFG");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					lcdBacklightEnable();
+					lcd_gotoxy(0,0);
+					lcd_puts("NOTCH ");
+					uint8_t notch = subscreenStatus;
+					lcd_putc('0' + notch);
+					lcd_gotoxy(0,1);
+					printDec4Dig(notchSpeed[notch-1]);
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(notchSpeed[notch-1] < 126)
+									notchSpeed[notch-1]++;
+								else
+									notchSpeed[notch-1] = 126;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case DOWN_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(notchSpeed[notch-1] > 1)
+									notchSpeed[notch-1]--;
+								else
+									notchSpeed[notch-1] = 1;
+								ticks_autoincrement = 0;
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+								readConfig();
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenStatus++;
+								if(subscreenStatus > 8)
+									subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case NO_BUTTON:
+							break;
+					}
+				}
+				break;
+
 			case THRESHOLD_CAL_SCREEN:
 				lcdBacklightEnable();
 				if(!subscreenStatus)
@@ -1665,69 +1780,6 @@ int main(void)
 							break;
 						case DOWN_BUTTON:
 							// DOWN does nothing
-						case NO_BUTTON:
-							break;
-					}
-				}
-				break;
-
-			case THROTTLE_CONFIG_SCREEN:
-				lcdBacklightEnable();
-				if(!subscreenStatus)
-				{
-					lcd_gotoxy(0,0);
-					lcd_puts("THROTTLE");
-					lcd_gotoxy(0,1);
-					lcd_putc(0x7F);
-					lcd_puts("-   CFG");
-					switch(button)
-					{
-						case SELECT_BUTTON:
-							if(SELECT_BUTTON != previousButton)
-							{
-								subscreenStatus = 1;
-								lcd_clrscr();
-							}
-							break;
-						case MENU_BUTTON:
-						case UP_BUTTON:
-						case DOWN_BUTTON:
-						case NO_BUTTON:
-							break;
-					}
-				}
-				else
-				{
-					lcdBacklightEnable();
-					lcd_gotoxy(0,0);
-					lcd_puts("NOTCH ");
-					lcd_putc('0' + subscreenStatus);
-					switch(button)
-					{
-						case SELECT_BUTTON:
-							if(SELECT_BUTTON != previousButton)
-							{
-								lcd_clrscr();
-								lcd_gotoxy(1,0);
-								lcd_puts("SAVED!");
-								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
-								lcd_clrscr();
-							}
-							break;
-						case MENU_BUTTON:
-							if(MENU_BUTTON != previousButton)
-							{
-								// Menu pressed, advance menu
-								subscreenStatus++;
-								if(subscreenStatus > 8)
-									subscreenStatus = 1;
-								lcd_clrscr();
-							}
-							break;
-// FIXME: add functionality to up and down
-						case UP_BUTTON:
-						case DOWN_BUTTON:
 						case NO_BUTTON:
 							break;
 					}
@@ -2317,8 +2369,11 @@ int main(void)
 			txBuffer[6] = locoAddress >> 8;
 			txBuffer[7] = locoAddress & 0xFF;
 			
-			uint8_t throttleTemp = actualThrottleSetting * 16;
-			txBuffer[8] = (throttleTemp > 127) ? 127 : throttleTemp;
+			// FIXME: Add conditional for emergency stop
+			if(0 == actualThrottleSetting)
+				txBuffer[8] = 0;
+			else
+				txBuffer[8] = notchSpeed[actualThrottleSetting-1] + 1;
 			
 			switch(actualReverserSetting)
 			{
