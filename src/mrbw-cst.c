@@ -1251,7 +1251,7 @@ int main(void)
 								// FIXME: This should really send a packet to request a new locomotive address and locoAddress is only updated once confirmation received
 								newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
 								eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, newLocoAddress);
-								locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
+								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(0,0);
 								lcd_puts("REQUEST");
@@ -1359,6 +1359,7 @@ int main(void)
 							{
 								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, functionForceOn);
 								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, functionForceOff);
+								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1576,6 +1577,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, throttleUnlockFunction);
+								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1760,6 +1762,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_BRAKE_THRESHOLD, brakeThreshold);
 								eeprom_write_byte((uint8_t*)EE_BRAKE_LOW_THRESHOLD, brakeLowThreshold);
 								eeprom_write_byte((uint8_t*)EE_EMERGENCY_THRESHOLD, emergencyThreshold);
+								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1866,9 +1869,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, newDevAddr);
 								eeprom_write_byte((uint8_t*)EE_BASE_ADDR, newBaseAddr);
 								eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, newTimeAddr);
-								mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
-								mrbus_base_addr = eeprom_read_byte((uint8_t*)EE_BASE_ADDR);
-								timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
+								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1969,9 +1970,8 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
-								sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT) * 600;
 								eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, newMaxDeadReckoningTime * 10);
-								maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
+								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
