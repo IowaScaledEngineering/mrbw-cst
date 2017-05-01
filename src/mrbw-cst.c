@@ -45,6 +45,10 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_DEFAULT       5
 #define SLEEP_TMR_RESET_VALUE_MAX          99
 
+#define MAX_DEAD_RECKONING_TIME_MIN         1
+#define MAX_DEAD_RECKONING_TIME_DEFAULT    10
+#define MAX_DEAD_RECKONING_TIME_MAX        25
+
 // 5 sec timeout for packets from base, base transmits every 1 sec
 #define PKT_TIMEOUT_DECISECS   50
 volatile uint8_t pktTimeout = 0;
@@ -754,7 +758,24 @@ void readConfig(void)
 
 	// Fast clock
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
+
 	maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
+	if(maxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN*10)
+	{
+		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN*10;
+		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
+	}
+	else if(0xFF == maxDeadReckoningTime)
+	{
+		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_DEFAULT*10;  // Default for unprogrammed EEPROM
+		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
+	}
+	else if(maxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX*10)
+	{
+		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX*10;
+		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
+	}
+
 }
 
 void init(void)
@@ -1970,8 +1991,8 @@ int main(void)
 									(*prefsPtr)++;
 								if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
 									newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
-								if(newMaxDeadReckoningTime > 25)
-									newMaxDeadReckoningTime = 25;
+								if(newMaxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX)
+									newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX;
 								ticks_autoincrement = 0;
 							}
 							break;
@@ -1980,8 +2001,10 @@ int main(void)
 							{
 								if(*prefsPtr > 1)
 									(*prefsPtr)--;
-								else
-									*prefsPtr = 1;
+								if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
+									newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
+								if(newMaxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN)
+									newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN;
 								ticks_autoincrement = 0;
 							}
 							break;
