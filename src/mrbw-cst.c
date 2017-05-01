@@ -41,7 +41,8 @@ LICENSE:
 #define BUTTON_AUTOINCREMENT_ACCEL         10
 #define BUTTON_AUTOINCREMENT_MINIMUM        5
 
-#define PKT_TIMEOUT_DECISECS   100
+// 5 sec timeout for packets from base, base transmits every 1 sec
+#define PKT_TIMEOUT_DECISECS   50
 volatile uint8_t pktTimeout = 0;
 
 // VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
@@ -372,6 +373,8 @@ void PktHandler(void)
 	if (0 == mrbusPktQueuePop(&mrbeeRxQueue, rxBuffer, sizeof(rxBuffer)))
 		return;
 
+	if(mrbus_base_addr == rxBuffer[MRBUS_PKT_SRC])
+		pktTimeout = PKT_TIMEOUT_DECISECS;
 
 	//*************** PACKET FILTER ***************
 	// Loopback Test - did we send it?  If so, we probably want to ignore it
@@ -688,7 +691,7 @@ void readConfig(void)
 	// Bogus addresses, fix to default address
 	if (0xFF == mrbus_base_addr || 0x00 == mrbus_base_addr)
 	{
-		mrbus_base_addr = 0xF0;
+		mrbus_base_addr = 0xE0;
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
 
@@ -1160,6 +1163,7 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, newConfigNumber);
 								readConfig();
+								newConfigNumber = calculateConfigNumber(configOffset);
 								lcd_clrscr();
 								lcd_gotoxy(0,0);
 								lcd_puts("LOADING");
@@ -1252,6 +1256,7 @@ int main(void)
 								newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
 								eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, newLocoAddress);
 								readConfig();
+								newLocoAddress = locoAddress;
 								lcd_clrscr();
 								lcd_gotoxy(0,0);
 								lcd_puts("REQUEST");
@@ -1834,7 +1839,7 @@ int main(void)
 						addrPtr = &newTimeAddr;
 					}
 					lcd_gotoxy(2,1);
-					if( ((addrPtr == &newBaseAddr)||(addrPtr == &newTimeAddr)) && (0xFF == *addrPtr) )
+					if( (addrPtr == &newTimeAddr) && (0xFF == *addrPtr) )
 					{
 						lcd_puts("ALL ");
 					}
@@ -1850,16 +1855,21 @@ int main(void)
 							{
 								if(*addrPtr < 0xFF)
 									(*addrPtr)++;
+								// Don't allow 0xFF for device or base address
 								if( (0xFF == newDevAddr) )
-									newDevAddr = 0xFE;  // Don't allow 0xFF for device address
+									newDevAddr = 0xFE;
+								if( (0xFF == newBaseAddr) )
+									newBaseAddr = 0xFE;
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(*addrPtr > 0)
+								if(*addrPtr > 1)
 									(*addrPtr)--;
+								else
+									(*addrPtr) = 1;
 								ticks_autoincrement = 0;
 							}
 							break;
@@ -1870,6 +1880,9 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_BASE_ADDR, newBaseAddr);
 								eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, newTimeAddr);
 								readConfig();
+								newDevAddr = mrbus_dev_addr;
+								newBaseAddr = mrbus_base_addr;
+								newTimeAddr = timeSourceAddress;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -1972,6 +1985,8 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, newMaxDeadReckoningTime * 10);
 								readConfig();
+								newSleepTimeout = sleep_tmr_reset_value / 600;
+								newMaxDeadReckoningTime = maxDeadReckoningTime / 10;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -2125,7 +2140,13 @@ int main(void)
 						lcdBacklightEnable();
 						lcd_gotoxy(0,0);
 						lcd_puts("PKT TIME");
-						lcd_gotoxy(0,1);
+						lcd_gotoxy(1,1);
+						uint8_t pktTimeout_tmp = pktTimeout;
+						lcd_putc('0' + pktTimeout_tmp/10);
+						lcd_putc('.');
+						lcd_putc('0' + pktTimeout_tmp%10);
+						lcd_gotoxy(5,1);
+						lcd_puts("sec");
 						printDec4DigWZero(pktTimeout);
 					}
 					else if(4 == subscreenStatus)
@@ -2209,7 +2230,6 @@ int main(void)
 		// Handle any packets that may have come in
 		if (mrbusPktQueueDepth(&mrbeeRxQueue))
 		{
-			pktTimeout = PKT_TIMEOUT_DECISECS;
 			PktHandler();
 		}
 
