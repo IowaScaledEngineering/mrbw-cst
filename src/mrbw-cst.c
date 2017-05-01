@@ -41,6 +41,10 @@ LICENSE:
 #define BUTTON_AUTOINCREMENT_ACCEL         10
 #define BUTTON_AUTOINCREMENT_MINIMUM        5
 
+#define SLEEP_TMR_RESET_VALUE_MIN           1
+#define SLEEP_TMR_RESET_VALUE_DEFAULT       5
+#define SLEEP_TMR_RESET_VALUE_MAX          99
+
 // 5 sec timeout for packets from base, base transmits every 1 sec
 #define PKT_TIMEOUT_DECISECS   50
 volatile uint8_t pktTimeout = 0;
@@ -661,19 +665,19 @@ void readConfig(void)
 	// If it's not in range, clamp it.
 	// Abuse sleep_tmr_reset_value to read the EEPROM value in minutes before converting to decisecs
 	sleep_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT);
-	if(0 == sleep_tmr_reset_value)
+	if(sleep_tmr_reset_value < SLEEP_TMR_RESET_VALUE_MIN)
 	{
-		sleep_tmr_reset_value = 1;
+		sleep_tmr_reset_value = SLEEP_TMR_RESET_VALUE_MIN;
 		eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, sleep_tmr_reset_value);
 	}
 	else if(0xFF == sleep_tmr_reset_value)
 	{
-		sleep_tmr_reset_value = 5;  // Default for unprogrammed EEPROM
+		sleep_tmr_reset_value = SLEEP_TMR_RESET_VALUE_DEFAULT;  // Default for unprogrammed EEPROM
 		eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, sleep_tmr_reset_value);
 	}
-	else if(sleep_tmr_reset_value > 99)
+	else if(sleep_tmr_reset_value > SLEEP_TMR_RESET_VALUE_MAX)
 	{
-		sleep_tmr_reset_value = 99;
+		sleep_tmr_reset_value = SLEEP_TMR_RESET_VALUE_MAX;
 		eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, sleep_tmr_reset_value);
 	}
 	sleep_tmr_reset_value *= 600;  // Convert to decisecs
@@ -1964,8 +1968,8 @@ int main(void)
 							{
 								if(*prefsPtr < 0xFF)
 									(*prefsPtr)++;
-								if(newSleepTimeout > 99)
-									newSleepTimeout = 99;
+								if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
+									newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
 								if(newMaxDeadReckoningTime > 25)
 									newMaxDeadReckoningTime = 25;
 								ticks_autoincrement = 0;
