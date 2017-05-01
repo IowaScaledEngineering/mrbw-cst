@@ -840,6 +840,8 @@ int main(void)
 
 	ReverserPosition direction = FORWARD;
 
+	uint8_t statusFlags = 0;
+
 	BatteryState batteryState = UNKNOWN, lastBatteryState = batteryState;
 	
 	init();
@@ -2383,12 +2385,12 @@ int main(void)
 			
 			txBuffer[MRBUS_PKT_DEST] = mrbus_base_addr;
 			txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
-			txBuffer[MRBUS_PKT_LEN] = 14;
+			txBuffer[MRBUS_PKT_LEN] = 15;
 			txBuffer[5] = 'S';
 
 			txBuffer[6] = locoAddress >> 8;
 			txBuffer[7] = locoAddress & 0xFF;
-			
+
 			// FIXME: Add conditional for emergency stop
 			if(0 == actualThrottleSetting)
 				txBuffer[8] = 0;
@@ -2416,7 +2418,9 @@ int main(void)
 			txBuffer[11] = functionMask >> 8;
 			txBuffer[12] = functionMask & 0xFF;
 
-			txBuffer[13] = batteryVoltage;	
+			txBuffer[13] = statusFlags;
+
+			txBuffer[14] = batteryVoltage;	
 			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
