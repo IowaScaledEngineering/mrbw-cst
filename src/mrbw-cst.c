@@ -80,6 +80,7 @@ volatile uint8_t pktTimeout = 0;
 #define EE_CURRENT_CONFIG             0x10
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
 #define EE_MAX_DEAD_RECKONING         0x12
+#define EE_CONFIGBITS                 0x13
 #define EE_TIME_SOURCE_ADDRESS        0x1E
 #define EE_BASE_ADDR                  0x1F
 #define EE_HORN_THRESHOLD             0x20
@@ -136,6 +137,13 @@ volatile uint8_t pktTimeout = 0;
 
 uint16_t configOffset;
 
+
+// Misc boolean config bits
+uint8_t configBits;
+
+#define CONFIGBITS_LED_BLINK    0
+
+
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
@@ -157,7 +165,7 @@ uint8_t hornThreshold;
 uint8_t brakeThreshold;
 uint8_t brakeLowThreshold;
 uint8_t emergencyThreshold;
-uint8_t brakeDeadZone = 3;
+uint8_t brakeDeadZone = 5;
 
 uint8_t notchSpeed[8];
 
@@ -182,7 +190,7 @@ typedef enum
 	TONNAGE_SCREEN,
 	LOAD_CONFIG_SCREEN,
 	LOCO_SCREEN,
-	FUNC_SET_SCREEN,
+	FUNC_FORCE_SCREEN,
 	FUNC_CONFIG_SCREEN,
 	NOTCH_CONFIG_SCREEN,
 	THRESHOLD_CAL_SCREEN,
@@ -686,6 +694,25 @@ void readConfig(void)
 	}
 	sleep_tmr_reset_value *= 600;  // Convert to decisecs
 
+	maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
+	if(maxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN*10)
+	{
+		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN*10;
+		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
+	}
+	else if(0xFF == maxDeadReckoningTime)
+	{
+		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_DEFAULT*10;  // Default for unprogrammed EEPROM
+		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
+	}
+	else if(maxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX*10)
+	{
+		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX*10;
+		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
+	}
+
+	configBits = eeprom_read_byte((uint8_t*)EE_CONFIGBITS);
+
 	// Initialize MRBus address from EEPROM
 	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
 	// Bogus addresses, fix to default address
@@ -758,23 +785,6 @@ void readConfig(void)
 
 	// Fast clock
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
-
-	maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
-	if(maxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN*10)
-	{
-		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN*10;
-		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
-	}
-	else if(0xFF == maxDeadReckoningTime)
-	{
-		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_DEFAULT*10;  // Default for unprogrammed EEPROM
-		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
-	}
-	else if(maxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX*10)
-	{
-		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX*10;
-		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
-	}
 
 }
 
@@ -950,10 +960,11 @@ int main(void)
 		}
 
 		// Sanity check brake position and calculate percentage
-		if(brakePosition < (brakeLowThreshold + brakeDeadZone))
+		uint8_t actualBrakeLowThreshold = brakeLowThreshold + brakeDeadZone;
+		if(brakePosition < actualBrakeLowThreshold)
 			brakePcnt = 0;
 		else
-			brakePcnt = 100 * (brakePosition - brakeLowThreshold) / (emergencyThreshold - brakeLowThreshold);
+			brakePcnt = 100 * (brakePosition - actualBrakeLowThreshold) / (emergencyThreshold - actualBrakeLowThreshold);
 
 		// Convert brake to on/off control
 		// FIXME: eventually add analog brake functionality
@@ -1309,12 +1320,12 @@ int main(void)
 				}
 				break;
 
-			case FUNC_SET_SCREEN:
+			case FUNC_FORCE_SCREEN:
 				lcdBacklightEnable();
 				if(!subscreenStatus)
 				{
-					lcd_gotoxy(5,0);
-					lcd_puts("SET");
+					lcd_gotoxy(3,0);
+					lcd_puts("FORCE");
 					lcd_gotoxy(0,1);
 					lcd_putc(0x7F);
 					lcd_puts("-  FUNC");
@@ -1961,6 +1972,7 @@ int main(void)
 				}
 				else
 				{
+					uint8_t bitPosition = 8;  // <8 means boolean
 					lcdBacklightEnable();
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
@@ -1968,44 +1980,81 @@ int main(void)
 						lcd_puts("SLEEP");
 						lcd_gotoxy(0,1);
 						lcd_puts("DLY: ");
-						printDec2Dig(newSleepTimeout);
+						lcd_gotoxy(7,1);
 						lcd_puts("M");
+						bitPosition = 8;
 						prefsPtr = &newSleepTimeout;
 					}
-					else
+					else if(2 == subscreenStatus)
 					{
 						lcd_puts("TIMEOUT");
 						lcd_gotoxy(0,1);
 						lcd_puts("CLK: ");
-						printDec2Dig(newMaxDeadReckoningTime);
+						lcd_gotoxy(7,1);
 						lcd_puts("s");
+						bitPosition = 8;
 						prefsPtr = &newMaxDeadReckoningTime;
 					}
+					else
+					{
+						lcd_puts("LED BLNK");
+						bitPosition = CONFIGBITS_LED_BLINK;
+						prefsPtr = &configBits;
+					}
+
+					if(bitPosition < 8)
+					{
+						lcd_gotoxy(5,1);
+						if(*prefsPtr & _BV(bitPosition))
+							lcd_puts("ON ");
+						else
+							lcd_puts("OFF");
+					}
+					else
+					{
+						lcd_gotoxy(5,1);
+						printDec2Dig(*prefsPtr);
+					}
+
 					
 					switch(button)
 					{
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(*prefsPtr < 0xFF)
-									(*prefsPtr)++;
-								if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
-									newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
-								if(newMaxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX)
-									newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX;
-								ticks_autoincrement = 0;
+								if(bitPosition < 8)
+								{
+									*prefsPtr |= _BV(bitPosition);
+								}
+								else
+								{
+									if(*prefsPtr < 0xFF)
+										(*prefsPtr)++;
+									if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
+										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
+									if(newMaxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX)
+										newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX;
+									ticks_autoincrement = 0;
+								}
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(*prefsPtr > 1)
-									(*prefsPtr)--;
-								if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
-									newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
-								if(newMaxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN)
-									newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN;
-								ticks_autoincrement = 0;
+								if(bitPosition < 8)
+								{
+									*prefsPtr &= ~_BV(bitPosition);
+								}
+								else
+								{
+									if(*prefsPtr > 1)
+										(*prefsPtr)--;
+									if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
+										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
+									if(newMaxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN)
+										newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN;
+									ticks_autoincrement = 0;
+								}
 							}
 							break;
 						case SELECT_BUTTON:
@@ -2013,7 +2062,10 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, newMaxDeadReckoningTime * 10);
+								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								readConfig();
+								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change.
+								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
 								newMaxDeadReckoningTime = maxDeadReckoningTime / 10;
 								lcd_clrscr();
@@ -2029,7 +2081,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 2)
+								if(subscreenStatus > 3)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
@@ -2264,10 +2316,17 @@ int main(void)
 
 		wdt_reset();
 
-		if (0 == pktTimeout)
-			led = LED_RED_FASTBLINK;
+		if(configBits & _BV(CONFIGBITS_LED_BLINK))
+		{
+			if (0 == pktTimeout)
+				led = LED_RED_FASTBLINK;
+			else
+				led = LED_GREEN;
+		}
 		else
-			led = LED_GREEN;
+		{
+			led = LED_OFF;
+		}
 		
 
 		// Figure out which functions should be on and which should be off
