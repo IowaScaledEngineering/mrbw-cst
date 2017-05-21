@@ -20,6 +20,7 @@ LICENSE:
 *************************************************************************/
 
 #include <stdlib.h>
+#include <string.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
@@ -35,6 +36,8 @@ LICENSE:
 #define VERSION_STRING "0.64"
 
 //#define FAST_SLEEP
+
+#define max(a,b)  ((a)>(b)?(a):(b))
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -52,6 +55,9 @@ LICENSE:
 // 5 sec timeout for packets from base, base transmits every 1 sec
 #define PKT_TIMEOUT_DECISECS   50
 volatile uint8_t pktTimeout = 0;
+
+uint32_t baseVersion;
+char baseString[9];
 
 // VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
 #define VBATT_OKAY  220 
@@ -503,6 +509,14 @@ void PktHandler(void)
 		fastDecisecs = 0;
 		scaleTenthsAccum = 0;
 		deadReckoningTime = maxDeadReckoningTime;
+	}
+	else if ( ('V' == (rxBuffer[MRBUS_PKT_TYPE] & 0xDF)) &&
+		(mrbus_base_addr == rxBuffer[MRBUS_PKT_SRC]) )
+	{
+		// It's a version packet from our assigned base station
+		baseVersion = ((uint32_t)rxBuffer[7] << 16) | ((uint16_t)rxBuffer[8] << 8) | rxBuffer[9];
+		memset(baseString, 0, 9);  // Fill with NULLs before copying string
+		memcpy(baseString, &rxBuffer[12], max(rxBuffer[MRBUS_PKT_LEN]-12, 8));
 	}
 	//*************** END PACKET HANDLER  ***************
 
@@ -2250,6 +2264,34 @@ int main(void)
 						lcd_gotoxy(1,1);
 						lcd_puts(VERSION_STRING);
 					}
+					else if(6 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						lcd_puts("GIT REV");
+						lcd_gotoxy(1,1);
+						printHex((GIT_REV >> 16) & 0xFF);
+						printHex((GIT_REV >> 8) & 0xFF);
+						printHex(GIT_REV & 0xFF);
+					}
+					else if(7 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						lcd_puts("BASE TYP");
+						lcd_gotoxy(0,1);
+						lcd_puts(baseString);
+					}
+					else if(8 == subscreenStatus)
+					{
+						lcdBacklightEnable();
+						lcd_gotoxy(0,0);
+						lcd_puts("BASE REV");
+						lcd_gotoxy(1,1);
+						printHex((baseVersion >> 16) & 0xFF);
+						printHex((baseVersion >> 8) & 0xFF);
+						printHex(baseVersion & 0xFF);
+					}
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -2264,7 +2306,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 5)
+								if(subscreenStatus > 8)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
@@ -2316,12 +2358,16 @@ int main(void)
 
 		wdt_reset();
 
-		if(configBits & _BV(CONFIGBITS_LED_BLINK))
+		if (0 == pktTimeout)
 		{
-			if (0 == pktTimeout)
-				led = LED_RED_FASTBLINK;
-			else
-				led = LED_GREEN;
+			baseVersion = 0;
+			strcpy(baseString, "  NONE  ");
+			led = LED_RED_FASTBLINK;
+		}
+		else if(configBits & _BV(CONFIGBITS_LED_BLINK))
+		{
+			//  Blink GREEN unless configred to be off
+			led = LED_GREEN;
 		}
 		else
 		{
