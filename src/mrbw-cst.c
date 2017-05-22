@@ -150,6 +150,9 @@ uint8_t configBits;
 #define CONFIGBITS_LED_BLINK    0
 
 
+
+
+
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
@@ -183,6 +186,11 @@ volatile uint16_t decisecs = 0;
 volatile uint16_t sleepTimeout_decisecs = 0;
 volatile uint16_t update_decisecs = 10;
 volatile uint8_t status = 0;
+
+#define THROTTLE_STATUS_ALL_STOP        0x02
+#define THROTTLE_STATUS_EMERGENCY       0x01
+
+volatile uint8_t throttleStatus = 0;
 
 uint16_t sleep_tmr_reset_value;
 
@@ -863,6 +871,8 @@ int main(void)
 	ReverserPosition actualReverserSetting = reverserPosition;
 	ReverserPosition lastActualReverserSetting = actualReverserSetting;
 	
+	uint8_t lastThrottleStatus = throttleStatus;
+	
 	uint8_t brakePcnt = 0;
 
 	uint8_t optionButtonState = 0;
@@ -982,24 +992,40 @@ int main(void)
 
 		// Convert brake to on/off control
 		// FIXME: eventually add analog brake functionality
-		if(brakePosition < brakeThreshold)
+		if(brakePosition < actualBrakeLowThreshold)
+		{
+			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
+		}
+		else if(brakePosition < brakeThreshold)
 		{
 			controls &= ~(BRAKE_CONTROL);
 		}
-		else
+		else if(brakePosition < emergencyThreshold)
 		{
 			controls |= BRAKE_CONTROL;
+		}
+		else
+		{
+			throttleStatus |= THROTTLE_STATUS_EMERGENCY;
 		}
 
 		switch(screenState)
 		{
 			case MAIN_SCREEN:
-				if(backlight)
-					lcdBacklightEnable();
-				else
-					lcdBacklightDisable();
 				lcd_gotoxy(2,0);
-				printDec4DigWZero(locoAddress);
+				if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
+				{
+					lcd_puts("EMRG");
+					lcdBacklightEnable();
+				}
+				else
+				{
+					printDec4DigWZero(locoAddress);
+					if(backlight)
+						lcdBacklightEnable();
+					else
+						lcdBacklightDisable();
+				}
 
 				lcd_gotoxy(1,1);
 				printTime();
@@ -2475,7 +2501,8 @@ int main(void)
 
 		uint8_t inputsChanged =	(actualReverserSetting != lastActualReverserSetting) ||
 									(actualThrottleSetting != lastActualThrottleSetting) ||
-									(functionMask != lastFunctionMask);
+									(functionMask != lastFunctionMask) ||
+									(throttleStatus != lastThrottleStatus);
 
 		// Reset sleep timer
 		// Using actualReverserSetting also guarantees the throttle (actualThrottleSetting) was in idle when entering sleep, so it will unsleep in the idle position.
@@ -2514,6 +2541,7 @@ int main(void)
 			lastActualReverserSetting = actualReverserSetting;
 			lastActualThrottleSetting = actualThrottleSetting;
 			lastFunctionMask = functionMask;
+			lastThrottleStatus = throttleStatus;
 			
 			txBuffer[MRBUS_PKT_DEST] = mrbus_base_addr;
 			txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
@@ -2524,7 +2552,11 @@ int main(void)
 			txBuffer[7] = locoAddress & 0xFF;
 
 			// FIXME: Add conditional for emergency stop
-			if(0 == actualThrottleSetting)
+			if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
+			{
+				txBuffer[8] = 1;  // E-stop				
+			}
+			else if(0 == actualThrottleSetting)
 				txBuffer[8] = 0;
 			else
 				txBuffer[8] = notchSpeed[actualThrottleSetting-1] + 1;
