@@ -33,7 +33,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.64"
+#define VERSION_STRING "0.7"
 
 //#define FAST_SLEEP
 
