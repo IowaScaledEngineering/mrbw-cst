@@ -969,8 +969,6 @@ int main(void)
 
 	ReverserPosition direction = FORWARD;
 
-	uint8_t statusFlags = 0;
-
 	BatteryState batteryState = UNKNOWN, lastBatteryState = batteryState;
 	
 	init();
@@ -2677,7 +2675,7 @@ int main(void)
 			txBuffer[11] = functionMask >> 8;
 			txBuffer[12] = functionMask & 0xFF;
 
-			txBuffer[13] = statusFlags;
+			txBuffer[13] = throttleStatus;
 
 			txBuffer[14] = batteryVoltage;	
 			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
