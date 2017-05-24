@@ -50,6 +50,15 @@ LICENSE:
 #define MAX_DEAD_RECKONING_TIME_DEFAULT    10
 #define MAX_DEAD_RECKONING_TIME_MAX        25
 
+#define CONFIGBITS_DEFAULT                 0xFF
+
+#define MRBUS_DEV_ADDR_DEFAULT             0x30
+#define MRBUS_BASE_ADDR_DEFAULT            0xE0
+
+
+#define RESET_COUNTER_RESET_VALUE   5
+uint8_t resetCounter;
+
 // 5 sec timeout for packets from base, base transmits every 1 sec
 #define PKT_TIMEOUT_DECISECS   50
 volatile uint8_t pktTimeout = 0;
@@ -738,7 +747,7 @@ void readConfig(void)
 	// Bogus addresses, fix to default address
 	if (0xFF == mrbus_dev_addr || 0x00 == mrbus_dev_addr)
 	{
-		mrbus_dev_addr = 0x30;
+		mrbus_dev_addr = MRBUS_DEV_ADDR_DEFAULT;
 		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
 	}
 
@@ -746,7 +755,7 @@ void readConfig(void)
 	// Bogus addresses, fix to default address
 	if (0xFF == mrbus_base_addr || 0x00 == mrbus_base_addr)
 	{
-		mrbus_base_addr = 0xE0;
+		mrbus_base_addr = MRBUS_BASE_ADDR_DEFAULT;
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
 
@@ -807,6 +816,69 @@ void readConfig(void)
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 
 }
+
+void resetConfig(void)
+{
+	uint8_t i;
+
+	wdt_reset();
+
+	eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, SLEEP_TMR_RESET_VALUE_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, MAX_DEAD_RECKONING_TIME_DEFAULT*10);
+	eeprom_write_byte((uint8_t*)EE_CONFIGBITS, CONFIGBITS_DEFAULT);
+
+	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, MRBUS_DEV_ADDR_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_BASE_ADDR, MRBUS_BASE_ADDR_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, 0xFF);
+
+	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, 0);
+	
+	// Skip the following, since these are specific to each physical device:
+	//    EE_HORN_THRESHOLD
+	//    EE_BRAKE_THRESHOLD
+	//    EE_BRAKE_LOW_THRESHOLD
+	//    EE_EMERGENCY_THRESHOLD
+
+	for (i=1; i<=MAX_CONFIGS; i++)
+	{
+		wdt_reset();
+		configOffset = calculateConfigOffset(i);
+		eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003);
+		eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, 2);
+		eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, 1);
+		eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, 0);
+		eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
+		eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
+		eeprom_write_byte((uint8_t*)EE_DYNAMIC_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, 8);
+		eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, 9);
+		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
+		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
+		notchSpeed[0] = 1;
+		notchSpeed[1] = 15;
+		notchSpeed[2] = 31;
+		notchSpeed[3] = 47;
+		notchSpeed[4] = 63;
+		notchSpeed[5] = 79;
+		notchSpeed[6] = 95;
+		notchSpeed[7] = 126;
+		eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+	}
+	
+	wdt_reset();
+	
+	// Read everything again
+	readConfig();
+}
+
 
 void init(void)
 {
@@ -1328,20 +1400,16 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								// FIXME: This should really send a packet to request a new locomotive address and locoAddress is only updated once confirmation received
 								newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
 								eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, newLocoAddress);
 								readConfig();
 								newLocoAddress = locoAddress;
 								lcd_clrscr();
-								lcd_gotoxy(0,0);
-								lcd_puts("REQUEST");
-								lcd_gotoxy(0,1);
-								lcd_puts("SENT");
-								wait100ms(10);
-								decimalNumberIndex = 0;
-								subscreenStatus = 0;
-								screenState = LAST_SCREEN;
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
 							}
 							break;
 						case MENU_BUTTON:
@@ -2316,6 +2384,27 @@ int main(void)
 						printHex((baseVersion >> 8) & 0xFF);
 						printHex(baseVersion & 0xFF);
 					}
+					else if(9 == subscreenStatus)
+					{
+						if(resetCounter)
+						{
+							lcdBacklightEnable();
+							lcd_gotoxy(0,0);
+							lcd_puts("FACTORY");
+							lcd_gotoxy(0,1);
+							lcd_puts("RESET ");
+							lcd_putc('0' + resetCounter);
+							lcd_putc(0x7E);
+						}
+						else
+						{
+							lcd_clrscr();
+							lcd_gotoxy(0,0);
+							lcd_puts("RESET!!!");
+							resetConfig();
+							screenState = LAST_SCREEN;
+						}
+					}
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -2330,13 +2419,21 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 8)
+								if(subscreenStatus > 9)
 									subscreenStatus = 1;
 								lcd_clrscr();
+								resetCounter = RESET_COUNTER_RESET_VALUE;
+							}
+							break;
+						case DOWN_BUTTON:
+							if(DOWN_BUTTON != previousButton)
+							{
+								// Increment here, but it's only used in the reset screen
+								// It will be reset to zero prior to entering reset screen
+								resetCounter--;
 							}
 							break;
 						case UP_BUTTON:
-						case DOWN_BUTTON:
 						case NO_BUTTON:
 							break;
 					}
