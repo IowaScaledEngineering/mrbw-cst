@@ -33,8 +33,6 @@ LICENSE:
 #include "cst-hardware.h"
 #include "mrbee.h"
 
-#define VERSION_STRING "0.7"
-
 //#define FAST_SLEEP
 
 #define max(a,b)  ((a)>(b)?(a):(b))
@@ -2287,7 +2285,7 @@ int main(void)
 						lcdBacklightEnable();
 						lcd_gotoxy(0,0);
 						lcd_puts("VERSION");
-						lcd_gotoxy(1,1);
+						lcd_gotoxy(0,1);
 						lcd_puts(VERSION_STRING);
 					}
 					else if(6 == subscreenStatus)

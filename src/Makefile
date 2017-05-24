@@ -42,8 +42,10 @@ FUSE_H  = 0xD1
 FUSE_E  = 0xFD
 
 GITREV := 'GIT_REV=0x$(shell git rev-parse --short=6 HEAD)L'
+REV    := '$(shell ./git-revision.sh)'
+REVSTRING := 'VERSION_STRING="$(REV)"'
 
-DEFINES := -DMRBEE -D$(GITREV) -DENABLE_WATCHDOG -DWATCHDOG_TIMEOUT=WDTO_1S -DHWREV_MAJOR=1 -DHWREV_MINOR=1 -DMRBEE_IGNORE_FLOW
+DEFINES := -DMRBEE -D$(GITREV) -D$(REVSTRING) -DENABLE_WATCHDOG -DWATCHDOG_TIMEOUT=WDTO_1S -DHWREV_MAJOR=1 -DHWREV_MINOR=1 -DMRBEE_IGNORE_FLOW
 SRCS = $(BASE_NAME).c lcd.c cst-hardware.c $(MRBUS_LIB)/mrbee-avr.c $(MRBUS_LIB)/mrbus-crc.c $(MRBUS_LIB)/mrbus-queue.c
 INCS = $(MRBUS_LIB)/mrbee.h $(MRBUS_LIB)/mrbee-avr.h lcd.h cst-hardware.h
 
@@ -76,6 +78,10 @@ help:
 	@echo "make terminal... open up avrdude terminal"
 
 hex: $(BASE_NAME).hex
+	@cp $(BASE_NAME).hex hex/$(BASE_NAME)_v$(REV).hex
+	@echo;
+	@echo $(REVSTRING);
+	@echo;
 
 setup:
 	git submodule init
@@ -101,6 +107,9 @@ size:
 # rule for uploading firmware:
 flash: $(BASE_NAME).hex
 	$(AVRDUDE) -U flash:w:$(BASE_NAME).hex:i
+	@echo;
+	@echo $(REVSTRING);
+	@echo;
 
 # rule for deleting dependent files (those which can be built by Make):
 clean:
