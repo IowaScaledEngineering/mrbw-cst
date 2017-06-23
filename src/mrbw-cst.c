@@ -1064,7 +1064,8 @@ int main(void)
 		{
 			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
 		}
-		else if(brakePosition < brakeThreshold)
+		
+		if(brakePosition < brakeThreshold)
 		{
 			controls &= ~(BRAKE_CONTROL);
 		}
