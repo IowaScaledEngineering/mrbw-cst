@@ -2505,6 +2505,12 @@ Layer(3 "outline")
 )
 Layer(4 "silk")
 (
+	Line[700.00mil 4915.00mil 700.00mil 4985.00mil 10.00mil 20.00mil "clearline"]
+	Line[665.00mil 4950.00mil 735.00mil 4950.00mil 10.00mil 20.00mil "clearline"]
+	Line[2050.00mil 4915.00mil 2050.00mil 4985.00mil 10.00mil 20.00mil "clearline"]
+	Line[2015.00mil 4950.00mil 2085.00mil 4950.00mil 10.00mil 20.00mil "clearline"]
+	Text[795.00mil 4825.00mil 2 122 "FRONT" "clearline,onsolder"]
+	Text[2135.00mil 4825.00mil 2 122 "REAR" "clearline,onsolder"]
 )
 Layer(5 "silk")
 (
