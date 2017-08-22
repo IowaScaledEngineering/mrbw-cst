@@ -1582,7 +1582,7 @@ Element["" "0805" "C12" "DNI" 21.7388mm 5105.00mil -41.50mil -96.50mil 0 100 ""]
 
 	)
 
-Element["" "RPACK4-1206" "R10" "100k" 1375.00mil 4850.00mil 183.48mil 34.75mil 2 100 ""]
+Element["" "RPACK4-1206" "R10" "100k" 1375.00mil 4850.00mil 96.52mil -24.75mil 0 100 ""]
 (
 	Pad[47.24mil -42.83mil 47.24mil -24.13mil 16.73mil 20.00mil 22.73mil "1" "1" "square"]
 	Pad[15.75mil -42.83mil 15.75mil -24.13mil 16.73mil 20.00mil 22.73mil "2" "2" "square"]
