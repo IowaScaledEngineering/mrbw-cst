@@ -935,11 +935,11 @@ int main(void)
 	uint8_t inputButtons = 0;
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
 
-	uint8_t actualThrottleSetting = throttlePosition;
-	uint8_t lastActualThrottleSetting = actualThrottleSetting;
+	uint8_t activeThrottleSetting = throttlePosition;
+	uint8_t lastActiveThrottleSetting = activeThrottleSetting;
 
-	ReverserPosition actualReverserSetting = reverserPosition;
-	ReverserPosition lastActualReverserSetting = actualReverserSetting;
+	ReverserPosition activeReverserSetting = reverserPosition;
+	ReverserPosition lastActiveReverserSetting = activeReverserSetting;
 	
 	uint8_t lastThrottleStatus = throttleStatus;
 	
@@ -1052,15 +1052,15 @@ int main(void)
 		}
 
 		// Sanity check brake position and calculate percentage
-		uint8_t actualBrakeLowThreshold = brakeLowThreshold + brakeDeadZone;
-		if(brakePosition < actualBrakeLowThreshold)
+		uint8_t activeBrakeLowThreshold = brakeLowThreshold + brakeDeadZone;
+		if(brakePosition < activeBrakeLowThreshold)
 			brakePcnt = 0;
 		else
-			brakePcnt = 100 * (brakePosition - actualBrakeLowThreshold) / (emergencyThreshold - actualBrakeLowThreshold);
+			brakePcnt = 100 * (brakePosition - activeBrakeLowThreshold) / (emergencyThreshold - activeBrakeLowThreshold);
 
 		// Convert brake to on/off control
 		// FIXME: eventually add analog brake functionality
-		if(brakePosition < actualBrakeLowThreshold)
+		if(brakePosition < activeBrakeLowThreshold)
 		{
 			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
 		}
@@ -1076,6 +1076,31 @@ int main(void)
 		else
 		{
 			throttleStatus |= THROTTLE_STATUS_EMERGENCY;
+		}
+
+		// Calculate active throttle and reverser settings
+		if( (activeReverserSetting != reverserPosition) && (0 == throttlePosition) )
+		{
+			// Only allow reverser to change when throttle is in idle
+			activeReverserSetting = reverserPosition;
+		}
+		
+		if(NEUTRAL == activeReverserSetting)
+		{
+			if( (!(throttleUnlockFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (throttleUnlockFunction & 0x1F))) )
+			{
+				// If a function is assigned to the throttle unlock (e.g. Drive Hold) and the function is active, allow the throttle to change
+				activeThrottleSetting = throttlePosition;
+			}
+			else
+			{
+				// Otherwise force the throttle to idle to prevent movement
+				activeThrottleSetting = 0;
+			}
+		}
+		else
+		{
+			activeThrottleSetting = throttlePosition;
 		}
 
 		switch(screenState)
@@ -1276,7 +1301,7 @@ int main(void)
 			case LOAD_CONFIG_SCREEN:
 				lcdBacklightEnable();
 				lcd_gotoxy(0,0);
-				lcd_puts("RCL CONF");
+				lcd_puts("LOAD CNF");
 				lcd_gotoxy(0,1);
 				printDec2DigWZero(newConfigNumber);
 				lcd_puts(": ");
@@ -2229,13 +2254,13 @@ int main(void)
 						setupDiagChars();
 						lcdBacklightEnable();
 						lcd_gotoxy(5,0);
-						if(0 == actualThrottleSetting)
+						if(0 == activeThrottleSetting)
 						{
 							lcd_putc('I');
 						}
 						else
 						{
-							lcd_putc('0' + actualThrottleSetting);
+							lcd_putc('0' + activeThrottleSetting);
 						}
 						lcd_gotoxy(0,0);
 						if(brakePosition > emergencyThreshold)
@@ -2253,7 +2278,7 @@ int main(void)
 						}
 						
 						lcd_gotoxy(7,0);
-						switch(actualReverserSetting)
+						switch(activeReverserSetting)
 						{
 							case FORWARD:
 								lcd_putc('F');
@@ -2267,7 +2292,7 @@ int main(void)
 						}
 
 						lcd_gotoxy(2, 1);
-						lcd_puts((controls & DYNAMIC_CONTROL) ? "DB":"  ");
+						lcd_putc((controls & DYNAMIC_CONTROL) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 						lcd_gotoxy(4, 1);
 						lcd_putc((controls & BELL_CONTROL) ? BELL_CHAR : ' ');
 						lcd_gotoxy(5, 1);
@@ -2560,50 +2585,21 @@ int main(void)
 				break;
 		}
 
-
 		// Force specific functions on or off
 		functionMask |= functionForceOn;
 		functionMask &= ~functionForceOff;
 
-
-		// Calculate actual throttle and reverser settings
-		if( (actualReverserSetting != reverserPosition) && (0 == throttlePosition) )
-		{
-			// Only allow reverser to change when throttle is in idle
-			actualReverserSetting = reverserPosition;
-		}
-		
-		if(NEUTRAL == actualReverserSetting)
-		{
-			if( (!(throttleUnlockFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (throttleUnlockFunction & 0x1F))) )
-			{
-				// If a function is assigned to the throttle unlock (e.g. Drive Hold) and the function is active, allow the throttle to change
-				actualThrottleSetting = throttlePosition;
-			}
-			else
-			{
-				// Otherwise force the throttle to idle to prevent movement
-				actualThrottleSetting = 0;
-			}
-		}
-
-		else
-		{
-			actualThrottleSetting = throttlePosition;
-		}
-
-
-		uint8_t inputsChanged =	(actualReverserSetting != lastActualReverserSetting) ||
-									(actualThrottleSetting != lastActualThrottleSetting) ||
+		uint8_t inputsChanged =	(activeReverserSetting != lastActiveReverserSetting) ||
+									(activeThrottleSetting != lastActiveThrottleSetting) ||
 									(functionMask != lastFunctionMask) ||
 									(throttleStatus != lastThrottleStatus);
 
 		// Reset sleep timer
-		// Using actualReverserSetting also guarantees the throttle (actualThrottleSetting) was in idle when entering sleep, so it will unsleep in the idle position.
+		// Using activeReverserSetting also guarantees the throttle (activeThrottleSetting) was in idle when entering sleep, so it will unsleep in the idle position.
 		if( 
 			(NO_BUTTON != button) || 
-			(FORWARD == actualReverserSetting) || 
-			(REVERSE == actualReverserSetting) ||
+			(FORWARD == activeReverserSetting) || 
+			(REVERSE == activeReverserSetting) ||
 			inputsChanged
 			)
 		{
@@ -2632,8 +2628,8 @@ int main(void)
 			)
 		{
 			inputsChanged = 0;
-			lastActualReverserSetting = actualReverserSetting;
-			lastActualThrottleSetting = actualThrottleSetting;
+			lastActiveReverserSetting = activeReverserSetting;
+			lastActiveThrottleSetting = activeThrottleSetting;
 			lastFunctionMask = functionMask;
 			lastThrottleStatus = throttleStatus;
 			
@@ -2645,17 +2641,16 @@ int main(void)
 			txBuffer[6] = locoAddress >> 8;
 			txBuffer[7] = locoAddress & 0xFF;
 
-			// FIXME: Add conditional for emergency stop
 			if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
 			{
 				txBuffer[8] = 1;  // E-stop				
 			}
-			else if(0 == actualThrottleSetting)
+			else if(0 == activeThrottleSetting)
 				txBuffer[8] = 0;
 			else
-				txBuffer[8] = notchSpeed[actualThrottleSetting-1] + 1;
+				txBuffer[8] = notchSpeed[activeThrottleSetting-1] + 1;
 			
-			switch(actualReverserSetting)
+			switch(activeReverserSetting)
 			{
 				case FORWARD:
 					direction = FORWARD;
