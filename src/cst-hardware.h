@@ -1,7 +1,7 @@
 #ifndef _CST_HARDWARE_H_
 #define _CST_HARDWARE_H_
 
-#define DYNAMIC_PIN    PB2
+#define AUX_PIN        PB2
 #define BELL_PIN       PB1
 #define MENU_PIN       PB5
 #define SELECT_PIN     PB4

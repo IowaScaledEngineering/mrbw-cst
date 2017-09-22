@@ -83,7 +83,7 @@ char baseString[9];
 
 #define HORN_CONTROL      0x01
 #define BELL_CONTROL      0x02
-#define DYNAMIC_CONTROL   0x04
+#define AUX_CONTROL       0x04
 #define BRAKE_CONTROL     0x08
 
 #define OFF_FUNCTION      0x80
@@ -114,7 +114,7 @@ char baseString[9];
 #define EE_HORN_FUNCTION              (0x02 + configOffset)
 #define EE_BELL_FUNCTION              (0x03 + configOffset)
 #define EE_BRAKE_FUNCTION             (0x04 + configOffset)
-#define EE_DYNAMIC_FUNCTION           (0x05 + configOffset)
+#define EE_AUX_FUNCTION               (0x05 + configOffset)
 #define EE_ENGINE_FUNCTION            (0x06 + configOffset)
 
 #define EE_FRONT_DIM1_FUNCTION        (0x08 + configOffset)
@@ -172,7 +172,7 @@ uint8_t bellFunction = 7;
 uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
 uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
 uint8_t brakeFunction = OFF_FUNCTION;
-uint8_t dynamicFunction = OFF_FUNCTION;
+uint8_t auxFunction = OFF_FUNCTION;
 uint8_t engineFunction = 8;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
 uint8_t throttleUnlockFunction = 9;
@@ -239,7 +239,7 @@ typedef enum
 	HORN_FN = 0,
 	BELL_FN,
 	BRAKE_FN,
-	DYNAMIC_FN,
+	AUX_FN,
 	ENGINE_FN,
 	NEUTRAL_FN,
 	FRONT_HEADLIGHT_FN,
@@ -621,10 +621,10 @@ void processButtons(uint8_t inputButtons)
 void processSwitches(uint8_t inputButtons)
 {
 	// Called every 10ms
-	if(inputButtons & _BV(DYNAMIC_PIN))
-		controls &= ~(DYNAMIC_CONTROL);
+	if(inputButtons & _BV(AUX_PIN))
+		controls &= ~(AUX_CONTROL);
 	else
-		controls |= DYNAMIC_CONTROL;
+		controls |= AUX_CONTROL;
 
 	if(inputButtons & _BV(BELL_PIN))
 		controls &= ~(BELL_CONTROL);
@@ -787,7 +787,7 @@ void readConfig(void)
 	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
 	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
 	brakeFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
-	dynamicFunction = eeprom_read_byte((uint8_t*)EE_DYNAMIC_FUNCTION);
+	auxFunction = eeprom_read_byte((uint8_t*)EE_AUX_FUNCTION);
 	engineFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_FUNCTION);
 	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
 	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
@@ -855,7 +855,7 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
 		eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
-		eeprom_write_byte((uint8_t*)EE_DYNAMIC_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, 8);
 		eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, OFF_FUNCTION);
@@ -1110,6 +1110,11 @@ int main(void)
 				if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
 				{
 					lcd_puts("EMRG");
+					lcdBacklightEnable();
+				}
+				else if(activeReverserSetting != reverserPosition)
+				{
+					lcd_puts("REV!");
 					lcdBacklightEnable();
 				}
 				else
@@ -1603,10 +1608,10 @@ int main(void)
 							lcd_puts("BRAKE");
 							functionPtr = &brakeFunction;
 							break;
-						case DYNAMIC_FN:
+						case AUX_FN:
 							lcd_gotoxy(0,0);
-							lcd_puts("D.BRAKE");
-							functionPtr = &dynamicFunction;
+							lcd_puts("AUX");
+							functionPtr = &auxFunction;
 							break;
 						case ENGINE_FN:
 							lcd_gotoxy(0,0);
@@ -1745,7 +1750,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);
 								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);
 								eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, brakeFunction);
-								eeprom_write_byte((uint8_t*)EE_DYNAMIC_FUNCTION, dynamicFunction);
+								eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, auxFunction);
 								eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, engineFunction);
 								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
@@ -2292,7 +2297,7 @@ int main(void)
 						}
 
 						lcd_gotoxy(2, 1);
-						lcd_putc((controls & DYNAMIC_CONTROL) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+						lcd_putc((controls & AUX_CONTROL) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 						lcd_gotoxy(4, 1);
 						lcd_putc((controls & BELL_CONTROL) ? BELL_CHAR : ' ');
 						lcd_gotoxy(5, 1);
@@ -2526,8 +2531,8 @@ int main(void)
 			functionMask |= (uint32_t)1 << (hornFunction & 0x1F);
 		if((controls & BELL_CONTROL) && !(bellFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (bellFunction & 0x1F);
-		if((controls & DYNAMIC_CONTROL) && !(dynamicFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (dynamicFunction & 0x1F);
+		if((controls & AUX_CONTROL) && !(auxFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (auxFunction & 0x1F);
 		if((controls & BRAKE_CONTROL) && !(brakeFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (brakeFunction & 0x1F);
 		if(engineState && !(engineFunction & OFF_FUNCTION))
