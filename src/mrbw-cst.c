@@ -1346,7 +1346,7 @@ int main(void)
 						if((tmpLocoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
 						{
 							// Invalid Short Address, reset to a sane value
-							tmpLocoAddress = 127;
+							tmpLocoAddress = 127 | LOCO_ADDRESS_SHORT;
 						}
 					}
 					else
@@ -1417,12 +1417,19 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								if(newLocoAddress & LOCO_ADDRESS_SHORT)
+								{
 									decimalNumber[0] = 's' - '0';
+									decimalNumber[1] = ((newLocoAddress & ~(LOCO_ADDRESS_SHORT)) / 100) % 10;
+									decimalNumber[2] = ((newLocoAddress & ~(LOCO_ADDRESS_SHORT)) / 10) % 10;
+									decimalNumber[3] = (newLocoAddress & ~(LOCO_ADDRESS_SHORT)) % 10;
+								}
 								else
+								{
 									decimalNumber[0] = (newLocoAddress / 1000) % 10;
-								decimalNumber[1] = (newLocoAddress / 100) % 10;
-								decimalNumber[2] = (newLocoAddress / 10) % 10;
-								decimalNumber[3] = (newLocoAddress) % 10;
+									decimalNumber[1] = (newLocoAddress / 100) % 10;
+									decimalNumber[2] = (newLocoAddress / 10) % 10;
+									decimalNumber[3] = (newLocoAddress) % 10;
+								}
 								subscreenStatus = 1;
 								lcd_clrscr();
 							}
@@ -1455,52 +1462,22 @@ int main(void)
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
+								if( (0 == decimalNumberIndex) && (9 == decimalNumber[decimalNumberIndex]) )
+									decimalNumber[decimalNumberIndex] = 's' - '0';  // Long to Short
+								else if(decimalNumber[decimalNumberIndex] < 9)
+									decimalNumber[decimalNumberIndex]++;
+								// Validate number
 								if(decimalNumber[0] > 9)
 								{
 									// Short Address
-									switch(decimalNumberIndex)
+									if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) > 127)
 									{
-										case 0:
-											// Do nothing
-											break;
-										case 1:
-											if(decimalNumber[decimalNumberIndex] < 1)
-												decimalNumber[decimalNumberIndex]++;
-											break;
-										case 2:
-											if(1 == decimalNumber[1])
-											{
-												if(decimalNumber[decimalNumberIndex] < 2)
-													decimalNumber[decimalNumberIndex]++;
-											}
-											else
-											{
-												if(decimalNumber[decimalNumberIndex] < 9)
-													decimalNumber[decimalNumberIndex]++;
-											}
-											break;
-										case 3:
-											if((1 == decimalNumber[1]) && (2 == decimalNumber[2]))
-											{
-												if(decimalNumber[decimalNumberIndex] < 7)
-													decimalNumber[decimalNumberIndex]++;
-											}
-											else
-											{
-												if(decimalNumber[decimalNumberIndex] < 9)
-													decimalNumber[decimalNumberIndex]++;
-											}
-											break;
+										decimalNumber[1] = 1;
+										decimalNumber[2] = 2;
+										decimalNumber[3] = 7;
 									}
 								}
-								else
-								{
-									// Long Address
-									if( (0 == decimalNumberIndex) && (9 == decimalNumber[decimalNumberIndex]) )
-										decimalNumber[decimalNumberIndex] = 's' - '0';
-									else if(decimalNumber[decimalNumberIndex] < 9)
-										decimalNumber[decimalNumberIndex]++;
-								}
+								
 								ticks_autoincrement = 0;
 							}
 							break;
@@ -1508,7 +1485,7 @@ int main(void)
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
 								if(decimalNumber[decimalNumberIndex] > 9)
-									decimalNumber[decimalNumberIndex] = 9;
+									decimalNumber[decimalNumberIndex] = 9;  // Short to Long
 								else if(decimalNumber[decimalNumberIndex] > 0)
 									decimalNumber[decimalNumberIndex]--;
 								ticks_autoincrement = 0;
@@ -1518,7 +1495,7 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								if(decimalNumber[0] > 9)
-									newLocoAddress = ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) & LOCO_ADDRESS_SHORT;
+									newLocoAddress = ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) | LOCO_ADDRESS_SHORT;
 								else
 									newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
 								eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, newLocoAddress);
