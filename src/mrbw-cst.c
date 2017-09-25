@@ -55,7 +55,6 @@ LICENSE:
 #define MRBUS_DEV_ADDR_DEFAULT             0x30
 #define MRBUS_BASE_ADDR_DEFAULT            0xE0
 
-
 #define RESET_COUNTER_RESET_VALUE   5
 uint8_t resetCounter;
 
@@ -165,6 +164,8 @@ MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 
 uint8_t mrbus_dev_addr = 0;
 uint8_t mrbus_base_addr = 0;
+
+#define LOCO_ADDRESS_SHORT 0x8000
 uint16_t locoAddress = 0;
 
 uint8_t hornFunction = 2;
@@ -770,10 +771,23 @@ void readConfig(void)
 	
 	// Locomotive Address
 	locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
-	if (locoAddress > 9999)
+	if(locoAddress & LOCO_ADDRESS_SHORT)
 	{
-		locoAddress = 9999;
-		eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, locoAddress);
+		if((locoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
+		{
+			// Invalid Short Address, reset to a sane value
+			locoAddress = 127;
+			eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, locoAddress);
+		}
+	}
+	else
+	{
+		if(locoAddress > 9999)
+		{
+			// Invalid Long Address, reset to a sane value
+			locoAddress = 9999;
+			eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, locoAddress);
+		}
 	}
 
 	// Function configs
@@ -926,6 +940,19 @@ void initLCD(void)
 
 	wait100ms(20);
 	lcd_clrscr();
+}
+
+void printLocomotiveAddress(uint16_t addr)
+{
+	if(addr & LOCO_ADDRESS_SHORT)
+	{
+		lcd_putc('s');
+		printDec3DigWZero(addr & ~(LOCO_ADDRESS_SHORT));
+	}
+	else
+	{
+		printDec4DigWZero(addr);
+	}
 }
 
 int main(void)
@@ -1119,7 +1146,7 @@ int main(void)
 				}
 				else
 				{
-					printDec4DigWZero(locoAddress);
+					printLocomotiveAddress(locoAddress);
 					if(backlight)
 						lcdBacklightEnable();
 					else
@@ -1314,11 +1341,23 @@ int main(void)
 					uint16_t tmpConfigOffset = configOffset;  // Save configOffset
 					configOffset = calculateConfigOffset(newConfigNumber);
 					uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
-					if (tmpLocoAddress > 9999)
+					if(tmpLocoAddress & LOCO_ADDRESS_SHORT)
 					{
-						tmpLocoAddress = 9999;
+						if((tmpLocoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
+						{
+							// Invalid Short Address, reset to a sane value
+							tmpLocoAddress = 127;
+						}
 					}
-					printDec4DigWZero(tmpLocoAddress);
+					else
+					{
+						if(tmpLocoAddress > 9999)
+						{
+							// Invalid Long Address, reset to a sane value
+							tmpLocoAddress = 9999;
+						}
+					}
+					printLocomotiveAddress(tmpLocoAddress);
 					configOffset = tmpConfigOffset;  // Restore old configOffset value
 				}
 				switch(button)
@@ -1377,7 +1416,10 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								decimalNumber[0] = (newLocoAddress / 1000) % 10;
+								if(newLocoAddress & LOCO_ADDRESS_SHORT)
+									decimalNumber[0] = 's' - '0';
+								else
+									decimalNumber[0] = (newLocoAddress / 1000) % 10;
 								decimalNumber[1] = (newLocoAddress / 100) % 10;
 								decimalNumber[2] = (newLocoAddress / 10) % 10;
 								decimalNumber[3] = (newLocoAddress) % 10;
@@ -1413,15 +1455,61 @@ int main(void)
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(decimalNumber[decimalNumberIndex] < 9)
-									decimalNumber[decimalNumberIndex]++;
+								if(decimalNumber[0] > 9)
+								{
+									// Short Address
+									switch(decimalNumberIndex)
+									{
+										case 0:
+											// Do nothing
+											break;
+										case 1:
+											if(decimalNumber[decimalNumberIndex] < 1)
+												decimalNumber[decimalNumberIndex]++;
+											break;
+										case 2:
+											if(1 == decimalNumber[1])
+											{
+												if(decimalNumber[decimalNumberIndex] < 2)
+													decimalNumber[decimalNumberIndex]++;
+											}
+											else
+											{
+												if(decimalNumber[decimalNumberIndex] < 9)
+													decimalNumber[decimalNumberIndex]++;
+											}
+											break;
+										case 3:
+											if((1 == decimalNumber[1]) && (2 == decimalNumber[2]))
+											{
+												if(decimalNumber[decimalNumberIndex] < 7)
+													decimalNumber[decimalNumberIndex]++;
+											}
+											else
+											{
+												if(decimalNumber[decimalNumberIndex] < 9)
+													decimalNumber[decimalNumberIndex]++;
+											}
+											break;
+									}
+								}
+								else
+								{
+									// Long Address
+									if( (0 == decimalNumberIndex) && (9 == decimalNumber[decimalNumberIndex]) )
+										decimalNumber[decimalNumberIndex] = 's' - '0';
+									else if(decimalNumber[decimalNumberIndex] < 9)
+										decimalNumber[decimalNumberIndex]++;
+								}
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(decimalNumber[decimalNumberIndex] > 0)
+								if(decimalNumber[decimalNumberIndex] > 9)
+									decimalNumber[decimalNumberIndex] = 9;
+								else if(decimalNumber[decimalNumberIndex] > 0)
 									decimalNumber[decimalNumberIndex]--;
 								ticks_autoincrement = 0;
 							}
@@ -1429,7 +1517,10 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
+								if(decimalNumber[0] > 9)
+									newLocoAddress = ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) & LOCO_ADDRESS_SHORT;
+								else
+									newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
 								eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, newLocoAddress);
 								readConfig();
 								newLocoAddress = locoAddress;
