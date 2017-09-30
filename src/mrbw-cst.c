@@ -2523,6 +2523,7 @@ int main(void)
 							lcd_gotoxy(0,0);
 							lcd_puts("RESET!!!");
 							resetConfig();
+							subscreenStatus = 0;  // Escape submenu
 							screenState = LAST_SCREEN;
 						}
 					}
