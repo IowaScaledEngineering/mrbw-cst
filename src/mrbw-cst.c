@@ -909,7 +909,7 @@ void init(void)
 	wdt_disable();
 #endif
 
-	pktTimeout = PKT_TIMEOUT_DECISECS;
+	pktTimeout = 0;  // Assume no base unit until we hear from one
 	deadReckoningTime = 0;
 	fastDecisecs = 0;
 	
