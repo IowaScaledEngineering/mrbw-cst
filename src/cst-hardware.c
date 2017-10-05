@@ -34,9 +34,9 @@ ReverserPosition reverserPosition = NEUTRAL;
 uint8_t brakePosition = 0;
 uint8_t hornPosition = 0;
 
-uint8_t frontLightPot = 0;
+uint8_t frontLightValue = 0;
 LightPosition frontLight = LIGHT_OFF;
-uint8_t rearLightPot = 0;
+uint8_t rearLightValue = 0;
 LightPosition rearLight = LIGHT_OFF;
 
 uint8_t batteryVoltage = 0;
@@ -145,7 +145,7 @@ void processADC()
 	if(!(ADCSRA & _BV(ADEN)))
 	{
 		// Only process ADC if ADC not running
-		int16_t delta = 0;
+/*		int16_t delta = 0;*/
 		switch(adcState)
 		{
 			case ADC_STATE_START_VREV:
@@ -204,20 +204,29 @@ void processADC()
 
 			case ADC_STATE_READ_VLIGHT_F:
 				disableLightSwitches();
-				delta = (int16_t)(adcAccumulator >> 9) - (int16_t)frontLightPot;
-				if(delta > 64)  // Rate-of-change clamping determined experimentally
-					delta = 64;
-				else if(delta < -32)
-					delta = -32;
-				frontLightPot = ((delta + ((int16_t)frontLightPot << 3)) >> 3);
-				if (frontLightPot > 106)
+				frontLightValue = (adcAccumulator >> 8);
+				if (frontLightValue > 160)
 					frontLight = LIGHT_OFF;
-				else if (frontLightPot > 60)
+				else if (frontLightValue > 96)
 					frontLight = LIGHT_DIM;
-				else if (frontLightPot > 20)
+				else if (frontLightValue > 32)
 					frontLight = LIGHT_BRIGHT;
 				else 
 					frontLight = LIGHT_BRIGHT_DITCH;
+/*				delta = (int16_t)(adcAccumulator >> 9) - (int16_t)frontLightValue;*/
+/*				if(delta > 64)  // Rate-of-change clamping determined experimentally*/
+/*					delta = 64;*/
+/*				else if(delta < -32)*/
+/*					delta = -32;*/
+/*				frontLightValue = ((delta + ((int16_t)frontLightValue << 3)) >> 3);*/
+/*				if (frontLightValue > 106)*/
+/*					frontLight = LIGHT_OFF;*/
+/*				else if (frontLightValue > 60)*/
+/*					frontLight = LIGHT_DIM;*/
+/*				else if (frontLightValue > 20)*/
+/*					frontLight = LIGHT_BRIGHT;*/
+/*				else */
+/*					frontLight = LIGHT_BRIGHT_DITCH;*/
 				adcState++;
 				break;
 
@@ -229,20 +238,29 @@ void processADC()
 
 			case ADC_STATE_READ_VLIGHT_R:
 				disableLightSwitches();
-				delta = (int16_t)(adcAccumulator >> 9) - (int16_t)rearLightPot;
-				if(delta > 64)  // Rate-of-change clamping determined experimentally
-					delta = 64;
-				else if(delta < -32)
-					delta = -32;
-				rearLightPot = ((delta + ((int16_t)rearLightPot << 3)) >> 3);
-				if (rearLightPot > 106)
+				rearLightValue = (adcAccumulator >> 8);
+				if (rearLightValue > 160)
 					rearLight = LIGHT_OFF;
-				else if (rearLightPot > 60)
+				else if (rearLightValue > 96)
 					rearLight = LIGHT_DIM;
-				else if (rearLightPot > 20)
+				else if (rearLightValue > 32)
 					rearLight = LIGHT_BRIGHT;
 				else 
 					rearLight = LIGHT_BRIGHT_DITCH;
+/*				delta = (int16_t)(adcAccumulator >> 9) - (int16_t)rearLightValue;*/
+/*				if(delta > 64)  // Rate-of-change clamping determined experimentally*/
+/*					delta = 64;*/
+/*				else if(delta < -32)*/
+/*					delta = -32;*/
+/*				rearLightValue = ((delta + ((int16_t)rearLightValue << 3)) >> 3);*/
+/*				if (rearLightValue > 106)*/
+/*					rearLight = LIGHT_OFF;*/
+/*				else if (rearLightValue > 60)*/
+/*					rearLight = LIGHT_DIM;*/
+/*				else if (rearLightValue > 20)*/
+/*					rearLight = LIGHT_BRIGHT;*/
+/*				else */
+/*					rearLight = LIGHT_BRIGHT_DITCH;*/
 				adcState++;
 				break;
 
