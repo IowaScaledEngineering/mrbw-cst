@@ -119,23 +119,23 @@ inline void buttonsDisable()
 	PORTB &= ~(0b11110000);  // Pullups off
 }
 
-inline void enableLcd()
+inline void enableLCD()
 {
 	PORTA &= ~_BV(LCD_POWER);
 }
 
-inline void disableLcd()
+inline void disableLCD()
 {
 	PORTA |= _BV(LCD_POWER);
 	PORTC &= ~(0xFC);  // Set LCD lines low  FIXME: use #define for LCD pins?
 }
 
-inline void enableLcdBacklight()
+inline void enableLCDBacklight()
 {
 	PORTA |= _BV(LCD_BACKLIGHT);
 }
 
-inline void disableLcdBacklight()
+inline void disableLCDBacklight()
 {
 	PORTA &= ~_BV(LCD_BACKLIGHT);
 }
@@ -168,6 +168,16 @@ inline void enableLightSwitches()
 inline void disableLightSwitches()
 {
 	PORTD &= ~_BV(LIGHTSW_ENABLES);
+}
+
+inline void enableADC()
+{
+	ADCSRA |= _BV(ADEN) | _BV(ADSC);
+}
+
+inline void disableADC()
+{
+	ADCSRA &= ~_BV(ADEN);
 }
 
 void enableThrottle();

@@ -126,7 +126,7 @@ ISR(ADC_vect)
 	if (adcCount >= 64)
 	{
 		// Turn off ADC after 64 samples
-		ADCSRA &= ~(_BV(ADEN));
+		disableADC();
 	}
 }
 
@@ -135,7 +135,7 @@ void startADC(uint8_t mux)
 	ADMUX  = _BV(REFS0) | mux;
 	adcAccumulator = 0;
 	adcCount = 0;
-	ADCSRA |= _BV(ADEN) | _BV(ADSC);
+	enableADC();
 }
 
 void processADC()

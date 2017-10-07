@@ -926,7 +926,7 @@ void init(void)
 void initLCD(void)
 {
 	lcd_init(LCD_DISP_ON);
-	enableLcdBacklight();
+	enableLCDBacklight();
 
 	wdt_reset();	
 
@@ -1020,7 +1020,7 @@ int main(void)
 		sleepTimeout_decisecs = sleep_tmr_reset_value;
 	}
 	
-	enableLcd();
+	enableLCD();
 
 	wdt_reset();
 
@@ -1137,20 +1137,20 @@ int main(void)
 				if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
 				{
 					lcd_puts("EMRG");
-					enableLcdBacklight();
+					enableLCDBacklight();
 				}
 				else if(activeReverserSetting != reverserPosition)
 				{
 					lcd_puts("REV!");
-					enableLcdBacklight();
+					enableLCDBacklight();
 				}
 				else
 				{
 					printLocomotiveAddress(locoAddress);
 					if(backlight)
-						enableLcdBacklight();
+						enableLCDBacklight();
 					else
-						disableLcdBacklight();
+						disableLCDBacklight();
 				}
 
 				lcd_gotoxy(1,1);
@@ -1245,7 +1245,7 @@ int main(void)
 				break;
 
 			case ENGINE_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				lcd_gotoxy(0,0);
 				lcd_puts(" ENGINE");
 				lcd_gotoxy(2,1);
@@ -1271,7 +1271,7 @@ int main(void)
 				break;
 
 			case TONNAGE_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				lcd_gotoxy(0,0);
 				switch(tonnage)
 				{
@@ -1331,7 +1331,7 @@ int main(void)
 				break;
 
 			case LOAD_CONFIG_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				lcd_gotoxy(0,0);
 				lcd_puts("LOAD CNF");
 				lcd_gotoxy(0,1);
@@ -1403,7 +1403,7 @@ int main(void)
 				break;
 
 			case LOCO_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(5,0);
@@ -1524,7 +1524,7 @@ int main(void)
 				break;
 
 			case FUNC_FORCE_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(3,0);
@@ -1631,7 +1631,7 @@ int main(void)
 				break;
 
 			case FUNC_CONFIG_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(2,0);
@@ -1849,7 +1849,7 @@ int main(void)
 				break;
 
 			case NOTCH_CONFIG_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(3,0);
@@ -1875,7 +1875,7 @@ int main(void)
 				}
 				else
 				{
-					enableLcdBacklight();
+					enableLCDBacklight();
 					lcd_gotoxy(0,0);
 					lcd_puts("NOTCH ");
 					uint8_t notch = subscreenStatus;
@@ -1934,7 +1934,7 @@ int main(void)
 				break;
 
 			case THRESHOLD_CAL_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(0,0);
@@ -1962,7 +1962,7 @@ int main(void)
 				{
 					uint8_t *positionPtr = &hornPosition;
 					uint8_t *thresholdPtr = &hornThreshold;
-					enableLcdBacklight();
+					enableLCDBacklight();
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
 					{
@@ -2054,7 +2054,7 @@ int main(void)
 				break;
 
 			case COMM_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(4,0);
@@ -2080,7 +2080,7 @@ int main(void)
 				}
 				else
 				{
-					enableLcdBacklight();
+					enableLCDBacklight();
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
 					{
@@ -2167,7 +2167,7 @@ int main(void)
 				break;
 
 			case PREFS_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(3,0);
@@ -2194,7 +2194,7 @@ int main(void)
 				else
 				{
 					uint8_t bitPosition = 8;  // <8 means boolean
-					enableLcdBacklight();
+					enableLCDBacklight();
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
 					{
@@ -2320,7 +2320,7 @@ int main(void)
 				break;
 
 			case DIAG_SCREEN:
-				enableLcdBacklight();
+				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
 					lcd_gotoxy(3,0);
@@ -2349,7 +2349,7 @@ int main(void)
 					if(1 == subscreenStatus)
 					{
 						setupDiagChars();
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(5,0);
 						if(0 == activeThrottleSetting)
 						{
@@ -2431,7 +2431,7 @@ int main(void)
 					}
 					else if(2 == subscreenStatus)
 					{
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("SLEEP");
 						lcd_gotoxy(0,1);
@@ -2445,7 +2445,7 @@ int main(void)
 					}
 					else if(3 == subscreenStatus)
 					{
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("PKT TIME");
 						lcd_gotoxy(1,1);
@@ -2459,7 +2459,7 @@ int main(void)
 					}
 					else if(4 == subscreenStatus)
 					{
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("BATTERY");
 						lcd_gotoxy(1,1);
@@ -2471,7 +2471,7 @@ int main(void)
 					}
 					else if(5 == subscreenStatus)
 					{
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("VERSION");
 						lcd_gotoxy(0,1);
@@ -2479,7 +2479,7 @@ int main(void)
 					}
 					else if(6 == subscreenStatus)
 					{
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("GIT REV");
 						lcd_gotoxy(1,1);
@@ -2489,7 +2489,7 @@ int main(void)
 					}
 					else if(7 == subscreenStatus)
 					{
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("BASE TYP");
 						lcd_gotoxy(0,1);
@@ -2497,7 +2497,7 @@ int main(void)
 					}
 					else if(8 == subscreenStatus)
 					{
-						enableLcdBacklight();
+						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("BASE REV");
 						lcd_gotoxy(1,1);
@@ -2509,7 +2509,7 @@ int main(void)
 					{
 						if(resetCounter)
 						{
-							enableLcdBacklight();
+							enableLCDBacklight();
 							lcd_gotoxy(0,0);
 							lcd_puts("FACTORY");
 							lcd_gotoxy(0,1);
@@ -2795,12 +2795,11 @@ int main(void)
 			// Time to nod off
 			led = LED_OFF;
 
-
 			// Disable internal power-sucking peripherals (need to be enabled when awake)
-			ADCSRA &= ~_BV(ADEN);
+			disableADC();
 			setXbeeSleep();
-			disableLcd();
-			disableLcdBacklight();
+			disableLCD();
+			disableLCDBacklight();
 			TIMSK0 &= ~_BV(OCIE0A);  // Disable 100Hz timer (to prevent LEDs from blinking on right before sleeping)
 			ledGreenOff();
 			ledRedOff();
@@ -2832,7 +2831,7 @@ int main(void)
 
 			// Re-enable chip internal bits (ADC, pots, reverser, light switches done in main loop)
 			setXbeeActive();
-			enableLcd();
+			enableLCD();
 			initLCD();
 			initialize100HzTimer();
 			enableSwitches();
