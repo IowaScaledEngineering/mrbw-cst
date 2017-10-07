@@ -870,10 +870,10 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
 		eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
-		eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, 9);
 		eeprom_write_byte((uint8_t*)EE_ENGINE_FUNCTION, 8);
-		eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, 5);
+		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, 6);
 		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, 9);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
