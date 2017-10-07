@@ -1061,7 +1061,7 @@ int main(void)
 		{
 			// Read switches every 10ms
 			status &= ~STATUS_READ_SWITCHES;
-			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
 			processButtons(inputButtons);
 			processSwitches(inputButtons);
 		}
@@ -2838,10 +2838,10 @@ int main(void)
 			enableThrottle();
 
 			// Initialize the buttons so there are no startup artifacts when we actually use them
-			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
-			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
-			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
-			inputButtons = debounce(inputButtons, (PINB & (0xF7)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
 			processButtons(inputButtons);
 			processSwitches(inputButtons);
 			previousButton = button;  // Prevent extraneous menu advances
