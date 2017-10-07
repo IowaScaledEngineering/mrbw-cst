@@ -644,7 +644,7 @@ void initialize100HzTimer(void)
 	decisecs = 0;
 	TCCR0A = _BV(WGM01);
 	TCCR0B = _BV(CS02) | _BV(CS00);
-	TIMSK0 |= _BV(OCIE0A);
+	enableTimer();
 }
 
 ISR(TIMER0_COMPA_vect)
@@ -2800,7 +2800,7 @@ int main(void)
 			setXbeeSleep();
 			disableLCD();
 			disableLCDBacklight();
-			TIMSK0 &= ~_BV(OCIE0A);  // Disable 100Hz timer (to prevent LEDs from blinking on right before sleeping)
+			disableTimer();  // Disable 100Hz timer (to prevent LEDs from blinking on right before sleeping)
 			ledGreenOff();
 			ledRedOff();
 			disableSwitches();  // Don't disable buttons
@@ -2829,7 +2829,7 @@ int main(void)
 			wdt_reset();
 			sei();
 
-			// Re-enable chip internal bits (ADC, pots, reverser, light switches done in main loop)
+			// Re-enable chip internal bits (ADC, pots, reverser, light switches done in ADC loop)
 			setXbeeActive();
 			enableLCD();
 			initLCD();
@@ -2846,7 +2846,7 @@ int main(void)
 			processSwitches(inputButtons);
 			previousButton = button;  // Prevent extraneous menu advances
 
-			lastBatteryState = UNKNOWN;
+			lastBatteryState = UNKNOWN;  // Force an update to the battery character in the LCD
 
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{

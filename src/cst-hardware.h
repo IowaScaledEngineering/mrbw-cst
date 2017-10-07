@@ -180,6 +180,16 @@ inline void disableADC()
 	ADCSRA &= ~_BV(ADEN);
 }
 
+inline void enableTimer()
+{
+	TIMSK0 |= _BV(OCIE0A);
+}
+
+inline void disableTimer()
+{
+	TIMSK0 &= ~_BV(OCIE0A);
+}
+
 void enableThrottle();
 void disableThrottle();
 
