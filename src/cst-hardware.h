@@ -99,12 +99,12 @@ inline void ledRedOn()
 	PORTD |= _BV(LED_RED_PIN);
 }
 
-inline void switchesEnable()
+inline void enableSwitches()
 {
 	PORTB |= 0b00000110;  // Pullups on
 }
 
-inline void switchesDisable()
+inline void disableSwitches()
 {
 	PORTB &= ~(0b00000110);  // Pullups off
 }
@@ -119,23 +119,23 @@ inline void buttonsDisable()
 	PORTB &= ~(0b11110000);  // Pullups off
 }
 
-inline void lcdEnable()
+inline void enableLcd()
 {
 	PORTA &= ~_BV(LCD_POWER);
 }
 
-inline void lcdDisable()
+inline void disableLcd()
 {
 	PORTA |= _BV(LCD_POWER);
 	PORTC &= ~(0xFC);  // Set LCD lines low  FIXME: use #define for LCD pins?
 }
 
-inline void lcdBacklightEnable()
+inline void enableLcdBacklight()
 {
 	PORTA |= _BV(LCD_BACKLIGHT);
 }
 
-inline void lcdBacklightDisable()
+inline void disableLcdBacklight()
 {
 	PORTA &= ~_BV(LCD_BACKLIGHT);
 }

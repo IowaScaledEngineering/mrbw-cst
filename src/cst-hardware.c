@@ -71,7 +71,7 @@ void initPorts()
 	//  PB7 - Input  - Softkey 3
 	DDRB  = 0b00001001;
 	buttonsEnable();
-	switchesEnable();
+	enableSwitches();
 
 	// Pin Assignments for PORTC/DDRC
 	//  PC0 - Output - Reverser Enable
