@@ -1,0 +1,2 @@
+gerbv -x ps mrbw-cst-lcd.outline.gbr mrbw-cst-lcd.plated-drill.cnc mrbw-cst-lcd.topsilk.gbr
+pstoedit -f dxf output.ps output.dxf
