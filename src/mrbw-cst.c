@@ -2507,6 +2507,22 @@ int main(void)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
+						lcd_puts("FT RATIO");
+						lcd_gotoxy(1,1);
+						uint8_t timeScaleFactor_tmp = (timeScaleFactor/100)%10;
+						if(timeScaleFactor_tmp)
+							lcd_putc('0' + timeScaleFactor_tmp);
+						else
+							lcd_putc(' ');
+						lcd_putc('0' + (timeScaleFactor/10)%10);
+						lcd_putc('.');
+						lcd_putc('0' + timeScaleFactor%10);
+						lcd_puts(":1");
+					}
+					else if(5 == subscreenStatus)
+					{
+						enableLCDBacklight();
+						lcd_gotoxy(0,0);
 						lcd_puts("BATTERY");
 						lcd_gotoxy(1,1);
 						lcd_putc('0' + (((batteryVoltage*2)/100)%10));
@@ -2515,7 +2531,7 @@ int main(void)
 						lcd_putc('0' + ((batteryVoltage*2)%10));
 						lcd_putc('V');
 					}
-					else if(5 == subscreenStatus)
+					else if(6 == subscreenStatus)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -2523,7 +2539,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(VERSION_STRING);
 					}
-					else if(6 == subscreenStatus)
+					else if(7 == subscreenStatus)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -2533,7 +2549,7 @@ int main(void)
 						printHex((GIT_REV >> 8) & 0xFF);
 						printHex(GIT_REV & 0xFF);
 					}
-					else if(7 == subscreenStatus)
+					else if(8 == subscreenStatus)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -2541,7 +2557,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(baseString);
 					}
-					else if(8 == subscreenStatus)
+					else if(9 == subscreenStatus)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -2551,7 +2567,7 @@ int main(void)
 						printHex((baseVersion >> 8) & 0xFF);
 						printHex(baseVersion & 0xFF);
 					}
-					else if(9 == subscreenStatus)
+					else if(10 == subscreenStatus)
 					{
 						if(resetCounter)
 						{
@@ -2577,6 +2593,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
+								setupClockChars();   // Restore clock characters
 								subscreenStatus = 0;  // Escape submenu
 								lcd_clrscr();
 							}
@@ -2586,7 +2603,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 9)
+								if(subscreenStatus > 10)
 									subscreenStatus = 1;
 								lcd_clrscr();
 								resetCounter = RESET_COUNTER_RESET_VALUE;
