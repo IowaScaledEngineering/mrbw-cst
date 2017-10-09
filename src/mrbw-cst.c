@@ -317,32 +317,76 @@ void incrementTime(TimeData* t, uint8_t incSeconds)
 		t->hours %= 24;
 }
 
-void displayTime(TimeData* time)
+void displayTime(TimeData* time, uint8_t ampm)
 {
 	uint8_t i=0;
+	uint8_t displayCharacters[6];
 
-	i = (time->hours / 10) % 10;
-	lcd_putc('0' + i);
-	lcd_putc('0' + time->hours % 10);
-	lcd_putc(':');
-	lcd_putc('0' + (time->minutes / 10) % 10);
-	lcd_putc('0' + time->minutes % 10);
+	displayCharacters[4] = '0' + (time->minutes % 10);
+	displayCharacters[3] = '0' + ((time->minutes / 10) % 10);
+	displayCharacters[2] = ':';
+
+	if (ampm)
+	{
+		// If 12 hour mode
+		if (time->hours == 0)
+		{
+			displayCharacters[0] = '1';
+			displayCharacters[1] = '2';
+		}
+		else 
+		{
+			uint8_t hrs = time->hours;
+			if (hrs > 12)
+				hrs -= 12;
+			
+			i = (hrs / 10) % 10;
+			displayCharacters[0] = (0==i) ? ' ' : '0' + i;
+			displayCharacters[1] = '0' + (hrs % 10);
+		}
+
+		if (time->hours >= 12)
+			displayCharacters[5] = PM_CHAR;
+		else	
+			displayCharacters[5] = AM_CHAR;
+
+	}
+	else
+	{
+		// 24 hour mode
+		i = (time->hours / 10) % 10;
+		displayCharacters[1] = '0' + (time->hours % 10);
+		displayCharacters[0] = '0' + i;
+		displayCharacters[5] = ' ';
+	}
+	
+	for(i=0; i<6; i++)
+	{
+		lcd_putc(displayCharacters[i]);
+	}
+
+/*	i = (time->hours / 10) % 10;*/
+/*	lcd_putc('0' + i);*/
+/*	lcd_putc('0' + time->hours % 10);*/
+/*	lcd_putc(':');*/
+/*	lcd_putc('0' + (time->minutes / 10) % 10);*/
+/*	lcd_putc('0' + time->minutes % 10);*/
 }
 
 void printTime(void)
 {
 	if(0 == deadReckoningTime)
 	{
-		lcd_puts("--:--");
+		lcd_puts("--:-- ");
 	}
 	else if ((TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD) == (timeFlags & (TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD)) )  // Hold state
 	{
-		lcd_puts(" HOLD");
+		lcd_puts(" HOLD ");
 	}
 	else if (timeFlags & TIME_FLAGS_DISP_FAST)
-		displayTime(&fastTime);
+		displayTime(&fastTime, timeFlags & TIME_FLAGS_DISP_FAST_AMPM);
 	else
-		displayTime(&realTime);
+		displayTime(&realTime, timeFlags & TIME_FLAGS_DISP_REAL_AMPM);
 
 	if ((timeFlags & TIME_FLAGS_DISP_FAST) && !(timeFlags & TIME_FLAGS_DISP_FAST_HOLD) && fastDecisecs >= 10)
 	{
@@ -1048,6 +1092,8 @@ int main(void)
 
 	buttonsEnable();
 	enableSwitches();
+
+	setupClockChars();
 
 	while(1)
 	{

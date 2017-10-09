@@ -4,6 +4,8 @@
 #define BATTERY_CHAR            0
 #define BELL_CHAR               1
 #define HORN_CHAR               2
+#define AM_CHAR                 1
+#define PM_CHAR                 2
 #define FUNCTION_INACTIVE_CHAR  3
 #define FUNCTION_ACTIVE_CHAR    4
 #define TONNAGE_TOP             5
@@ -159,6 +161,36 @@ const uint8_t SoftkeyActive[8] =
 	0b00000000
 };
 
+const uint8_t ClockAM[8] =
+{
+	0b00000000,
+	0b00000000,
+	0b00011100,
+	0b00010100,
+	0b00011100,
+	0b00010100,
+	0b00010100,
+	0b00000000
+};
+
+const uint8_t ClockPM[8] =
+{
+	0b00000000,
+	0b00000000,
+	0b00011100,
+	0b00010100,
+	0b00011100,
+	0b00010000,
+	0b00010000,
+	0b00000000
+};
+
+
+void setupClockChars(void)
+{
+	lcd_setup_custom(AM_CHAR, ClockAM);
+	lcd_setup_custom(PM_CHAR, ClockPM);
+}
 
 void setupDiagChars(void)
 {
