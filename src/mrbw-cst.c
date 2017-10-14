@@ -51,6 +51,10 @@ LICENSE:
 #define MAX_DEAD_RECKONING_TIME_MAX        25
 
 #define CONFIGBITS_DEFAULT                 0xFF
+#define TX_HOLDOFF_DEFAULT                 10
+
+#define UPDATE_DECISECS_DEFAULT            10
+#define UPDATE_DECISECS_MAX                2550
 
 #define MRBUS_DEV_ADDR_DEFAULT             0x30
 #define MRBUS_BASE_ADDR_DEFAULT            0xE0
@@ -93,6 +97,7 @@ char baseString[9];
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
 #define EE_MAX_DEAD_RECKONING         0x12
 #define EE_CONFIGBITS                 0x13
+#define EE_TX_HOLDOFF                 0x1D
 #define EE_TIME_SOURCE_ADDRESS        0x1E
 #define EE_BASE_ADDR                  0x1F
 #define EE_HORN_THRESHOLD             0x20
@@ -193,8 +198,12 @@ volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint8_t ticks;
 volatile uint16_t decisecs = 0;
 volatile uint16_t sleepTimeout_decisecs = 0;
-volatile uint16_t update_decisecs = 10;
+volatile uint8_t txHoldoff = 0;
 volatile uint8_t status = 0;
+
+uint16_t update_decisecs = UPDATE_DECISECS_DEFAULT;
+uint8_t txHoldoff_centisecs = TX_HOLDOFF_DEFAULT;
+
 
 #define THROTTLE_STATUS_ALL_STOP        0x02
 #define THROTTLE_STATUS_EMERGENCY       0x01
@@ -729,6 +738,9 @@ ISR(TIMER0_COMPA_vect)
 		}
 	}
 
+	if(txHoldoff)
+		txHoldoff--;
+
 	if(ticks_autoincrement < button_autoincrement_10ms_ticks)
 			ticks_autoincrement++;
 }
@@ -747,6 +759,18 @@ void wait100ms(uint16_t loops)
 void readConfig(void)
 {
 	uint8_t i;
+
+	update_decisecs = (uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L) | (((uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H)) << 8);
+	if(0 == update_decisecs)
+		update_decisecs = 1;
+	else if(update_decisecs > UPDATE_DECISECS_MAX)
+	{
+		update_decisecs = UPDATE_DECISECS_MAX;
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H, update_decisecs >> 8);
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L, update_decisecs & 0xFF);
+	}
+	
+	txHoldoff_centisecs = eeprom_read_byte((uint8_t*)EE_TX_HOLDOFF);
 
 	// Read the number of minutes before sleeping from EEP and store it.
 	// If it's not in range, clamp it.
@@ -881,6 +905,10 @@ void resetConfig(void)
 	uint8_t i;
 
 	wdt_reset();
+
+	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H, UPDATE_DECISECS_DEFAULT >> 8);
+	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L, UPDATE_DECISECS_DEFAULT & 0xFF);
+	eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, TX_HOLDOFF_DEFAULT);
 
 	eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, SLEEP_TMR_RESET_VALUE_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, MAX_DEAD_RECKONING_TIME_DEFAULT*10);
@@ -1053,6 +1081,7 @@ int main(void)
 	uint8_t newTimeAddr = timeSourceAddress;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
 	uint8_t newMaxDeadReckoningTime = maxDeadReckoningTime / 10;
+	uint8_t newUpdate_seconds = update_decisecs / 10;
 
 	uint8_t *addrPtr = &newDevAddr;
 	uint8_t *prefsPtr = &newSleepTimeout;
@@ -2246,7 +2275,7 @@ int main(void)
 					{
 						lcd_puts("SLEEP");
 						lcd_gotoxy(0,1);
-						lcd_puts("DLY: ");
+						lcd_puts("DLY:");
 						lcd_gotoxy(7,1);
 						lcd_puts("M");
 						bitPosition = 8;
@@ -2256,13 +2285,33 @@ int main(void)
 					{
 						lcd_puts("TIMEOUT");
 						lcd_gotoxy(0,1);
-						lcd_puts("CLK: ");
+						lcd_puts("CLK:");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
 						bitPosition = 8;
 						prefsPtr = &newMaxDeadReckoningTime;
 					}
 					else if(3 == subscreenStatus)
+					{
+						lcd_puts("HOLDOFF");
+						lcd_gotoxy(0,1);
+						lcd_puts("TX:");
+						lcd_gotoxy(7,1);
+						lcd_puts("s");
+						bitPosition = 8;
+						prefsPtr = &txHoldoff_centisecs;
+					}
+					else if(4 == subscreenStatus)
+					{
+						lcd_puts("INTERVAL");
+						lcd_gotoxy(0,1);
+						lcd_puts("TX: ");
+						lcd_gotoxy(7,1);
+						lcd_puts("s");
+						bitPosition = 8;
+						prefsPtr = &newUpdate_seconds;
+					}
+					else if(5 == subscreenStatus)
 					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
@@ -2277,16 +2326,24 @@ int main(void)
 
 					if(bitPosition < 8)
 					{
-						lcd_gotoxy(5,1);
+						lcd_gotoxy(4,1);
 						if(*prefsPtr & _BV(bitPosition))
-							lcd_puts("ON ");
+							lcd_puts(" ON ");
 						else
-							lcd_puts("OFF");
+							lcd_puts(" OFF");
+					}
+					else if(prefsPtr == &txHoldoff_centisecs)
+					{
+						lcd_gotoxy(3,1);
+						lcd_putc('0' + (*prefsPtr) / 100);
+						lcd_putc('.');
+						lcd_putc('0' + ((*prefsPtr)/10) % 10);
+						lcd_putc('0' + (*prefsPtr) % 10);
 					}
 					else
 					{
-						lcd_gotoxy(5,1);
-						printDec2Dig(*prefsPtr);
+						lcd_gotoxy(4,1);
+						printDec3Dig(*prefsPtr);
 					}
 
 					
@@ -2336,11 +2393,16 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, newMaxDeadReckoningTime * 10);
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
+								eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
+								update_decisecs = (uint16_t)newUpdate_seconds * 10;
+								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H, update_decisecs >> 8);
+								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L, update_decisecs & 0xFF);
 								readConfig();
-								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change.
+								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
 								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
 								newMaxDeadReckoningTime = maxDeadReckoningTime / 10;
+								newUpdate_seconds = update_decisecs / 10;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -2354,7 +2416,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 4)
+								if(subscreenStatus > 6)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
@@ -2772,8 +2834,7 @@ int main(void)
 		wdt_reset();
 		
 		// Transmission criteria...
-		// > 1 decisec from last transmission and...
-		// stuff changed
+		// stuff changed AND TX holdoff is zero...
 		// *****  or *****
 		// it's been more than the transmission timeout
 		
@@ -2783,7 +2844,7 @@ int main(void)
 		}
 		if (
 				adcLoopInitialized() &&
-				((inputsChanged && decisecs_tmp > 1) || (decisecs_tmp >= update_decisecs)) &&
+				((inputsChanged && !txHoldoff) || (decisecs_tmp >= update_decisecs)) &&
 				!(mrbusPktQueueFull(&mrbeeTxQueue))
 			)
 		{
@@ -2838,6 +2899,7 @@ int main(void)
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
 				decisecs = 0;
+				txHoldoff = txHoldoff_centisecs;
 			}
 		}
 
