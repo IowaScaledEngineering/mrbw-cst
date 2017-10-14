@@ -2293,23 +2293,19 @@ int main(void)
 					}
 					else if(3 == subscreenStatus)
 					{
-						lcd_puts("HOLDOFF");
-						lcd_gotoxy(0,1);
-						lcd_puts("TX:");
-						lcd_gotoxy(7,1);
-						lcd_puts("s");
-						bitPosition = 8;
-						prefsPtr = &txHoldoff_centisecs;
-					}
-					else if(4 == subscreenStatus)
-					{
-						lcd_puts("INTERVAL");
-						lcd_gotoxy(0,1);
-						lcd_puts("TX: ");
+						lcd_puts("TX INTVL");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
 						bitPosition = 8;
 						prefsPtr = &newUpdate_seconds;
+					}
+					else if(4 == subscreenStatus)
+					{
+						lcd_puts("TX HLDOF");
+						lcd_gotoxy(7,1);
+						lcd_puts("s");
+						bitPosition = 8;
+						prefsPtr = &txHoldoff_centisecs;
 					}
 					else if(5 == subscreenStatus)
 					{
@@ -2356,7 +2352,7 @@ int main(void)
 								{
 									*prefsPtr |= _BV(bitPosition);
 								}
-								else
+								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (controls & HORN_CONTROL) )
 								{
 									if(*prefsPtr < 0xFF)
 										(*prefsPtr)++;
@@ -2375,7 +2371,7 @@ int main(void)
 								{
 									*prefsPtr &= ~_BV(bitPosition);
 								}
-								else
+								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (controls & HORN_CONTROL) )
 								{
 									if(*prefsPtr > 1)
 										(*prefsPtr)--;
