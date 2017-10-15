@@ -2670,8 +2670,8 @@ int main(void)
 						case DOWN_BUTTON:
 							if(DOWN_BUTTON != previousButton)
 							{
-								// Increment here, but it's only used in the reset screen
-								// It will be reset to zero prior to entering reset screen
+								// Decrement here, but it's only used in the reset screen
+								// It will be reset prior to entering reset screen
 								resetCounter--;
 							}
 							break;
