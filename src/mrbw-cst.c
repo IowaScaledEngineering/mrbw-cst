@@ -57,7 +57,7 @@ LICENSE:
 #define UPDATE_DECISECS_MAX                2550
 
 #define MRBUS_DEV_ADDR_DEFAULT             0x30
-#define MRBUS_BASE_ADDR_DEFAULT            0xE0
+#define MRBUS_BASE_ADDR_DEFAULT            0xD4
 
 #define RESET_COUNTER_RESET_VALUE   5
 uint8_t resetCounter;
