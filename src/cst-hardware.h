@@ -127,7 +127,7 @@ inline void enableLCD()
 inline void disableLCD()
 {
 	PORTA |= _BV(LCD_POWER);
-	PORTC &= ~(0xFC);  // Set LCD lines low  FIXME: use #define for LCD pins?
+	PORTC &= ~(0xFC);  // Set LCD lines low
 }
 
 inline void enableLCDBacklight()
