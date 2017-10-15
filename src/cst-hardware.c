@@ -155,7 +155,6 @@ void processADC()
 				break;
 
 			case ADC_STATE_READ_VREV:
-				disableReverser();
 				adcAccumulator >>= 8;
 				if(adcAccumulator < 0x30)
 				{
@@ -179,7 +178,6 @@ void processADC()
 				break;
 
 			case ADC_STATE_READ_VBRAKE:
-				disablePots();
 				brakePosition = adcAccumulator >> 8;
 				adcState++;
 				break;
@@ -191,7 +189,6 @@ void processADC()
 				break;
 
 			case ADC_STATE_READ_VHORN:
-				disablePots();
 				hornPosition = 255 - (adcAccumulator >> 8);
 				adcState++;
 				break;
@@ -203,7 +200,6 @@ void processADC()
 				break;
 
 			case ADC_STATE_READ_VLIGHT_F:
-				disableLightSwitches();
 				frontLightValue = (adcAccumulator >> 8);
 				if (frontLightValue > 160)
 					frontLight = LIGHT_OFF;
@@ -237,7 +233,6 @@ void processADC()
 				break;
 
 			case ADC_STATE_READ_VLIGHT_R:
-				disableLightSwitches();
 				rearLightValue = (adcAccumulator >> 8);
 				if (rearLightValue > 160)
 					rearLight = LIGHT_OFF;
