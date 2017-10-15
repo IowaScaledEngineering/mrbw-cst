@@ -1009,6 +1009,7 @@ void initLCD(void)
 
 	wdt_reset();
 	setupSoftkeyChars();
+	setupClockChars();  // Reload the fast clock characters
 
 	wait100ms(20);
 	lcd_clrscr();
