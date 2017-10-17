@@ -285,6 +285,7 @@ typedef enum
 	ENGINE_START,
 	ENGINE_ON,
 	ENGINE_RUNNING,
+	ENGINE_NOT_IDLE,
 	ENGINE_STOP,
 } EngineState;
 
@@ -1229,6 +1230,11 @@ int main(void)
 			// START --> RUNNING
 			engineState = ENGINE_RUNNING;
 		}
+		else if((ENGINE_NOT_IDLE == engineState) && (0 == activeThrottleSetting))
+		{
+			// NOT_IDLE --> RUNNING
+			engineState = ENGINE_RUNNING;
+		}
 		else if((ENGINE_STOP == engineState) && !engineTimer)
 		{
 			// STOP --> OFF
@@ -1363,6 +1369,9 @@ int main(void)
 					case ENGINE_RUNNING:
 						lcd_puts("   ON   ");
 						break;
+					case ENGINE_NOT_IDLE:
+						lcd_puts("NOT IDLE");
+						break;
 					case ENGINE_START:
 						lcd_puts("STARTING");
 						break;
@@ -1381,6 +1390,7 @@ int main(void)
 						else
 						{
 							// Edge triggered start/stop
+							// Only send start pulse if in the off state
 							if(ENGINE_OFF == engineState)
 							{
 								engineState = ENGINE_START;
@@ -1398,14 +1408,29 @@ int main(void)
 						{
 							// Edge triggered start/stop
 							// Always allow stop to be sent so we can resync the state with the locomotive if they ever get out of sync
-							engineState = ENGINE_STOP;
-							engineTimer = ENGINE_TIMER_DECISECS;
+							// But only if the locomotive is in idle
+							if(0 == activeThrottleSetting)
+							{
+								engineState = ENGINE_STOP;
+								engineTimer = ENGINE_TIMER_DECISECS;
+							}
+							else
+							{
+								// Go to special state if not in idle
+								// Main loop will set engineState back to RUNNING once throttle goes to idle
+								engineState = ENGINE_NOT_IDLE;
+							}
 						}
 						break;
 					case SELECT_BUTTON:
-							screenState = LAST_SCREEN;
-							break;
+						screenState = LAST_SCREEN;
+						// Fall through
 					case MENU_BUTTON:
+						if(ENGINE_NOT_IDLE == engineState)
+						{
+							// Clean Not Idle state if exiting the menu
+							engineState = ENGINE_RUNNING;
+						}
 					case NO_BUTTON:
 						break;
 				}
