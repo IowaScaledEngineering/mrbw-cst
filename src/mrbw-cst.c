@@ -1016,22 +1016,50 @@ void init(void)
 
 void initLCD(void)
 {
+	uint8_t i;
+	
 	lcd_init(LCD_DISP_ON);
 	enableLCDBacklight();
 
 	wdt_reset();	
 
-	lcd_gotoxy(1, 0);
-	lcd_puts("Proto");
-	lcd_gotoxy(0, 1);
-	lcd_puts("Throttle");
+	lcd_clrscr();
+
+	lcd_setup_custom(0, Splash1A);
+	lcd_setup_custom(1, Splash2A);
+	lcd_setup_custom(2, Splash3A);
+	lcd_setup_custom(3, Splash4A);
+	lcd_setup_custom(4, Splash5);
+	lcd_setup_custom(5, Splash6);
+	lcd_setup_custom(6, Splash7);
+	lcd_setup_custom(7, Splash8);
+
+	lcd_gotoxy(0,0);
+	for(i=0; i<8; i++)
+		lcd_putc(i);
+	
+	lcd_gotoxy(0,1);
+	lcd_puts("THROTTLE");
+
+	wait100ms(8);
+
+	lcd_setup_custom(1, Splash2B);
+	lcd_setup_custom(2, Splash3B);
+	lcd_setup_custom(3, Splash4B);
+
+	wait100ms(2);
+
+	lcd_setup_custom(0, Splash1C);
+	lcd_setup_custom(1, Splash2C);
+	lcd_setup_custom(2, Splash3C);
+
+	wait100ms(15);
 
 	wdt_reset();
+
+	lcd_clrscr();
 	setupSoftkeyChars();
 	setupClockChars();  // Reload the fast clock characters
-
-	wait100ms(20);
-	lcd_clrscr();
 }
 
 void printLocomotiveAddress(uint16_t addr)
@@ -1141,8 +1169,6 @@ int main(void)
 
 	buttonsEnable();
 	enableSwitches();
-
-	setupClockChars();
 
 	while(1)
 	{
