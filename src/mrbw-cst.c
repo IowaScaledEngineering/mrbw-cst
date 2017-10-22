@@ -92,6 +92,9 @@ char baseString[9];
 #define OFF_FUNCTION      0x80
 #define LATCH_FUNCTION    0x40
 
+#define HORN_HYSTERESIS   5
+#define BRAKE_HYSTERESIS  5
+
 // Set EEPROM locations
 #define EE_CURRENT_CONFIG             0x10
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
@@ -1190,12 +1193,11 @@ int main(void)
 		processADC();
 
 		// Convert horn to on/off control
-		// FIXME: eventually add analog horn functionality
-		if(hornPosition < hornThreshold)
+		if(hornPosition <= (hornThreshold - HORN_HYSTERESIS))
 		{
 			controls &= ~(HORN_CONTROL);
 		}
-		else
+		else if(hornPosition >= hornThreshold)
 		{
 			controls |= HORN_CONTROL;
 		}
@@ -1217,11 +1219,11 @@ int main(void)
 		
 		// Convert brake to on/off control
 		// FIXME: eventually add analog brake functionality
-		if(brakePosition < brakeThreshold)
+		if(brakePosition <= (brakeThreshold - BRAKE_HYSTERESIS))
 		{
 			controls &= ~(BRAKE_CONTROL);
 		}
-		else
+		else if(brakePosition >= brakeThreshold)
 		{
 			controls |= BRAKE_CONTROL;
 		}
