@@ -1028,14 +1028,14 @@ void initLCD(void)
 
 	lcd_clrscr();
 
-	lcd_setup_custom(0, Splash1A);
-	lcd_setup_custom(1, Splash2A);
-	lcd_setup_custom(2, Splash3A);
-	lcd_setup_custom(3, Splash4A);
-	lcd_setup_custom(4, Splash5);
-	lcd_setup_custom(5, Splash6);
-	lcd_setup_custom(6, Splash7);
-	lcd_setup_custom(7, Splash8);
+	lcd_setup_custom(0, Splash1);
+	lcd_setup_custom(1, Splash2);
+	lcd_setup_custom(2, Splash3);
+	lcd_setup_custom(3, Splash4);
+	lcd_setup_custom(4, Splash5A);
+	lcd_setup_custom(5, Splash6A);
+	lcd_setup_custom(6, Splash7A);
+	lcd_setup_custom(7, Splash8A);
 
 	lcd_gotoxy(0,0);
 	for(i=0; i<8; i++)
@@ -1046,21 +1046,22 @@ void initLCD(void)
 
 	wait100ms(8);
 
-	lcd_setup_custom(1, Splash2B);
-	lcd_setup_custom(2, Splash3B);
-	lcd_setup_custom(3, Splash4B);
+	lcd_setup_custom(5, Splash6B);
+	lcd_setup_custom(6, Splash7B);
+	lcd_setup_custom(7, Splash8B);
 
-	wait100ms(2);
+	wait100ms(4);
 
-	lcd_setup_custom(0, Splash1C);
-	lcd_setup_custom(1, Splash2C);
-	lcd_setup_custom(2, Splash3C);
+	lcd_setup_custom(4, Splash5C);
+	lcd_setup_custom(5, Splash6C);
+	lcd_setup_custom(6, Splash7C);
 
 	wait100ms(15);
 
 	wdt_reset();
 
 	lcd_clrscr();
+
 	setupSoftkeyChars();
 	setupClockChars();  // Reload the fast clock characters
 }
