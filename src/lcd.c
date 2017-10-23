@@ -28,6 +28,8 @@
 #include <util/delay.h>
 #include "lcd.h"
 
+#define LCD_ROWS    2
+#define LCD_COLUMNS 8
 
 #define lcd_e_delay()   __asm__ __volatile__( "rjmp 1f\n 1:" );
 #define lcd_e_high()    LCD_E_PORT  |=  _BV(LCD_E_PIN);
@@ -50,6 +52,9 @@
 #define LCD_FUNCTION_DEFAULT    LCD_FUNCTION_4BIT_2LINES 
 
 #define delay(us) _delay_us(us);
+
+static uint8_t lcdCache[LCD_ROWS*LCD_COLUMNS];
+static uint8_t lcdIndex;
 
 /* toggle Enable Pin to initiate write */
 static void lcd_e_toggle()
@@ -98,7 +103,7 @@ void lcd_gotoxy(uint8_t x, uint8_t y)
 		lcd_command((1<<LCD_DDRAM)+LCD_START_LINE1+x);
 	else
 		lcd_command((1<<LCD_DDRAM)+LCD_START_LINE2+x);
-
+	lcdIndex = x + (y * LCD_COLUMNS);
 }
 
 
@@ -107,7 +112,13 @@ Clear display and set cursor to home position
 *************************************************************************/
 void lcd_clrscr(void)
 {
+	uint8_t i;
     lcd_command(1<<LCD_CLR);
+	lcdIndex = 0;
+	for(i=0; i<(LCD_ROWS*LCD_COLUMNS); i++)
+	{
+		lcdCache[i] = 0x20;  // Clear with spaces
+	}
 }
 
 
@@ -117,6 +128,7 @@ Set cursor to home position
 void lcd_home(void)
 {
     lcd_command(1<<LCD_HOME);
+    lcdIndex = 0;
 }
 
 
@@ -127,8 +139,16 @@ Returns:  none
 *************************************************************************/
 void lcd_putc(char c)
 {
-	lcd_data(c);
-}/* lcd_putc */
+	if(c != lcdCache[lcdIndex])
+	{
+		lcd_gotoxy(lcdIndex % LCD_COLUMNS, lcdIndex / LCD_COLUMNS);
+		lcd_data(c);
+		lcdCache[lcdIndex] = c;
+	}
+	lcdIndex++;  // Index (cursor position) is expected to increase regardless of whether written or not
+	if(lcdIndex >= (LCD_ROWS * LCD_COLUMNS))
+		lcdIndex = 0;
+}
 
 
 /*************************************************************************
