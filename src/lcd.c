@@ -99,11 +99,15 @@ Returns:  none
 *************************************************************************/
 void lcd_gotoxy(uint8_t x, uint8_t y)
 {
+	lcdIndex = x + (y * LCD_COLUMNS);
+}
+
+void lcd_gotoxy_send_cmd(uint8_t x, uint8_t y)
+{
 	if ( y==0 ) 
 		lcd_command((1<<LCD_DDRAM)+LCD_START_LINE1+x);
 	else
 		lcd_command((1<<LCD_DDRAM)+LCD_START_LINE2+x);
-	lcdIndex = x + (y * LCD_COLUMNS);
 }
 
 
@@ -141,7 +145,7 @@ void lcd_putc(char c)
 {
 	if(c != lcdCache[lcdIndex])
 	{
-		lcd_gotoxy(lcdIndex % LCD_COLUMNS, lcdIndex / LCD_COLUMNS);
+		lcd_gotoxy_send_cmd(lcdIndex % LCD_COLUMNS, lcdIndex / LCD_COLUMNS);
 		lcd_data(c);
 		lcdCache[lcdIndex] = c;
 	}

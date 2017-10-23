@@ -2563,6 +2563,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
+								setupDiagChars();
 								subscreenStatus = 1;
 								lcd_clrscr();
 							}
@@ -2578,7 +2579,6 @@ int main(void)
 				{
 					if(1 == subscreenStatus)
 					{
-						setupDiagChars();
 						enableLCDBacklight();
 						lcd_gotoxy(5,0);
 						if(0 == activeThrottleSetting)
@@ -2685,7 +2685,6 @@ int main(void)
 						lcd_putc('0' + pktTimeout_tmp%10);
 						lcd_gotoxy(5,1);
 						lcd_puts("sec");
-						printDec4DigWZero(pktTimeout);
 					}
 					else if(4 == subscreenStatus)
 					{

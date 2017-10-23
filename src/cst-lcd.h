@@ -223,25 +223,30 @@ void setupSoftkeyChars(void)
 
 void printTonnage(uint8_t tonnage)
 {
-	switch(tonnage)
+	static uint8_t oldTonnage = 255;  // Set to a value that will force an update the first time
+	if(oldTonnage != tonnage)
 	{
-		case 0:
-			lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
-			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomEmpty);
-			break;
-		case 1:
-			lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
-			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomHalf);
-			break;
-		case 2:
-			lcd_setup_custom(TONNAGE_TOP, BarGraphTopHalf);
-			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
-			break;
-		case 3:
-			lcd_setup_custom(TONNAGE_TOP, BarGraphFull);
-			lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
-			break;
-		}
+		switch(tonnage)
+		{
+			case 0:
+				lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
+				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomEmpty);
+				break;
+			case 1:
+				lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
+				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomHalf);
+				break;
+			case 2:
+				lcd_setup_custom(TONNAGE_TOP, BarGraphTopHalf);
+				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
+				break;
+			case 3:
+				lcd_setup_custom(TONNAGE_TOP, BarGraphFull);
+				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
+				break;
+			}
+		oldTonnage = tonnage;
+	}
 	lcd_gotoxy(7,0);
 	lcd_putc(TONNAGE_TOP);
 	lcd_gotoxy(7,1);
