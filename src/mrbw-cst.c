@@ -28,11 +28,15 @@ LICENSE:
 #include <avr/sleep.h>
 #include <util/delay.h>
 #include <util/atomic.h>
+
+#include "mrbee.h"
+
 #include "lcd.h"
+
 #include "cst-lcd.h"
 #include "cst-hardware.h"
 #include "cst-tonnage.h"
-#include "mrbee.h"
+#include "cst-time.h"
 
 //#define FAST_SLEEP
 
@@ -46,10 +50,6 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_MIN           1
 #define SLEEP_TMR_RESET_VALUE_DEFAULT       5
 #define SLEEP_TMR_RESET_VALUE_MAX          99
-
-#define MAX_DEAD_RECKONING_TIME_MIN         1
-#define MAX_DEAD_RECKONING_TIME_DEFAULT    10
-#define MAX_DEAD_RECKONING_TIME_MAX        25
 
 #define CONFIGBITS_DEFAULT                 0xFF
 #define TX_HOLDOFF_DEFAULT                 15
@@ -99,7 +99,7 @@ char baseString[9];
 // Set EEPROM locations
 #define EE_CURRENT_CONFIG             0x10
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
-#define EE_MAX_DEAD_RECKONING         0x12
+#define EE_DEAD_RECKONING_TIME        0x12
 #define EE_CONFIGBITS                 0x13
 #define EE_TX_HOLDOFF                 0x1D
 #define EE_TIME_SOURCE_ADDRESS        0x1E
@@ -210,6 +210,7 @@ volatile uint8_t status = 0;
 uint16_t update_decisecs = UPDATE_DECISECS_DEFAULT;
 uint8_t txHoldoff_centisecs = TX_HOLDOFF_DEFAULT;
 
+static uint8_t timeSourceAddress = 0xFF;
 
 #define THROTTLE_STATUS_ALL_STOP        0x02
 #define THROTTLE_STATUS_EMERGENCY       0x01
@@ -295,138 +296,6 @@ typedef enum
 
 #define ENGINE_TIMER_DECISECS      50
 uint8_t engineTimer = 0;
-
-#define TIME_FLAGS_DISP_FAST       0x01
-#define TIME_FLAGS_DISP_FAST_HOLD  0x02
-#define TIME_FLAGS_DISP_REAL_AMPM  0x04
-#define TIME_FLAGS_DISP_FAST_AMPM  0x08
-
-uint16_t timeScaleFactor = 10;
-uint8_t timeFlags = 0;
-
-typedef struct
-{
-	uint8_t seconds;
-	uint8_t minutes;
-	uint8_t hours;
-	uint8_t dayOfWeek;
-	uint8_t day;
-	uint8_t month;
-	uint16_t year;
-} TimeData;
-
-TimeData realTime;
-TimeData fastTime;
-
-volatile uint16_t fastDecisecs = 0;
-volatile uint8_t scaleTenthsAccum = 0;
-uint8_t maxDeadReckoningTime = 150;
-uint8_t deadReckoningTime = 0;
-uint8_t timeSourceAddress = 0xFF;
-
-void incrementTime(TimeData* t, uint8_t incSeconds)
-{
-	uint16_t i = t->seconds + incSeconds;
-
-	while(i >= 60)
-	{
-		t->minutes++;
-		i -= 60;
-	}
-	t->seconds = (uint8_t)i;
-	
-	while(t->minutes >= 60)
-	{
-		t->hours++;
-		t->minutes -= 60;
-	}
-	
-	if (t->hours >= 24)
-		t->hours %= 24;
-}
-
-void displayTime(TimeData* time, uint8_t ampm)
-{
-	uint8_t i=0;
-	uint8_t displayCharacters[6];
-
-	displayCharacters[4] = '0' + (time->minutes % 10);
-	displayCharacters[3] = '0' + ((time->minutes / 10) % 10);
-	displayCharacters[2] = ':';
-
-	if (ampm)
-	{
-		// If 12 hour mode
-		if (time->hours == 0)
-		{
-			displayCharacters[0] = '1';
-			displayCharacters[1] = '2';
-		}
-		else 
-		{
-			uint8_t hrs = time->hours;
-			if (hrs > 12)
-				hrs -= 12;
-			
-			i = (hrs / 10) % 10;
-			displayCharacters[0] = (0==i) ? ' ' : '0' + i;
-			displayCharacters[1] = '0' + (hrs % 10);
-		}
-
-		if (time->hours >= 12)
-			displayCharacters[5] = PM_CHAR;
-		else	
-			displayCharacters[5] = AM_CHAR;
-
-	}
-	else
-	{
-		// 24 hour mode
-		i = (time->hours / 10) % 10;
-		displayCharacters[1] = '0' + (time->hours % 10);
-		displayCharacters[0] = '0' + i;
-		displayCharacters[5] = ' ';
-	}
-	
-	for(i=0; i<6; i++)
-	{
-		lcd_putc(displayCharacters[i]);
-	}
-
-/*	i = (time->hours / 10) % 10;*/
-/*	lcd_putc('0' + i);*/
-/*	lcd_putc('0' + time->hours % 10);*/
-/*	lcd_putc(':');*/
-/*	lcd_putc('0' + (time->minutes / 10) % 10);*/
-/*	lcd_putc('0' + time->minutes % 10);*/
-}
-
-void printTime(void)
-{
-	if(0 == deadReckoningTime)
-	{
-		lcd_puts("--:-- ");
-	}
-	else if ((TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD) == (timeFlags & (TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD)) )  // Hold state
-	{
-		lcd_puts(" HOLD ");
-	}
-	else if (timeFlags & TIME_FLAGS_DISP_FAST)
-		displayTime(&fastTime, timeFlags & TIME_FLAGS_DISP_FAST_AMPM);
-	else
-		displayTime(&realTime, timeFlags & TIME_FLAGS_DISP_REAL_AMPM);
-
-	if ((timeFlags & TIME_FLAGS_DISP_FAST) && !(timeFlags & TIME_FLAGS_DISP_FAST_HOLD) && fastDecisecs >= 10)
-	{
-		uint8_t fastTimeSecs;
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-		{
-			fastTimeSecs = fastDecisecs / 10;
-			fastDecisecs -= fastTimeSecs * 10;
-		}
-		incrementTime(&fastTime, fastTimeSecs);
-	}
-}
 
 inline uint16_t calculateConfigOffset(uint8_t cfgNum)
 {
@@ -581,23 +450,7 @@ void PktHandler(void)
 		((0xFF == timeSourceAddress) || (rxBuffer[MRBUS_PKT_SRC] == timeSourceAddress)) )
 	{
 		// It's a time packet from our time reference source
-		realTime.hours = rxBuffer[6];
-		realTime.minutes = rxBuffer[7];
-		realTime.seconds = rxBuffer[8];
-		timeFlags = rxBuffer[9];
-		// Time source packets aren't required to have a fast section
-		// Doesn't really make sense outside model railroading applications, so...
-		if (rxBuffer[MRBUS_PKT_LEN] >= 14)
-		{
-			fastTime.hours =  rxBuffer[10];
-			fastTime.minutes =  rxBuffer[11];
-			fastTime.seconds = rxBuffer[12];
-			timeScaleFactor = (((uint16_t)rxBuffer[13])<<8) + (uint16_t)rxBuffer[14];
-		}		
-		// If we got a packet, there's no dead reckoning time anymore
-		fastDecisecs = 0;
-		scaleTenthsAccum = 0;
-		deadReckoningTime = maxDeadReckoningTime;
+		processTimePacket(rxBuffer);
 	}
 	else if ( ('V' == (rxBuffer[MRBUS_PKT_TYPE] & 0xDF)) &&
 		(mrbus_base_addr == rxBuffer[MRBUS_PKT_SRC]) )
@@ -744,19 +597,8 @@ ISR(TIMER0_COMPA_vect)
 
 		if (engineTimer)
 			engineTimer--;
-		if (deadReckoningTime)
-			deadReckoningTime--;
-		if (TIME_FLAGS_DISP_FAST == (timeFlags & (TIME_FLAGS_DISP_FAST | TIME_FLAGS_DISP_FAST_HOLD)))
-		{
-			fastDecisecs += timeScaleFactor / 10;
-			scaleTenthsAccum += timeScaleFactor % 10;
-			if (scaleTenthsAccum > 10)
-			{
-				fastDecisecs++;
-				scaleTenthsAccum -= 10;
-			}		
-		
-		}
+
+		updateTime10Hz();
 	}
 
 	if(txHoldoff)
@@ -814,22 +656,13 @@ void readConfig(void)
 	}
 	sleep_tmr_reset_value *= 600;  // Convert to decisecs
 
-	maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_MAX_DEAD_RECKONING);	
-	if(maxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN*10)
-	{
-		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN*10;
-		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
-	}
-	else if(0xFF == maxDeadReckoningTime)
-	{
-		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_DEFAULT*10;  // Default for unprogrammed EEPROM
-		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
-	}
-	else if(maxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX*10)
-	{
-		maxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX*10;
-		eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, maxDeadReckoningTime);
-	}
+	// Fast clock
+	uint8_t maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_DEAD_RECKONING_TIME);
+	uint8_t newMaxDeadReckoningTime_seconds = setMaxDeadReckoningTime(maxDeadReckoningTime);
+	if(newMaxDeadReckoningTime_seconds != maxDeadReckoningTime)
+		eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime_seconds);
+
+	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 
 	configBits = eeprom_read_byte((uint8_t*)EE_CONFIGBITS);
 
@@ -916,10 +749,6 @@ void readConfig(void)
 		if(notchSpeed[i] < 1)
 			notchSpeed[i] = 1;
 	}
-
-	// Fast clock
-	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
-
 }
 
 void resetConfig(void)
@@ -933,7 +762,7 @@ void resetConfig(void)
 	eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, TX_HOLDOFF_DEFAULT);
 
 	eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, SLEEP_TMR_RESET_VALUE_DEFAULT);
-	eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, MAX_DEAD_RECKONING_TIME_DEFAULT*10);
+	eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, DEAD_RECKONING_TIME_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_CONFIGBITS, CONFIGBITS_DEFAULT);
 
 	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, MRBUS_DEV_ADDR_DEFAULT);
@@ -1005,8 +834,6 @@ void init(void)
 #endif
 
 	pktTimeout = 0;  // Assume no base unit until we hear from one
-	deadReckoningTime = 0;
-	fastDecisecs = 0;
 	
 	readConfig();
 
@@ -1133,7 +960,7 @@ int main(void)
 	uint8_t newBaseAddr = mrbus_base_addr;
 	uint8_t newTimeAddr = timeSourceAddress;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
-	uint8_t newMaxDeadReckoningTime = maxDeadReckoningTime / 10;
+	uint8_t newMaxDeadReckoningTime_seconds = getMaxDeadReckoningTime() / 10;
 	uint8_t newUpdate_seconds = update_decisecs / 10;
 
 	uint8_t *addrPtr = &newDevAddr;
@@ -1270,6 +1097,8 @@ int main(void)
 			// STOP --> OFF
 			engineState = ENGINE_OFF;
 		}
+		
+		updateTime();
 
 		switch(screenState)
 		{
@@ -2404,7 +2233,7 @@ int main(void)
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
 						bitPosition = 8;
-						prefsPtr = &newMaxDeadReckoningTime;
+						prefsPtr = &newMaxDeadReckoningTime_seconds;
 					}
 					else if(3 == subscreenStatus)
 					{
@@ -2473,8 +2302,8 @@ int main(void)
 										(*prefsPtr)++;
 									if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
-									if(newMaxDeadReckoningTime > MAX_DEAD_RECKONING_TIME_MAX)
-										newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MAX;
+									if(newMaxDeadReckoningTime_seconds > DEAD_RECKONING_TIME_MAX / 10)
+										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MAX / 10;
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2492,8 +2321,8 @@ int main(void)
 										(*prefsPtr)--;
 									if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
-									if(newMaxDeadReckoningTime < MAX_DEAD_RECKONING_TIME_MIN)
-										newMaxDeadReckoningTime = MAX_DEAD_RECKONING_TIME_MIN;
+									if(newMaxDeadReckoningTime_seconds < DEAD_RECKONING_TIME_MIN / 10)
+										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MIN / 10;
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2502,7 +2331,7 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
-								eeprom_write_byte((uint8_t*)EE_MAX_DEAD_RECKONING, newMaxDeadReckoningTime * 10);
+								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime_seconds * 10);
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
 								update_decisecs = (uint16_t)newUpdate_seconds * 10;
@@ -2512,7 +2341,7 @@ int main(void)
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
 								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
-								newMaxDeadReckoningTime = maxDeadReckoningTime / 10;
+								newMaxDeadReckoningTime_seconds = getMaxDeadReckoningTime() / 10;
 								newUpdate_seconds = update_decisecs / 10;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
@@ -2681,6 +2510,7 @@ int main(void)
 						lcd_gotoxy(0,0);
 						lcd_puts("FT RATIO");
 						lcd_gotoxy(1,1);
+						uint8_t timeScaleFactor = getTimeScaleFactor();
 						uint8_t timeScaleFactor_tmp = (timeScaleFactor/100)%10;
 						if(timeScaleFactor_tmp)
 							lcd_putc('0' + timeScaleFactor_tmp);
