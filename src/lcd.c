@@ -1,27 +1,25 @@
-/****************************************************************************
- Title	:   HD44780U LCD library
- Author:    Peter Fleury <pfleury@gmx.ch>  http://jump.to/fleury
- File:	    $Id: lcd.c,v 1.14.2.1 2006/01/29 12:16:41 peter Exp $
- Software:  AVR-GCC 3.3 
- Target:    any AVR device, memory mapped mode only for AT90S4414/8515/Mega
+/*************************************************************************
+Title:    HD44780, ST7066U, or equivalent LCD library
+Authors:  Michael D. Petersen <railfan@drgw.net>
+          Nathan D. Holmes <maverick@drgw.net>
+File:     lcd.c
+License:  GNU General Public License v3
 
- DESCRIPTION
-       Basic routines for interfacing a HD44780U-based text lcd display
+LICENSE:
+	Based on the LCD library by Peter Fleury <pfleury@gmx.ch>, originally
+	based on Volker Oth's lcd library,
 
-       Originally based on Volker Oth's lcd library,
-       changed lcd_init(), added additional constants for lcd_command(),
-       added 4-bit I/O mode, improved and optimized code.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    any later version.
 
-       Library can be operated in memory mapped mode (LCD_IO_MODE=0) or in 
-       4-bit IO port mode (LCD_IO_MODE=1). 8-bit IO port mode not supported.
-       
-       Memory mapped mode compatible with Kanda STK200, but supports also
-       generation of R/W signal through A8 address line.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+*************************************************************************/
 
- USAGE
-       See the C include lcd.h file for a description of each function
-       
-*****************************************************************************/
 #include <inttypes.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>

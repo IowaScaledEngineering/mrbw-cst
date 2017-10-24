@@ -1,8 +1,8 @@
 /*************************************************************************
-Title:    MRBW-CST Control Stand Throttle
+Title:    Control Stand Throttle
 Authors:  Michael D. Petersen <railfan@drgw.net>
           Nathan D. Holmes <maverick@drgw.net>
-File:     $Id: $
+File:     mrbw-cst.c
 License:  GNU General Public License v3
 
 LICENSE:
@@ -31,6 +31,7 @@ LICENSE:
 #include "lcd.h"
 #include "cst-lcd.h"
 #include "cst-hardware.h"
+#include "cst-tonnage.h"
 #include "mrbee.h"
 
 //#define FAST_SLEEP
@@ -1062,8 +1063,10 @@ void initLCD(void)
 
 	lcd_clrscr();
 
+	// Reload the LCD characters
 	setupSoftkeyChars();
-	setupClockChars();  // Reload the fast clock characters
+	setupTonnageChars();
+	setupClockChars();
 }
 
 void printLocomotiveAddress(uint16_t addr)
@@ -1099,8 +1102,6 @@ int main(void)
 
 	uint8_t optionButtonState = 0;
 
-	uint8_t tonnage = 0;
-	
 	uint8_t backlight = 0;
 	
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
@@ -1314,7 +1315,7 @@ int main(void)
 
 				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 				{
-					printTonnage(tonnage);
+					printTonnage();
 				}
 				else
 				{
@@ -1331,10 +1332,7 @@ int main(void)
 						{
 							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 							{
-								if(tonnage >= 3)
-									tonnage = 3;
-								else
-									tonnage++;
+								incrementTonnage();
 							}
 							else
 							{
@@ -1350,10 +1348,7 @@ int main(void)
 						{
 							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 							{
-								if((0 == tonnage) || (tonnage > 3))
-									tonnage = 0;
-								else
-									tonnage--;
+								decrementTonnage();
 							}
 							else
 							{
@@ -1468,7 +1463,7 @@ int main(void)
 			case TONNAGE_SCREEN:
 				enableLCDBacklight();
 				lcd_gotoxy(0,0);
-				switch(tonnage)
+				switch(getTonnage())
 				{
 					case 0:
 						lcd_puts("LIGHT ");
@@ -1484,7 +1479,7 @@ int main(void)
 						break;
 				}
 				lcd_gotoxy(0,1);
-				switch(tonnage)
+				switch(getTonnage())
 				{
 					case 0:
 						lcd_puts("ENGINE");
@@ -1495,25 +1490,19 @@ int main(void)
 						lcd_puts("WEIGHT");
 						break;
 				}
-				printTonnage(tonnage);
+				printTonnage();
 				switch(button)
 				{
 					case UP_BUTTON:
 						if(UP_BUTTON != previousButton)
 						{
-							if(tonnage >= 3)
-								tonnage = 3;
-							else
-								tonnage++;
+							incrementTonnage();
 						}
 						break;
 					case DOWN_BUTTON:
 						if(DOWN_BUTTON != previousButton)
 						{
-							if((0 == tonnage) || (tonnage > 3))
-								tonnage = 0;
-							else
-								tonnage--;
+							decrementTonnage();
 						}
 						break;
 					case SELECT_BUTTON:

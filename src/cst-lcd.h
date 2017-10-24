@@ -1,5 +1,5 @@
-#ifndef _LCD_CHAR_H_
-#define _LCD_CHAR_H_
+#ifndef _CST_LCD_H_
+#define _CST_LCD_H_
 
 #define BATTERY_CHAR            0
 #define BELL_CHAR               1
@@ -19,408 +19,41 @@ typedef enum
 	UNKNOWN
 } BatteryState;
 
-const uint8_t Bell[8] =
-{
-	0b00000100,
-	0b00001110,
-	0b00001110,
-	0b00001110,
-	0b00011111,
-	0b00000000,
-	0b00000100,
-	0b00000000
-};
+extern const uint8_t Bell[8];
+extern const uint8_t Horn[8];
+extern const uint8_t BatteryFull[8];
+extern const uint8_t BatteryHalf[8];
+extern const uint8_t BatteryEmpty[8];
+extern const uint8_t SoftkeyInactive[8];
+extern const uint8_t SoftkeyActive[8];
+extern const uint8_t BarGraphBottomEmpty[8];
+extern const uint8_t BarGraphBottomHalf[8];
+extern const uint8_t BarGraphTopEmpty[8];
+extern const uint8_t BarGraphTopHalf[8];
+extern const uint8_t BarGraphFull[8];
+extern const uint8_t ClockAM[8];
+extern const uint8_t ClockPM[8];
 
-const uint8_t Horn[8] =
-{
-	0b00000000,
-	0b00000001,
-	0b00010011,
-	0b00011111,
-	0b00010011,
-	0b00000001,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t BarGraphBottomEmpty[8] =
-{
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111
-};
-
-const uint8_t BarGraphBottomHalf[8] =
-{
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111
-};
-
-const uint8_t BarGraphTopEmpty[8] =
-{
-	0b00011111,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001
-};
-
-const uint8_t BarGraphTopHalf[8] =
-{
-	0b00011111,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111,
-	0b00011111,
-	0b00011111
-};
-
-const uint8_t BarGraphFull[8] =
-{
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111
-};
-
-const uint8_t BatteryFull[8] =
-{
-	0b00001110,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00000000
-};
-
-const uint8_t BatteryHalf[8] =
-{
-	0b00001110,
-	0b00011011,
-	0b00010001,
-	0b00010001,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00000000
-};
-const uint8_t BatteryEmpty[8] =
-{
-	0b00001110,
-	0b00011011,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111,
-	0b00000000
-};
-
-const uint8_t SoftkeyInactive[8] =
-{
-	0b00000000,
-	0b00001110,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00001110,
-	0b00000000,
-	0b00000000
-};
-const uint8_t SoftkeyActive[8] =
-{
-	0b00000000,
-	0b00001110,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00001110,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t ClockAM[8] =
-{
-	0b00001000,
-	0b00010100,
-	0b00011100,
-	0b00010100,
-	0b00010100,
-	0b00000000,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t ClockPM[8] =
-{
-	0b00000000,
-	0b00000000,
-	0b00011100,
-	0b00010100,
-	0b00011100,
-	0b00010000,
-	0b00010000,
-	0b00000000
-};
-
-void setupClockChars(void)
-{
-	lcd_setup_custom(AM_CHAR, ClockAM);
-	lcd_setup_custom(PM_CHAR, ClockPM);
-}
-
-void setupDiagChars(void)
-{
-	lcd_setup_custom(BELL_CHAR, Bell);
-	lcd_setup_custom(HORN_CHAR, Horn);
-}
-
-void setupBatteryChar(BatteryState state)
-{
-	switch(state)
-	{
-		case FULL:
-			lcd_setup_custom(BATTERY_CHAR, BatteryFull);
-			break;
-		case HALF:
-			lcd_setup_custom(BATTERY_CHAR, BatteryHalf);
-			break;
-		case EMPTY:
-			lcd_setup_custom(BATTERY_CHAR, BatteryEmpty);
-			break;
-		case UNKNOWN:
-			break;
-	}
-}
-
-void setupSoftkeyChars(void)
-{
-	lcd_setup_custom(FUNCTION_INACTIVE_CHAR, SoftkeyInactive);
-	lcd_setup_custom(FUNCTION_ACTIVE_CHAR, SoftkeyActive);
-}
-
-void printTonnage(uint8_t tonnage)
-{
-	static uint8_t oldTonnage = 255;  // Set to a value that will force an update the first time
-	if(oldTonnage != tonnage)
-	{
-		switch(tonnage)
-		{
-			case 0:
-				lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
-				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomEmpty);
-				break;
-			case 1:
-				lcd_setup_custom(TONNAGE_TOP, BarGraphTopEmpty);
-				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphBottomHalf);
-				break;
-			case 2:
-				lcd_setup_custom(TONNAGE_TOP, BarGraphTopHalf);
-				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
-				break;
-			case 3:
-				lcd_setup_custom(TONNAGE_TOP, BarGraphFull);
-				lcd_setup_custom(TONNAGE_BOTTOM, BarGraphFull);
-				break;
-			}
-		oldTonnage = tonnage;
-	}
-	lcd_gotoxy(7,0);
-	lcd_putc(TONNAGE_TOP);
-	lcd_gotoxy(7,1);
-	lcd_putc(TONNAGE_BOTTOM);
-}
+void setupClockChars(void);
+void setupDiagChars(void);
+void setupBatteryChar(BatteryState state);
+void setupSoftkeyChars(void);
 
 // Splash Screen Characters
-const uint8_t Splash1[8] =
-{
-	0b00011100,
-	0b00010010,
-	0b00010010,
-	0b00011100,
-	0b00010000,
-	0b00010000,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash2[8] =
-{
-	0b00011100,
-	0b00010010,
-	0b00010010,
-	0b00011100,
-	0b00010010,
-	0b00010010,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash3[8] =
-{
-	0b00001100,
-	0b00010010,
-	0b00010010,
-	0b00010010,
-	0b00010010,
-	0b00001100,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash4[8] =
-{
-	0b00011100,
-	0b00001001,
-	0b00001001,
-	0b00001001,
-	0b00001001,
-	0b00001000,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash5A[8] =
-{
-	0b00011001,
-	0b00000101,
-	0b00000101,
-	0b00000101,
-	0b00000101,
-	0b00011000,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash5C[8] =
-{
-	0b00011001,
-	0b00000101,
-	0b00000100,
-	0b00000101,
-	0b00000111,
-	0b00011100,
-	0b00000100,
-	0b00000011
-};
-
-const uint8_t Splash6A[8] =
-{
-	0b00011111,
-	0b00000000,
-	0b00000000,
-	0b00000000,
-	0b00011111,
-	0b00000000,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash6B[8] =
-{
-	0b00011111,
-	0b00000001,
-	0b00000001,
-	0b00000001,
-	0b00011101,
-	0b00000001,
-	0b00000001,
-	0b00000000
-};
-
-const uint8_t Splash6C[8] =
-{
-	0b00011111,
-	0b00001111,
-	0b00011110,
-	0b00011101,
-	0b00011010,
-	0b00010100,
-	0b00011000,
-	0b00010000
-};
-
-const uint8_t Splash7A[8] =
-{
-	0b00011111,
-	0b00011111,
-	0b00001111,
-	0b00000111,
-	0b00011011,
-	0b00000001,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash7B[8] =
-{
-	0b00011111,
-	0b00011100,
-	0b00011100,
-	0b00011100,
-	0b00011101,
-	0b00000100,
-	0b00000100,
-	0b00011000
-};
-
-const uint8_t Splash7C[8] =
-{
-	0b00011111,
-	0b00001000,
-	0b00010000,
-	0b00000000,
-	0b00011111,
-	0b00000000,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t Splash8A[8] =
-{
-	0b00011100,
-	0b00010100,
-	0b00011000,
-	0b00011100,
-	0b00011110,
-	0b00011001,
-	0b00011001,
-	0b00001110
-};
-
-const uint8_t Splash8B[8] =
-{
-	0b00011100,
-	0b00000100,
-	0b00000100,
-	0b00000100,
-	0b00011100,
-	0b00000000,
-	0b00000000,
-	0b00000000
-};
+extern const uint8_t Splash1[8];
+extern const uint8_t Splash2[8];
+extern const uint8_t Splash3[8];
+extern const uint8_t Splash4[8];
+extern const uint8_t Splash5A[8];
+extern const uint8_t Splash5C[8];
+extern const uint8_t Splash6A[8];
+extern const uint8_t Splash6B[8];
+extern const uint8_t Splash6C[8];
+extern const uint8_t Splash7A[8];
+extern const uint8_t Splash7B[8];
+extern const uint8_t Splash7C[8];
+extern const uint8_t Splash8A[8];
+extern const uint8_t Splash8B[8];
 
 #endif
 
