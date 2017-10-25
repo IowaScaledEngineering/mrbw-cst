@@ -791,14 +791,14 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, 9);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
-		notchSpeed[0] = 1;
-		notchSpeed[1] = 15;
-		notchSpeed[2] = 31;
-		notchSpeed[3] = 47;
-		notchSpeed[4] = 63;
-		notchSpeed[5] = 79;
-		notchSpeed[6] = 95;
-		notchSpeed[7] = 126;
+		notchSpeed[0] = 7;
+		notchSpeed[1] = 23;
+		notchSpeed[2] = 39;
+		notchSpeed[3] = 55;
+		notchSpeed[4] = 71;
+		notchSpeed[5] = 87;
+		notchSpeed[6] = 103;
+		notchSpeed[7] = 119;
 		eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
 	}
 	
