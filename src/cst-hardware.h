@@ -26,6 +26,19 @@
 #define LED_RED_PIN     PD6
 #define LED_GREEN_PIN   PD7
 
+void initPorts();
+
+typedef enum
+{
+	EMPTY = 0,
+	HALF,
+	FULL
+} BatteryState;
+
+void setupBatteryChar(void);
+uint8_t getBatteryVoltage(void);
+void printBattery(void);
+
 
 typedef enum
 {
@@ -53,10 +66,6 @@ extern uint8_t frontLightPot;
 extern LightPosition frontLight;
 extern uint8_t rearLightPot;
 extern LightPosition rearLight;
-
-extern uint8_t batteryVoltage;
-
-void initPorts();
 
 void initADC();
 void processADC();

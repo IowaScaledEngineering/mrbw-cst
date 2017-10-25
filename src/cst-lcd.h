@@ -1,24 +1,12 @@
 #ifndef _CST_LCD_H_
 #define _CST_LCD_H_
 
-typedef enum
-{
-	EMPTY = 0,
-	HALF,
-	FULL,
-	UNKNOWN
-} BatteryState;
-
 extern const uint8_t Bell[8];
 extern const uint8_t Horn[8];
-extern const uint8_t BatteryFull[8];
-extern const uint8_t BatteryHalf[8];
-extern const uint8_t BatteryEmpty[8];
 extern const uint8_t SoftkeyInactive[8];
 extern const uint8_t SoftkeyActive[8];
 
 void setupDiagChars(void);
-void setupBatteryChar(BatteryState state);
 void setupSoftkeyChars(void);
 
 // Splash Screen Characters

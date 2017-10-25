@@ -71,12 +71,6 @@ volatile uint8_t pktTimeout = 0;
 uint32_t baseVersion;
 char baseString[9];
 
-// VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
-#define VBATT_OKAY  220 
-// VBATT_WARN is the battery voltage (in centivolts) above which the batteries are considered a warning, but not
-//  in critical shape.  This should *always* be less than VBATT_OKAY
-#define VBATT_WARN  200
-
 #define MRBUS_TX_BUFFER_DEPTH 4
 #define MRBUS_RX_BUFFER_DEPTH 4
 
@@ -888,8 +882,6 @@ int main(void)
 
 	ReverserPosition direction = FORWARD;
 
-	BatteryState batteryState = UNKNOWN, lastBatteryState = batteryState;
-	
 	init();
 
 	// Assign after init() so values are read from EEPROM first
@@ -1064,23 +1056,8 @@ int main(void)
 
 				lcd_gotoxy(1,1);
 				printTime();
+				printBattery();
 				
-				if (batteryVoltage >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					batteryState = FULL;
-				else if (batteryVoltage >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
-					batteryState = HALF;
-				else
-					batteryState = EMPTY;
-				
-				if( (batteryState != lastBatteryState) || (UNKNOWN == lastBatteryState) )
-				{
-					setupBatteryChar(batteryState);
-					lastBatteryState = batteryState;
-				}
-
-				lcd_gotoxy(0,0);
-				lcd_putc(BATTERY_CHAR);
-
 				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
 				{
 					printTonnage();
@@ -2481,10 +2458,10 @@ int main(void)
 						lcd_gotoxy(0,0);
 						lcd_puts("BATTERY");
 						lcd_gotoxy(1,1);
-						lcd_putc('0' + (((batteryVoltage*2)/100)%10));
+						lcd_putc('0' + (((getBatteryVoltage()*2)/100)%10));
 						lcd_putc('.');
-						lcd_putc('0' + (((batteryVoltage*2)/10)%10));
-						lcd_putc('0' + ((batteryVoltage*2)%10));
+						lcd_putc('0' + (((getBatteryVoltage()*2)/10)%10));
+						lcd_putc('0' + ((getBatteryVoltage()*2)%10));
 						lcd_putc('V');
 					}
 					else if(7 == subscreenStatus)
@@ -2790,7 +2767,7 @@ int main(void)
 
 			txBuffer[13] = throttleStatus;
 
-			txBuffer[14] = batteryVoltage;	
+			txBuffer[14] = getBatteryVoltage();	
 			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
@@ -2866,8 +2843,6 @@ int main(void)
 			processButtons(inputButtons);
 			processSwitches(inputButtons);
 			previousButton = button;  // Prevent extraneous menu advances
-
-			lastBatteryState = UNKNOWN;  // Force an update to the battery character in the LCD
 
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{

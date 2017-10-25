@@ -27,43 +27,12 @@ LICENSE:
 #include <avr/sleep.h>
 #include <util/delay.h>
 
+#include "lcd.h"
+
+#include "cst-common.h"
 #include "cst-hardware.h"
 
-// Define the ADC order
-// Must end with ADC_STATE_LAST
-typedef enum
-{
-	ADC_STATE_START_VREV = 0,
-	ADC_STATE_READ_VREV,
-	ADC_STATE_START_VBRAKE,
-	ADC_STATE_READ_VBRAKE,
-	ADC_STATE_START_VHORN,
-	ADC_STATE_READ_VHORN,
-	ADC_STATE_START_VLIGHT_F,
-	ADC_STATE_READ_VLIGHT_F,
-	ADC_STATE_START_VLIGHT_R,
-	ADC_STATE_READ_VLIGHT_R,
-	ADC_STATE_START_VBATT,
-	ADC_STATE_READ_VBATT,
-	ADC_STATE_LAST  // Must be the last state
-} ADCState;
-
-volatile LEDStatus led;
-
-ReverserPosition reverserPosition = NEUTRAL;
-
-uint8_t brakePosition = 0;
-uint8_t hornPosition = 0;
-
-uint8_t frontLightValue = 0;
-LightPosition frontLight = LIGHT_OFF;
-uint8_t rearLightValue = 0;
-LightPosition rearLight = LIGHT_OFF;
-
-uint8_t batteryVoltage = 0;
-
-uint8_t adcLoopCount = 0;
-
+// Port and IO stuff
 void initPorts()
 {
 	// DDR = 0 - Input / 1 - Output
@@ -119,6 +88,274 @@ void initPorts()
 	PORTD = 0b00000000;
 }
 
+
+
+
+// Battery stuff
+const uint8_t BatteryFull[8] =
+{
+	0b00001110,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00000000
+};
+
+const uint8_t BatteryHalf[8] =
+{
+	0b00001110,
+	0b00011011,
+	0b00010001,
+	0b00010001,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00000000
+};
+const uint8_t BatteryEmpty[8] =
+{
+	0b00001110,
+	0b00011011,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00011111,
+	0b00000000
+};
+
+BatteryState batteryState = FULL;
+BatteryState lastBatteryState = FULL;
+uint8_t batteryVoltage = 0;
+
+// VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
+#define VBATT_OKAY  220 
+// VBATT_WARN is the battery voltage (in centivolts) above which the batteries are considered a warning, but not
+//  in critical shape.  This should *always* be less than VBATT_OKAY
+#define VBATT_WARN  200
+
+void setupBatteryChar(void)
+{
+	switch(batteryState)
+	{
+		case FULL:
+			lcd_setup_custom(BATTERY_CHAR, BatteryFull);
+			break;
+		case HALF:
+			lcd_setup_custom(BATTERY_CHAR, BatteryHalf);
+			break;
+		case EMPTY:
+			lcd_setup_custom(BATTERY_CHAR, BatteryEmpty);
+			break;
+	}
+}
+
+uint8_t getBatteryVoltage(void)
+{
+	return batteryVoltage;
+}
+
+void printBattery(void)
+{
+	if(batteryState != lastBatteryState)
+	{
+		setupBatteryChar();
+		lastBatteryState = batteryState;
+	}
+
+	lcd_gotoxy(0,0);
+	lcd_putc(BATTERY_CHAR);
+}
+
+
+
+// LED Control
+void ledUpdate()
+{
+	static uint8_t ledPhase = 0;
+	switch(++ledPhase)
+	{
+		case 1:
+		case 3:
+			switch(led)
+			{
+				case LED_GREEN_FASTBLINK:
+					ledGreenOn();
+					break;
+		
+				case LED_RED_FASTBLINK:			
+					ledRedOn();
+					break;
+
+				case LED_OFF:
+					ledRedOff();
+					ledGreenOff();
+				default:
+					break;
+			}
+			break;
+
+		case 2:
+			switch(led)
+			{
+				case LED_GREEN:
+				case LED_GREEN_SLOWBLINK:
+					ledGreenOn();
+					break;
+				case LED_GREEN_FASTBLINK:
+					ledGreenOff();
+					break;
+				case LED_RED:
+				case LED_RED_SLOWBLINK:
+					ledRedOn();
+					break;
+				case LED_RED_FASTBLINK:			
+					ledRedOff();
+					break;
+				default:
+					break;
+
+			}
+			break;
+
+		case 6:
+			switch(led)
+			{
+				case LED_GREEN_SLOWBLINK:
+					ledGreenOn();
+					break;
+				case LED_RED_SLOWBLINK:
+					ledRedOn();
+					break;
+				default:
+					break;
+
+			}
+			break;
+
+		case 4:
+		case 8:
+			switch(led)
+			{
+				case LED_GREEN:
+				case LED_GREEN_SLOWBLINK:
+				case LED_GREEN_FASTBLINK:
+					ledGreenOff();
+					break;
+
+				case LED_RED:
+				case LED_RED_SLOWBLINK:
+				case LED_RED_FASTBLINK:			
+					ledRedOff();
+					break;
+				default:
+					break;
+					
+			}
+			break;
+
+		case 10:
+			ledGreenOff();
+			ledRedOff();
+//			ledPhase = 0;
+			break;
+		
+		case 20:
+			ledPhase = 0;
+			break;
+
+	}
+}
+
+
+
+// Throttle Stuff
+volatile uint8_t throttlePosition = 0;
+volatile uint8_t throttleQuadrature;
+
+void enableThrottle(void)
+{
+	EIMSK = 0;  // Turn off interrupts while configuring
+	EICRA |= _BV(ISC10) | _BV(ISC00);  // Enable any edge on INT0 and INT1
+	PORTD |= _BV(THROTTLE_ENABLE);  // Turn on the pull-ups
+	_delay_ms(1);  // Measured 20us rise time
+	throttleQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;  // Get an initial read
+	EIMSK = _BV(INT1) | _BV(INT0);  // Enable INT0 and INT1 interrupts
+}
+
+void disableThrottle(void)
+{
+	EIMSK = 0;  // Turn off interrupts
+	PORTD &= ~_BV(THROTTLE_ENABLE);  // Disable pull-ups
+}
+
+ISR(INT0_vect)
+{
+	uint8_t newQuadrature;
+	
+	newQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
+
+	uint8_t quadratureUp[] = {1, 3, 0, 2};
+	uint8_t quadratureDown[] = {2, 0, 3, 1};
+
+	if (newQuadrature != throttleQuadrature)
+	{
+
+		if (newQuadrature == quadratureUp[throttleQuadrature & 0x03])
+		{
+			if (throttlePosition > 0)
+				throttlePosition--;
+		}
+		else if (newQuadrature == quadratureDown[throttleQuadrature & 0x03])
+		{
+			if (throttlePosition < 8)
+				throttlePosition++;
+		}
+		else
+			throttlePosition = 0;	
+	}
+	throttleQuadrature = newQuadrature & 0x03;
+}
+
+ISR(INT1_vect, ISR_ALIASOF(INT0_vect));
+
+
+
+
+// ADC Stuff
+typedef enum
+{
+	ADC_STATE_START_VREV = 0,
+	ADC_STATE_READ_VREV,
+	ADC_STATE_START_VBRAKE,
+	ADC_STATE_READ_VBRAKE,
+	ADC_STATE_START_VHORN,
+	ADC_STATE_READ_VHORN,
+	ADC_STATE_START_VLIGHT_F,
+	ADC_STATE_READ_VLIGHT_F,
+	ADC_STATE_START_VLIGHT_R,
+	ADC_STATE_READ_VLIGHT_R,
+	ADC_STATE_START_VBATT,
+	ADC_STATE_READ_VBATT,
+	ADC_STATE_LAST  // Must be the last state
+} ADCState;
+
+volatile LEDStatus led;
+
+ReverserPosition reverserPosition = NEUTRAL;
+
+uint8_t brakePosition = 0;
+uint8_t hornPosition = 0;
+
+uint8_t frontLightValue = 0;
+LightPosition frontLight = LIGHT_OFF;
+uint8_t rearLightValue = 0;
+LightPosition rearLight = LIGHT_OFF;
+
+uint8_t adcLoopCount = 0;
 
 void initADC()
 {
@@ -291,6 +528,12 @@ void processADC()
 				// In 20mV increments
 				adcAccumulator >>= 6; // Divide by 64 - get the average measurement
 				batteryVoltage = (uint8_t)((adcAccumulator * 5) / 31);
+				if (batteryVoltage >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+					batteryState = FULL;
+				else if (batteryVoltage >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+					batteryState = HALF;
+				else
+					batteryState = EMPTY;
 				adcState++;
 				break;
 
@@ -311,152 +554,5 @@ uint8_t adcLoopInitialized(void)
 	else
 		return(0);
 }
-
-void ledUpdate()
-{
-	static uint8_t ledPhase = 0;
-	switch(++ledPhase)
-	{
-		case 1:
-		case 3:
-			switch(led)
-			{
-				case LED_GREEN_FASTBLINK:
-					ledGreenOn();
-					break;
-		
-				case LED_RED_FASTBLINK:			
-					ledRedOn();
-					break;
-
-				case LED_OFF:
-					ledRedOff();
-					ledGreenOff();
-				default:
-					break;
-			}
-			break;
-
-		case 2:
-			switch(led)
-			{
-				case LED_GREEN:
-				case LED_GREEN_SLOWBLINK:
-					ledGreenOn();
-					break;
-				case LED_GREEN_FASTBLINK:
-					ledGreenOff();
-					break;
-				case LED_RED:
-				case LED_RED_SLOWBLINK:
-					ledRedOn();
-					break;
-				case LED_RED_FASTBLINK:			
-					ledRedOff();
-					break;
-				default:
-					break;
-
-			}
-			break;
-
-		case 6:
-			switch(led)
-			{
-				case LED_GREEN_SLOWBLINK:
-					ledGreenOn();
-					break;
-				case LED_RED_SLOWBLINK:
-					ledRedOn();
-					break;
-				default:
-					break;
-
-			}
-			break;
-
-		case 4:
-		case 8:
-			switch(led)
-			{
-				case LED_GREEN:
-				case LED_GREEN_SLOWBLINK:
-				case LED_GREEN_FASTBLINK:
-					ledGreenOff();
-					break;
-
-				case LED_RED:
-				case LED_RED_SLOWBLINK:
-				case LED_RED_FASTBLINK:			
-					ledRedOff();
-					break;
-				default:
-					break;
-					
-			}
-			break;
-
-		case 10:
-			ledGreenOff();
-			ledRedOff();
-//			ledPhase = 0;
-			break;
-		
-		case 20:
-			ledPhase = 0;
-			break;
-
-	}
-}
-
-
-volatile uint8_t throttlePosition = 0;
-volatile uint8_t throttleQuadrature;
-
-void enableThrottle(void)
-{
-	EIMSK = 0;  // Turn off interrupts while configuring
-	EICRA |= _BV(ISC10) | _BV(ISC00);  // Enable any edge on INT0 and INT1
-	PORTD |= _BV(THROTTLE_ENABLE);  // Turn on the pull-ups
-	_delay_ms(1);  // Measured 20us rise time
-	throttleQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;  // Get an initial read
-	EIMSK = _BV(INT1) | _BV(INT0);  // Enable INT0 and INT1 interrupts
-}
-
-void disableThrottle(void)
-{
-	EIMSK = 0;  // Turn off interrupts
-	PORTD &= ~_BV(THROTTLE_ENABLE);  // Disable pull-ups
-}
-
-ISR(INT0_vect)
-{
-	uint8_t newQuadrature;
-	
-	newQuadrature = (PIND & (_BV(PD2) | _BV(PD3)))>>2;
-
-	uint8_t quadratureUp[] = {1, 3, 0, 2};
-	uint8_t quadratureDown[] = {2, 0, 3, 1};
-
-	if (newQuadrature != throttleQuadrature)
-	{
-
-		if (newQuadrature == quadratureUp[throttleQuadrature & 0x03])
-		{
-			if (throttlePosition > 0)
-				throttlePosition--;
-		}
-		else if (newQuadrature == quadratureDown[throttleQuadrature & 0x03])
-		{
-			if (throttlePosition < 8)
-				throttlePosition++;
-		}
-		else
-			throttlePosition = 0;	
-	}
-	throttleQuadrature = newQuadrature & 0x03;
-}
-
-ISR(INT1_vect, ISR_ALIASOF(INT0_vect));
 
 

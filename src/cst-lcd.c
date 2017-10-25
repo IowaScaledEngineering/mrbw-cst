@@ -24,6 +24,7 @@ LICENSE:
 #include "lcd.h"
 
 #include "cst-common.h"
+#include "cst-hardware.h"
 #include "cst-lcd.h"
 #include "cst-hardware.h"
 #include "cst-time.h"
@@ -50,41 +51,6 @@ const uint8_t Horn[8] =
 	0b00010011,
 	0b00000001,
 	0b00000000,
-	0b00000000
-};
-
-const uint8_t BatteryFull[8] =
-{
-	0b00001110,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00000000
-};
-
-const uint8_t BatteryHalf[8] =
-{
-	0b00001110,
-	0b00011011,
-	0b00010001,
-	0b00010001,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00000000
-};
-const uint8_t BatteryEmpty[8] =
-{
-	0b00001110,
-	0b00011011,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111,
 	0b00000000
 };
 
@@ -115,24 +81,6 @@ void setupDiagChars(void)
 {
 	lcd_setup_custom(BELL_CHAR, Bell);
 	lcd_setup_custom(HORN_CHAR, Horn);
-}
-
-void setupBatteryChar(BatteryState state)
-{
-	switch(state)
-	{
-		case FULL:
-			lcd_setup_custom(BATTERY_CHAR, BatteryFull);
-			break;
-		case HALF:
-			lcd_setup_custom(BATTERY_CHAR, BatteryHalf);
-			break;
-		case EMPTY:
-			lcd_setup_custom(BATTERY_CHAR, BatteryEmpty);
-			break;
-		case UNKNOWN:
-			break;
-	}
 }
 
 void setupSoftkeyChars(void)
@@ -357,6 +305,7 @@ void initLCD(void)
 	lcd_clrscr();
 
 	// Reload the LCD characters
+	setupBatteryChar();
 	setupSoftkeyChars();
 	setupTonnageChars();
 	setupClockChars();
