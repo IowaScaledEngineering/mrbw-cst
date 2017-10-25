@@ -1,5 +1,5 @@
 /*************************************************************************
-Title:    Custom LCD character support for Control Stand Throttle
+Title:    LCD support for Control Stand Throttle
 Authors:  Michael D. Petersen <railfan@drgw.net>
           Nathan D. Holmes <maverick@drgw.net>
 File:     cst-lcd.c
@@ -20,8 +20,14 @@ LICENSE:
 *************************************************************************/
 
 #include <stdlib.h>
+
 #include "lcd.h"
+
+#include "cst-common.h"
 #include "cst-lcd.h"
+#include "cst-hardware.h"
+#include "cst-time.h"
+#include "cst-tonnage.h"
 
 const uint8_t Bell[8] =
 {
@@ -104,96 +110,6 @@ const uint8_t SoftkeyActive[8] =
 	0b00000000,
 	0b00000000
 };
-
-const uint8_t BarGraphBottomEmpty[8] =
-{
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111
-};
-
-const uint8_t BarGraphBottomHalf[8] =
-{
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111
-};
-
-const uint8_t BarGraphTopEmpty[8] =
-{
-	0b00011111,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001
-};
-
-const uint8_t BarGraphTopHalf[8] =
-{
-	0b00011111,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00010001,
-	0b00011111,
-	0b00011111,
-	0b00011111
-};
-
-const uint8_t BarGraphFull[8] =
-{
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111,
-	0b00011111
-};
-
-const uint8_t ClockAM[8] =
-{
-	0b00001000,
-	0b00010100,
-	0b00011100,
-	0b00010100,
-	0b00010100,
-	0b00000000,
-	0b00000000,
-	0b00000000
-};
-
-const uint8_t ClockPM[8] =
-{
-	0b00000000,
-	0b00000000,
-	0b00011100,
-	0b00010100,
-	0b00011100,
-	0b00010000,
-	0b00010000,
-	0b00000000
-};
-
-void setupClockChars(void)
-{
-	lcd_setup_custom(AM_CHAR, ClockAM);
-	lcd_setup_custom(PM_CHAR, ClockPM);
-}
 
 void setupDiagChars(void)
 {
@@ -393,4 +309,57 @@ const uint8_t Splash8B[8] =
 	0b00000000,
 	0b00000000
 };
+
+void displaySplashScreen(void)
+{
+	uint8_t i;
+	
+	lcd_clrscr();
+
+	lcd_setup_custom(0, Splash1);
+	lcd_setup_custom(1, Splash2);
+	lcd_setup_custom(2, Splash3);
+	lcd_setup_custom(3, Splash4);
+	lcd_setup_custom(4, Splash5A);
+	lcd_setup_custom(5, Splash6A);
+	lcd_setup_custom(6, Splash7A);
+	lcd_setup_custom(7, Splash8A);
+
+	lcd_gotoxy(0,0);
+	for(i=0; i<8; i++)
+		lcd_putc(i);
+	
+	lcd_gotoxy(0,1);
+	lcd_puts("THROTTLE");
+
+	wait100ms(8);
+
+	lcd_setup_custom(5, Splash6B);
+	lcd_setup_custom(6, Splash7B);
+	lcd_setup_custom(7, Splash8B);
+
+	wait100ms(4);
+
+	lcd_setup_custom(4, Splash5C);
+	lcd_setup_custom(5, Splash6C);
+	lcd_setup_custom(6, Splash7C);
+
+	wait100ms(15);
+}
+
+void initLCD(void)
+{
+	lcd_init(LCD_DISP_ON);
+	enableLCDBacklight();
+
+	displaySplashScreen();
+
+	lcd_clrscr();
+
+	// Reload the LCD characters
+	setupSoftkeyChars();
+	setupTonnageChars();
+	setupClockChars();
+}
+
 

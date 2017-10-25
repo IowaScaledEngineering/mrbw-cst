@@ -20,11 +20,73 @@ LICENSE:
 *************************************************************************/
 
 #include <stdlib.h>
+
 #include "lcd.h"
-#include "cst-lcd.h"
+
+#include "cst-common.h"
 
 static uint8_t currentTonnage = 0;
 static uint8_t lastDisplayedTonnage = 0;
+
+const uint8_t BarGraphBottomEmpty[8] =
+{
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00011111
+};
+
+const uint8_t BarGraphBottomHalf[8] =
+{
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111
+};
+
+const uint8_t BarGraphTopEmpty[8] =
+{
+	0b00011111,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001
+};
+
+const uint8_t BarGraphTopHalf[8] =
+{
+	0b00011111,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00010001,
+	0b00011111,
+	0b00011111,
+	0b00011111
+};
+
+const uint8_t BarGraphFull[8] =
+{
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111,
+	0b00011111
+};
 
 void setupTonnageChars(void)
 {

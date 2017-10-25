@@ -33,6 +33,7 @@ LICENSE:
 
 #include "lcd.h"
 
+#include "cst-common.h"
 #include "cst-lcd.h"
 #include "cst-hardware.h"
 #include "cst-tonnage.h"
@@ -608,17 +609,6 @@ ISR(TIMER0_COMPA_vect)
 			ticks_autoincrement++;
 }
 
-void wait100ms(uint16_t loops)
-{
-	uint16_t i;
-	for(i=0; i<loops; i++)
-	{
-		wdt_reset();
-		_delay_ms(100);
-	}
-}
-
-
 void readConfig(void)
 {
 	uint8_t i;
@@ -843,57 +833,6 @@ void init(void)
 	initialize100HzTimer();
 
 	DDRB |= _BV(PB3);
-}
-
-void initLCD(void)
-{
-	uint8_t i;
-	
-	lcd_init(LCD_DISP_ON);
-	enableLCDBacklight();
-
-	wdt_reset();	
-
-	lcd_clrscr();
-
-	lcd_setup_custom(0, Splash1);
-	lcd_setup_custom(1, Splash2);
-	lcd_setup_custom(2, Splash3);
-	lcd_setup_custom(3, Splash4);
-	lcd_setup_custom(4, Splash5A);
-	lcd_setup_custom(5, Splash6A);
-	lcd_setup_custom(6, Splash7A);
-	lcd_setup_custom(7, Splash8A);
-
-	lcd_gotoxy(0,0);
-	for(i=0; i<8; i++)
-		lcd_putc(i);
-	
-	lcd_gotoxy(0,1);
-	lcd_puts("THROTTLE");
-
-	wait100ms(8);
-
-	lcd_setup_custom(5, Splash6B);
-	lcd_setup_custom(6, Splash7B);
-	lcd_setup_custom(7, Splash8B);
-
-	wait100ms(4);
-
-	lcd_setup_custom(4, Splash5C);
-	lcd_setup_custom(5, Splash6C);
-	lcd_setup_custom(6, Splash7C);
-
-	wait100ms(15);
-
-	wdt_reset();
-
-	lcd_clrscr();
-
-	// Reload the LCD characters
-	setupSoftkeyChars();
-	setupTonnageChars();
-	setupClockChars();
 }
 
 void printLocomotiveAddress(uint16_t addr)

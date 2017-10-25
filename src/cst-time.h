@@ -21,6 +21,7 @@ typedef struct
 	uint16_t year;
 } TimeData;
 
+void setupClockChars(void);
 void incrementTime(TimeData* t, uint8_t incSeconds);
 void displayTime(TimeData* time, uint8_t ampm);
 void printTime(void);

@@ -26,7 +26,7 @@ LICENSE:
 
 #include "lcd.h"
 
-#include "cst-lcd.h"
+#include "cst-common.h"
 #include "cst-time.h"
 
 static uint16_t timeScaleFactor = 10;
@@ -39,6 +39,36 @@ static volatile uint16_t fastDecisecs = 0;
 static volatile uint8_t scaleTenthsAccum = 0;
 static uint8_t maxDeadReckoningTime = 150;
 static uint8_t deadReckoningTime = 0;
+
+const uint8_t ClockAM[8] =
+{
+	0b00001000,
+	0b00010100,
+	0b00011100,
+	0b00010100,
+	0b00010100,
+	0b00000000,
+	0b00000000,
+	0b00000000
+};
+
+const uint8_t ClockPM[8] =
+{
+	0b00000000,
+	0b00000000,
+	0b00011100,
+	0b00010100,
+	0b00011100,
+	0b00010000,
+	0b00010000,
+	0b00000000
+};
+
+void setupClockChars(void)
+{
+	lcd_setup_custom(AM_CHAR, ClockAM);
+	lcd_setup_custom(PM_CHAR, ClockPM);
+}
 
 void incrementTime(TimeData* t, uint8_t incSeconds)
 {
