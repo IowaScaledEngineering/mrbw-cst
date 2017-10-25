@@ -31,6 +31,7 @@ LICENSE:
 
 #include "cst-common.h"
 #include "cst-hardware.h"
+#include "cst-battery.h"
 
 // Port and IO stuff
 void initPorts()

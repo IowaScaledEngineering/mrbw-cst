@@ -30,18 +30,6 @@ void initPorts();
 
 typedef enum
 {
-	EMPTY = 0,
-	HALF,
-	FULL
-} BatteryState;
-
-void setupBatteryChar(void);
-uint8_t getBatteryVoltage(void);
-void printBattery(void);
-
-
-typedef enum
-{
 	NEUTRAL = 0,
 	FORWARD,
 	REVERSE

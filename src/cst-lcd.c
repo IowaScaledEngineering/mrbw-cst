@@ -27,6 +27,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "cst-lcd.h"
 #include "cst-hardware.h"
+#include "cst-battery.h"
 #include "cst-time.h"
 #include "cst-tonnage.h"
 
