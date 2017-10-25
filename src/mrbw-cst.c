@@ -75,10 +75,6 @@ char baseString[9];
 #define MRBUS_TX_BUFFER_DEPTH 4
 #define MRBUS_RX_BUFFER_DEPTH 4
 
-#define XBEE_SLEEP_DDR  DDRB
-#define XBEE_SLEEP_PORT PORTB
-#define XBEE_SLEEP      0
-
 #define STATUS_READ_SWITCHES          0x01
 
 #define HORN_CONTROL      0x01
