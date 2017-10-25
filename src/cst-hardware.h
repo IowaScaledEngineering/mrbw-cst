@@ -26,6 +26,10 @@
 #define LED_RED_PIN     PD6
 #define LED_GREEN_PIN   PD7
 
+#define XBEE_SLEEP_DDR  DDRB
+#define XBEE_SLEEP_PORT PORTB
+#define XBEE_SLEEP      0
+
 void initPorts();
 
 typedef enum
@@ -185,6 +189,17 @@ inline void enableTimer()
 inline void disableTimer()
 {
 	TIMSK0 &= ~_BV(OCIE0A);
+}
+
+inline void setXbeeSleep()
+{
+	XBEE_SLEEP_PORT |= _BV(XBEE_SLEEP);
+}
+
+inline void setXbeeActive()
+{
+	// Unsleep the XBee
+	XBEE_SLEEP_PORT &= ~_BV(XBEE_SLEEP);
 }
 
 void enableThrottle();

@@ -471,19 +471,6 @@ PktIgnore:
 }
 
 
-
-void setXbeeSleep()
-{
-	XBEE_SLEEP_PORT |= _BV(XBEE_SLEEP);
-}
-
-void setXbeeActive()
-{
-	// Unsleep the XBee
-	XBEE_SLEEP_PORT &= ~_BV(XBEE_SLEEP);
-}
-
-
 ISR(PCINT1_vect) { }  // Used for waking from sleep
 
 
