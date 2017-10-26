@@ -20,7 +20,7 @@ OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
 CreationTime: 1506095843
-ModificationTime: 1508539761
+ModificationTime: 1508989363
 PfmFamily: 17
 TTFWeight: 500
 TTFWidth: 5
@@ -109,7 +109,7 @@ FitToEm: 1
 WinInfo: 0 48 16
 BeginPrivate: 0
 EndPrivate
-BeginChars: 256 65
+BeginChars: 256 67
 
 StartChar: ydieresis
 Encoding: 255 255 0
@@ -320,7 +320,6 @@ SplineSet
  621 919 l 1
  492 919 l 1
 EndSplineSet
-Validated: 1
 EndChar
 
 StartChar: exclam
@@ -5882,7 +5881,7 @@ StartChar: uni008D
 Encoding: 141 141 64
 Width: 801
 VWidth: 1834
-Flags: HWO
+Flags: HW
 LayerCount: 2
 Fore
 SplineSet
@@ -5936,6 +5935,173 @@ SplineSet
  196 196 l 1
  196 68 l 1
  66 68 l 1
+EndSplineSet
+EndChar
+
+StartChar: d
+Encoding: 100 100 65
+Width: 801
+VWidth: 1834
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+66 210 m 1
+ 66 339 l 1
+ 196 339 l 1
+ 196 210 l 1
+ 66 210 l 1
+66 351 m 1
+ 66 480 l 1
+ 196 480 l 1
+ 196 351 l 1
+ 66 351 l 1
+66 493 m 1
+ 66 622 l 1
+ 196 622 l 1
+ 196 493 l 1
+ 66 493 l 1
+492 493 m 1
+ 492 622 l 1
+ 621 622 l 1
+ 621 493 l 1
+ 492 493 l 1
+209 635 m 1
+ 209 764 l 1
+ 338 764 l 1
+ 338 635 l 1
+ 209 635 l 1
+351 635 m 1
+ 351 764 l 1
+ 479 764 l 1
+ 479 635 l 1
+ 351 635 l 1
+634 68 m 1
+ 634 196 l 1
+ 764 196 l 1
+ 764 68 l 1
+ 634 68 l 1
+634 919 m 1
+ 634 1048 l 1
+ 764 1048 l 1
+ 764 919 l 1
+ 634 919 l 1
+209 68 m 1
+ 209 196 l 1
+ 338 196 l 1
+ 338 68 l 1
+ 209 68 l 1
+351 68 m 1
+ 351 196 l 1
+ 479 196 l 1
+ 479 68 l 1
+ 351 68 l 1
+492 68 m 1
+ 492 196 l 1
+ 621 196 l 1
+ 621 68 l 1
+ 492 68 l 1
+634 210 m 1
+ 634 339 l 1
+ 764 339 l 1
+ 764 210 l 1
+ 634 210 l 1
+634 352 m 1
+ 634 481 l 1
+ 764 481 l 1
+ 764 352 l 1
+ 634 352 l 1
+634 493 m 1
+ 634 622 l 1
+ 764 622 l 1
+ 764 493 l 1
+ 634 493 l 1
+634 635 m 1
+ 634 764 l 1
+ 764 764 l 1
+ 764 635 l 1
+ 634 635 l 1
+634 777 m 1
+ 634 906 l 1
+ 764 906 l 1
+ 764 777 l 1
+ 634 777 l 1
+EndSplineSet
+EndChar
+
+StartChar: m
+Encoding: 109 109 66
+Width: 801
+VWidth: 1834
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+66 210 m 1
+ 66 339 l 1
+ 196 339 l 1
+ 196 210 l 1
+ 66 210 l 1
+66 351 m 1
+ 66 480 l 1
+ 196 480 l 1
+ 196 351 l 1
+ 66 351 l 1
+66 493 m 1
+ 66 622 l 1
+ 196 622 l 1
+ 196 493 l 1
+ 66 493 l 1
+66 635 m 1
+ 66 764 l 1
+ 196 764 l 1
+ 196 635 l 1
+ 66 635 l 1
+351 351 m 1
+ 351 480 l 1
+ 479 480 l 1
+ 479 351 l 1
+ 351 351 l 1
+351 493 m 1
+ 351 622 l 1
+ 479 622 l 1
+ 479 493 l 1
+ 351 493 l 1
+209 635 m 1
+ 209 764 l 1
+ 338 764 l 1
+ 338 635 l 1
+ 209 635 l 1
+492 635 m 1
+ 492 764 l 1
+ 621 764 l 1
+ 621 635 l 1
+ 492 635 l 1
+66 68 m 1
+ 66 196 l 1
+ 196 196 l 1
+ 196 68 l 1
+ 66 68 l 1
+634 68 m 1
+ 634 196 l 1
+ 764 196 l 1
+ 764 68 l 1
+ 634 68 l 1
+634 210 m 1
+ 634 339 l 1
+ 764 339 l 1
+ 764 210 l 1
+ 634 210 l 1
+634 352 m 1
+ 634 481 l 1
+ 764 481 l 1
+ 764 352 l 1
+ 634 352 l 1
+634 493 m 1
+ 634 622 l 1
+ 764 622 l 1
+ 764 493 l 1
+ 634 493 l 1
 EndSplineSet
 EndChar
 EndChars
