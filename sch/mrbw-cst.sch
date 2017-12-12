@@ -615,7 +615,7 @@ C 51800 45600 1 0 0 ATmega164-tqfp44.sym
 T 56000 53100 5 10 1 1 0 6 1
 refdes=U2
 T 54100 49650 5 10 1 1 0 4 1
-device=ATmega164
+device=ATmega1284P
 T 54100 49350 5 10 1 1 0 4 1
 footprint=TQFP44
 }
