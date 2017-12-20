@@ -167,6 +167,8 @@ MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
 uint8_t mrbus_dev_addr = 0;
 uint8_t mrbus_base_addr = 0;
 
+uint8_t lastRSSI = 0xFF;
+
 #define LOCO_ADDRESS_SHORT 0x8000
 uint16_t locoAddress = 0;
 
@@ -341,8 +343,9 @@ void PktHandler(void)
 	uint8_t i;
 	uint8_t rxBuffer[MRBUS_BUFFER_SIZE];
 	uint8_t txBuffer[MRBUS_BUFFER_SIZE];
+	uint8_t rssi;
 
-	if (0 == mrbusPktQueuePop(&mrbeeRxQueue, rxBuffer, sizeof(rxBuffer)))
+	if (0 == mrbeePktQueuePop(&mrbeeRxQueue, rxBuffer, sizeof(rxBuffer), &rssi))
 		return;
 
 	if(mrbus_base_addr == rxBuffer[MRBUS_PKT_SRC])
@@ -448,6 +451,7 @@ void PktHandler(void)
 		(mrbus_base_addr == rxBuffer[MRBUS_PKT_SRC]) )
 	{
 		// It's a version packet from our assigned base station
+		lastRSSI = rssi;
 		baseVersion = ((uint32_t)rxBuffer[7] << 16) | ((uint16_t)rxBuffer[8] << 8) | rxBuffer[9];
 		memset(baseString, 0, 9);  // Fill with NULLs before copying string
 		memcpy(baseString, &rxBuffer[12], max(rxBuffer[MRBUS_PKT_LEN]-12, 8));
@@ -802,6 +806,7 @@ void init(void)
 #endif
 
 	pktTimeout = 0;  // Assume no base unit until we hear from one
+	lastRSSI = 0xFF;
 	
 	readConfig();
 
@@ -2411,11 +2416,10 @@ int main(void)
 						lcd_puts("RSSI");
 						lcd_gotoxy(1,1);
 						lcd_putc('-');
-						uint8_t rssi = mrbeeGetRssi();
-						if(rssi > 99)
-							lcd_putc(0xF3);
+						if(lastRSSI > 99)
+							lcd_puts("--");
 						else
-							printDec2Dig(rssi);
+							printDec2Dig(lastRSSI);
 						lcd_gotoxy(4,1);
 						lcd_puts("dBm");
 					}
@@ -2583,6 +2587,7 @@ int main(void)
 		if (0 == pktTimeout)
 		{
 			baseVersion = 0;
+			lastRSSI = 0;
 			strcpy(baseString, "  NONE  ");
 			led = LED_RED_FASTBLINK;
 		}
