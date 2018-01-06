@@ -1,0 +1,17 @@
+# PcbXY Version 1.0
+# Date: Sat 06 Jan 2018 07:53:11 PM GMT UTC
+# Author: Michael Petersen
+# Title: (unknown) - PCB X-Y
+# RefDes, Description, Value, X, Y, rotation, top/bottom
+# X,Y in mil.  rotation in degrees.
+# --------------------------------------------
+J1,"JUMPER9","unknown",55.00,455.00,0,top
+R1,"RPACK2-0606","1k",1375.00,1310.00,90,top
+LCD1,"JUMPER8x2","unknown",1427.50,1095.00,90,top
+D1,"DIA515","unknown",1375.00,1495.00,90,top
+SW0,"1825910","unknown",338.58,287.05,0,top
+SW1,"1825910","unknown",338.58,722.95,0,top
+J2,"JUMPER9","unknown",2695.00,455.00,0,top
+SW3,"1825910","unknown",2411.42,287.05,0,top
+SW2,"1825910","unknown",2411.42,722.95,0,top
+U1,"SOT26","unknown",1652.50,134.00,90,top
