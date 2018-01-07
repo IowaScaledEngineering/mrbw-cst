@@ -61,8 +61,13 @@ LICENSE:
 #define UPDATE_DECISECS_DEFAULT            10
 #define UPDATE_DECISECS_MAX                2550
 
+#define MRBUS_DEV_ADDR_MIN                 0x30
 #define MRBUS_DEV_ADDR_DEFAULT             0x30
-#define MRBUS_BASE_ADDR_DEFAULT            0xD4
+#define MRBUS_DEV_ADDR_MAX                 0x49
+
+#define MRBUS_BASE_ADDR_MIN                0xD0
+#define MRBUS_BASE_ADDR_DEFAULT            0xD0
+#define MRBUS_BASE_ADDR_MAX                0xEF
 
 #define RESET_COUNTER_RESET_VALUE   5
 uint8_t resetCounter;
@@ -647,18 +652,28 @@ void readConfig(void)
 
 	// Initialize MRBus address from EEPROM
 	mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
-	// Bogus addresses, fix to default address
-	if (0xFF == mrbus_dev_addr || 0x00 == mrbus_dev_addr)
+	// Fix bogus addresses
+	if(mrbus_dev_addr < MRBUS_DEV_ADDR_MIN)
 	{
-		mrbus_dev_addr = MRBUS_DEV_ADDR_DEFAULT;
+		mrbus_dev_addr = MRBUS_DEV_ADDR_MIN;
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
+	}
+	else if(mrbus_dev_addr > MRBUS_DEV_ADDR_MAX)
+	{
+		mrbus_dev_addr = MRBUS_DEV_ADDR_MAX;
 		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, mrbus_dev_addr);
 	}
 
 	mrbus_base_addr = eeprom_read_byte((uint8_t*)EE_BASE_ADDR);
-	// Bogus addresses, fix to default address
-	if (0xFF == mrbus_base_addr || 0x00 == mrbus_base_addr)
+	// Fix bogus addresses
+	if(mrbus_base_addr < MRBUS_BASE_ADDR_MIN)
 	{
-		mrbus_base_addr = MRBUS_BASE_ADDR_DEFAULT;
+		mrbus_base_addr = MRBUS_BASE_ADDR_MIN;
+		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
+	}
+	else if(mrbus_base_addr > MRBUS_BASE_ADDR_MAX)
+	{
+		mrbus_base_addr = MRBUS_BASE_ADDR_MAX;
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
 
@@ -2045,10 +2060,12 @@ int main(void)
 							{
 								if(*addrPtr < 0xFF)
 									(*addrPtr)++;
-								// Don't allow 0xFF for device or base address
-								if( (0xFF == newDevAddr) )
-									newDevAddr = 0xFE;
-								if( (0xFF == newBaseAddr) )
+								// Check bounds
+								if(newDevAddr > MRBUS_DEV_ADDR_MAX)
+									newDevAddr = MRBUS_DEV_ADDR_MAX;
+								if(newBaseAddr > MRBUS_BASE_ADDR_MAX)
+									newBaseAddr = MRBUS_BASE_ADDR_MAX;
+								if(0xFF == newBaseAddr)
 									newBaseAddr = 0xFE;
 								ticks_autoincrement = 0;
 							}
@@ -2060,6 +2077,11 @@ int main(void)
 									(*addrPtr)--;
 								else
 									(*addrPtr) = 1;
+								// Check bounds
+								if(newDevAddr < MRBUS_DEV_ADDR_MIN)
+									newDevAddr = MRBUS_DEV_ADDR_MIN;
+								if(newBaseAddr < MRBUS_BASE_ADDR_MIN)
+									newBaseAddr = MRBUS_BASE_ADDR_MIN;
 								ticks_autoincrement = 0;
 							}
 							break;
