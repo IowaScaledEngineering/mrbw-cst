@@ -2414,14 +2414,32 @@ int main(void)
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("RSSI");
-						lcd_gotoxy(1,1);
-						lcd_putc('-');
-						if(lastRSSI > 99)
-							lcd_puts("--");
+						lcd_gotoxy(0,1);
+						if(lastRSSI < 255)
+						{
+							if(lastRSSI < 10)
+							{
+								lcd_puts("  -");
+								lcd_putc('0' + lastRSSI);
+							}
+							else if(lastRSSI < 100)
+							{
+								lcd_puts(" -");
+								printDec2Dig(lastRSSI);
+							}
+							else
+							{
+								lcd_putc('-');
+								printDec3Dig(lastRSSI);
+							}
+							lcd_gotoxy(4,1);
+							lcd_puts("dBm ");
+						}
 						else
-							printDec2Dig(lastRSSI);
-						lcd_gotoxy(4,1);
-						lcd_puts("dBm");
+						{
+							lcd_gotoxy(0,1);
+							lcd_puts("NO SIGNL");
+						}
 					}
 					else if(5 == subscreenStatus)
 					{
@@ -2587,7 +2605,7 @@ int main(void)
 		if (0 == pktTimeout)
 		{
 			baseVersion = 0;
-			lastRSSI = 0;
+			lastRSSI = 0xFF;
 			strcpy(baseString, "  NONE  ");
 			led = LED_RED_FASTBLINK;
 		}
