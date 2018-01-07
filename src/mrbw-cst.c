@@ -54,6 +54,8 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_MAX          99
 
 #define CONFIGBITS_DEFAULT                 0xFF
+
+#define TX_HOLDOFF_MIN                     15
 #define TX_HOLDOFF_DEFAULT                 15
 
 #define UPDATE_DECISECS_DEFAULT            10
@@ -606,6 +608,11 @@ void readConfig(void)
 	}
 	
 	txHoldoff_centisecs = eeprom_read_byte((uint8_t*)EE_TX_HOLDOFF);
+	if(txHoldoff_centisecs < TX_HOLDOFF_MIN)
+	{
+		txHoldoff_centisecs = TX_HOLDOFF_MIN;
+		eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
+	}
 
 	// Read the number of minutes before sleeping from EEP and store it.
 	// If it's not in range, clamp it.
@@ -2224,6 +2231,8 @@ int main(void)
 								{
 									if(*prefsPtr > 1)
 										(*prefsPtr)--;
+									if(txHoldoff_centisecs < TX_HOLDOFF_MIN)
+										txHoldoff_centisecs = TX_HOLDOFF_MIN;
 									if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
 									if(newMaxDeadReckoningTime_seconds < DEAD_RECKONING_TIME_MIN / 10)
@@ -2713,18 +2722,15 @@ int main(void)
 
 		wdt_reset();
 		
-		// Transmission criteria...
-		// stuff changed AND TX holdoff is zero...
-		// *****  or *****
-		// it's been more than the transmission timeout
-		
+		// New packet criteria: Stuff changed ...or... it's been more than the transmission timeout
+		//    ...and there's room in the queue
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
 			decisecs_tmp = decisecs;
 		}
 		if (
 				adcLoopInitialized() &&
-				((inputsChanged && !txHoldoff) || (decisecs_tmp >= update_decisecs)) &&
+				((inputsChanged) || (decisecs_tmp >= update_decisecs)) &&
 				!(mrbusPktQueueFull(&mrbeeTxQueue))
 			)
 		{
@@ -2779,14 +2785,18 @@ int main(void)
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
 				decisecs = 0;
-				txHoldoff = txHoldoff_centisecs;
 			}
 		}
 
-		if (mrbusPktQueueDepth(&mrbeeTxQueue))
+		// Transmission criteria: something in the buffer ...and... it's been more than the minimum holdoff
+		if (mrbusPktQueueDepth(&mrbeeTxQueue) && !txHoldoff)
 		{
 			wdt_reset();
 			mrbeeTransmit();
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				txHoldoff = txHoldoff_centisecs;
+			}
 		}
 
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
