@@ -2030,7 +2030,7 @@ int main(void)
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
 					{
-						lcd_puts("THR ADR");
+						lcd_puts("THRTL ID");
 						addrPtr = &newDevAddr;
 					}
 					else if(2 == subscreenStatus)
@@ -2043,15 +2043,29 @@ int main(void)
 						lcd_puts("TIME ADR");
 						addrPtr = &newTimeAddr;
 					}
-					lcd_gotoxy(2,1);
 					if( (addrPtr == &newTimeAddr) && (0xFF == *addrPtr) )
 					{
-						lcd_puts("ALL ");
+						lcd_gotoxy(2,1);
+						lcd_puts(" ALL");
 					}
 					else
 					{
-						lcd_puts("0x");
-						printHex(*addrPtr);
+						if(addrPtr == &newDevAddr)
+						{
+							lcd_gotoxy(4,1);
+							lcd_putc('A' + ((*addrPtr) - MRBUS_DEV_ADDR_MIN));
+						}
+						else if(addrPtr == &newBaseAddr)
+						{
+							lcd_gotoxy(3,1);
+							printDec2DigWZero((*addrPtr) - MRBUS_BASE_ADDR_MIN);
+						}
+						else
+						{
+							lcd_gotoxy(2,1);
+							lcd_puts("0x");
+							printHex(*addrPtr);
+						}
 					}
 					switch(button)
 					{
