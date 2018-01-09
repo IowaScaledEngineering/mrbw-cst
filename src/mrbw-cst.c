@@ -164,6 +164,7 @@ uint8_t configBits;
 
 #define CONFIGBITS_LED_BLINK         0
 #define CONFIGBITS_ESTOP_ON_BRAKE    1
+#define CONFIGBITS_REVERSER_SWAP     2
 
 
 
@@ -998,14 +999,34 @@ int main(void)
 		{
 			controls |= BRAKE_CONTROL;
 		}
-		
-		// Calculate active throttle and reverser settings
-		if( (activeReverserSetting != reverserPosition) && (0 == throttlePosition) )
+
+
+		// Swap reverser if configured to do so
+		ReverserPosition reverserPosition_tmp = reverserPosition;
+		if(configBits & _BV(CONFIGBITS_REVERSER_SWAP))
 		{
-			// Only allow reverser to change when throttle is in idle
-			activeReverserSetting = reverserPosition;
+			switch(reverserPosition_tmp)
+			{
+				case FORWARD:
+					reverserPosition_tmp = REVERSE;
+					break;
+				case REVERSE:
+					reverserPosition_tmp = FORWARD;
+					break;
+				case NEUTRAL:
+					reverserPosition_tmp = NEUTRAL;
+					break;
+			}
 		}
 		
+		// Calculate active reverser setting
+		if( (activeReverserSetting != reverserPosition_tmp) && (0 == throttlePosition) )
+		{
+			// Only allow reverser to change when throttle is in idle
+			activeReverserSetting = reverserPosition_tmp;
+		}
+		
+		// Calculate active throttle setting
 		if(NEUTRAL == activeReverserSetting)
 		{
 			if( (!(throttleUnlockFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (throttleUnlockFunction & 0x1F))) )
@@ -1051,7 +1072,7 @@ int main(void)
 					lcd_puts("EMRG");
 					enableLCDBacklight();
 				}
-				else if(activeReverserSetting != reverserPosition)
+				else if(activeReverserSetting != reverserPosition_tmp)
 				{
 					lcd_puts("REV!");
 					enableLCDBacklight();
@@ -2205,10 +2226,16 @@ int main(void)
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else
+					else if(6 == subscreenStatus)
 					{
 						lcd_puts("BRK ESTP");
 						bitPosition = CONFIGBITS_ESTOP_ON_BRAKE;
+						prefsPtr = &configBits;
+					}
+					else
+					{
+						lcd_puts("REV SWAP");
+						bitPosition = CONFIGBITS_REVERSER_SWAP;
 						prefsPtr = &configBits;
 					}
 
@@ -2306,7 +2333,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 6)
+								if(subscreenStatus > 7)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
