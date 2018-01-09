@@ -2446,13 +2446,22 @@ int main(void)
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("PKT TIME");
+						lcd_gotoxy(0,1);
+						lcd_putc('[');
+						lcd_gotoxy(7,1);
+						lcd_putc(']');
 						lcd_gotoxy(1,1);
-						uint8_t pktTimeout_tmp = pktTimeout;
-						lcd_putc('0' + pktTimeout_tmp/10);
-						lcd_putc('.');
-						lcd_putc('0' + pktTimeout_tmp%10);
-						lcd_gotoxy(5,1);
-						lcd_puts("sec");
+						uint8_t pktTimeout_tmp = (pktTimeout + 6) / 7;
+						for(i = 0; i < 6; i++)
+						{
+							if(pktTimeout_tmp)
+							{
+								pktTimeout_tmp--;
+								lcd_putc(0xFF);
+							}
+							else
+								lcd_putc(' ');
+						}
 					}
 					else if(4 == subscreenStatus)
 					{
