@@ -165,6 +165,7 @@ uint8_t configBits;
 #define CONFIGBITS_LED_BLINK         0
 #define CONFIGBITS_ESTOP_ON_BRAKE    1
 #define CONFIGBITS_REVERSER_SWAP     2
+#define CONFIGBITS_VARIABLE_BRAKE    3
 
 
 
@@ -2232,6 +2233,12 @@ int main(void)
 						bitPosition = CONFIGBITS_ESTOP_ON_BRAKE;
 						prefsPtr = &configBits;
 					}
+					else if(7 == subscreenStatus)
+					{
+						lcd_puts("VAR BRK");
+						bitPosition = CONFIGBITS_VARIABLE_BRAKE;
+						prefsPtr = &configBits;
+					}
 					else
 					{
 						lcd_puts("REV SWAP");
@@ -2333,7 +2340,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 7)
+								if(subscreenStatus > 8)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
