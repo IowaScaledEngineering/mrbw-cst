@@ -95,6 +95,10 @@ char baseString[9];
 #define HORN_HYSTERESIS   5
 #define BRAKE_HYSTERESIS  5
 
+// BRAKE_PULSE_WIDTH is in decisecs
+// It is the minimum on time for the pulsed brake
+#define BRAKE_PULSE_WIDTH   5
+
 // Set EEPROM locations
 #define EE_CURRENT_CONFIG             0x10
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
@@ -198,6 +202,8 @@ uint8_t hornThreshold;
 uint8_t brakeThreshold;
 uint8_t brakeLowThreshold;
 uint8_t brakeHighThreshold;
+
+volatile uint8_t brakeCounter;
 
 uint8_t notchSpeed[8];
 
@@ -589,6 +595,10 @@ ISR(TIMER0_COMPA_vect)
 
 		if (engineTimer)
 			engineTimer--;
+		
+		brakeCounter++;
+		if(brakeCounter >= (4*BRAKE_PULSE_WIDTH))
+			brakeCounter = 0;
 
 		updateTime10Hz();
 	}
@@ -990,16 +1000,27 @@ int main(void)
 				throttleStatus |= THROTTLE_STATUS_EMERGENCY;
 		}
 		
-		// Convert brake to on/off control
-		// FIXME: eventually add analog brake functionality
-		if(brakePosition <= (brakeThreshold - BRAKE_HYSTERESIS))
+		// Handle brake
+		if(configBits & _BV(CONFIGBITS_VARIABLE_BRAKE))
 		{
-			controls &= ~(BRAKE_CONTROL);
+			// Variable brake
+			if( brakePcnt > (((brakeCounter / BRAKE_PULSE_WIDTH)+1)*20) )
+				controls |= BRAKE_CONTROL;
+			else
+				controls &= ~(BRAKE_CONTROL);
 		}
-		else if(brakePosition >= brakeThreshold)
+		else
 		{
-			controls |= BRAKE_CONTROL;
-		}
+			// On/off brake
+			if(brakePosition <= (brakeThreshold - BRAKE_HYSTERESIS))
+			{
+				controls &= ~(BRAKE_CONTROL);
+			}
+			else if(brakePosition >= brakeThreshold)
+			{
+				controls |= BRAKE_CONTROL;
+			}
+		}		
 
 
 		// Swap reverser if configured to do so
