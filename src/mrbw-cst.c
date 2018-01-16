@@ -1018,6 +1018,10 @@ int main(void)
 			if(brakePosition > brakeHighThreshold)
 				throttleStatus |= THROTTLE_STATUS_EMERGENCY;
 		}
+		else
+		{
+			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
+		}
 		
 		// Handle brake
 		if(configBits & _BV(CONFIGBITS_VARIABLE_BRAKE))
