@@ -58,8 +58,9 @@ LICENSE:
 #define TX_HOLDOFF_MIN                     15
 #define TX_HOLDOFF_DEFAULT                 15
 
+#define UPDATE_DECISECS_MIN                10
 #define UPDATE_DECISECS_DEFAULT            10
-#define UPDATE_DECISECS_MAX                2550
+#define UPDATE_DECISECS_MAX                100
 
 #define MRBUS_DEV_ADDR_MIN                 0x30
 #define MRBUS_DEV_ADDR_DEFAULT             0x30
@@ -620,8 +621,12 @@ void readConfig(void)
 	uint8_t i;
 
 	update_decisecs = (uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L) | (((uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H)) << 8);
-	if(0 == update_decisecs)
-		update_decisecs = 1;
+	if(update_decisecs < UPDATE_DECISECS_MIN)
+	{
+		update_decisecs = UPDATE_DECISECS_MIN;
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H, update_decisecs >> 8);
+		eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L, update_decisecs & 0xFF);
+	}
 	else if(update_decisecs > UPDATE_DECISECS_MAX)
 	{
 		update_decisecs = UPDATE_DECISECS_MAX;
@@ -2341,6 +2346,8 @@ int main(void)
 								{
 									if(*prefsPtr < 0xFF)
 										(*prefsPtr)++;
+									if(newUpdate_seconds > UPDATE_DECISECS_MAX / 10)
+										newUpdate_seconds = UPDATE_DECISECS_MAX / 10;
 									if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
 									if(newMaxDeadReckoningTime_seconds > DEAD_RECKONING_TIME_MAX / 10)
