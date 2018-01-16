@@ -53,7 +53,7 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_DEFAULT       5
 #define SLEEP_TMR_RESET_VALUE_MAX          99
 
-#define CONFIGBITS_DEFAULT                 0xFF
+#define CONFIGBITS_DEFAULT                 0xF3
 
 #define TX_HOLDOFF_MIN                     15
 #define TX_HOLDOFF_DEFAULT                 15
@@ -95,6 +95,14 @@ char baseString[9];
 #define HORN_HYSTERESIS   5
 #define BRAKE_HYSTERESIS  5
 
+// BRAKE_PULSE_WIDTH is in decisecs
+// It is the minimum on time for the pulsed brake
+#define BRAKE_PULSE_WIDTH_MIN       2
+#define BRAKE_PULSE_WIDTH_DEFAULT   5
+#define BRAKE_PULSE_WIDTH_MAX      10
+
+uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
+
 // Set EEPROM locations
 #define EE_CURRENT_CONFIG             0x10
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
@@ -107,6 +115,7 @@ char baseString[9];
 #define EE_BRAKE_THRESHOLD            0x21
 #define EE_BRAKE_LOW_THRESHOLD        0x22
 #define EE_BRAKE_HIGH_THRESHOLD       0x23
+#define EE_BRAKE_PULSE_WIDTH          0x24
 
 #define MAX_CONFIGS 15
 
@@ -165,6 +174,7 @@ uint8_t configBits;
 #define CONFIGBITS_LED_BLINK         0
 #define CONFIGBITS_ESTOP_ON_BRAKE    1
 #define CONFIGBITS_REVERSER_SWAP     2
+#define CONFIGBITS_VARIABLE_BRAKE    3
 
 
 
@@ -197,6 +207,8 @@ uint8_t hornThreshold;
 uint8_t brakeThreshold;
 uint8_t brakeLowThreshold;
 uint8_t brakeHighThreshold;
+
+volatile uint8_t brakeCounter;
 
 uint8_t notchSpeed[8];
 
@@ -588,6 +600,10 @@ ISR(TIMER0_COMPA_vect)
 
 		if (engineTimer)
 			engineTimer--;
+		
+		brakeCounter++;
+		if(brakeCounter >= (4*brakePulseWidth))
+			brakeCounter = 0;
 
 		updateTime10Hz();
 	}
@@ -734,6 +750,18 @@ void readConfig(void)
 	brakeThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_THRESHOLD);
 	brakeLowThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_LOW_THRESHOLD);
 	brakeHighThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_HIGH_THRESHOLD);
+	
+	brakePulseWidth = eeprom_read_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH);
+	if(brakePulseWidth < BRAKE_PULSE_WIDTH_MIN)
+	{
+		brakePulseWidth = BRAKE_PULSE_WIDTH_MIN;
+		eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, brakePulseWidth);
+	}
+	else if(brakePulseWidth > BRAKE_PULSE_WIDTH_MAX)
+	{
+		brakePulseWidth = BRAKE_PULSE_WIDTH_MAX;
+		eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, brakePulseWidth);
+	}
 
 	// Notches
 	eeprom_read_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
@@ -764,14 +792,16 @@ void resetConfig(void)
 	eeprom_write_byte((uint8_t*)EE_BASE_ADDR, MRBUS_BASE_ADDR_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, 0xFF);
 
-	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, 0);
-	
 	// Skip the following, since these are specific to each physical device:
 	//    EE_HORN_THRESHOLD
 	//    EE_BRAKE_THRESHOLD
 	//    EE_BRAKE_LOW_THRESHOLD
 	//    EE_BRAKE_HIGH_THRESHOLD
 
+	eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
+
+	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, 0);
+	
 	for (i=1; i<=MAX_CONFIGS; i++)
 	{
 		wdt_reset();
@@ -989,16 +1019,27 @@ int main(void)
 				throttleStatus |= THROTTLE_STATUS_EMERGENCY;
 		}
 		
-		// Convert brake to on/off control
-		// FIXME: eventually add analog brake functionality
-		if(brakePosition <= (brakeThreshold - BRAKE_HYSTERESIS))
+		// Handle brake
+		if(configBits & _BV(CONFIGBITS_VARIABLE_BRAKE))
 		{
-			controls &= ~(BRAKE_CONTROL);
+			// Variable brake
+			if( brakePcnt > (((brakeCounter / brakePulseWidth)+1)*20) )
+				controls |= BRAKE_CONTROL;
+			else
+				controls &= ~(BRAKE_CONTROL);
 		}
-		else if(brakePosition >= brakeThreshold)
+		else
 		{
-			controls |= BRAKE_CONTROL;
-		}
+			// On/off brake
+			if(brakePosition <= (brakeThreshold - BRAKE_HYSTERESIS))
+			{
+				controls &= ~(BRAKE_CONTROL);
+			}
+			else if(brakePosition >= brakeThreshold)
+			{
+				controls |= BRAKE_CONTROL;
+			}
+		}		
 
 
 		// Swap reverser if configured to do so
@@ -2222,14 +2263,28 @@ int main(void)
 					}
 					else if(5 == subscreenStatus)
 					{
-						lcd_puts("LED BLNK");
-						bitPosition = CONFIGBITS_LED_BLINK;
+						lcd_puts("VAR BRK");
+						bitPosition = CONFIGBITS_VARIABLE_BRAKE;
 						prefsPtr = &configBits;
 					}
 					else if(6 == subscreenStatus)
 					{
+						lcd_puts("BRK PWM");
+						lcd_gotoxy(7,1);
+						lcd_puts("s");
+						bitPosition = 8;
+						prefsPtr = &brakePulseWidth;
+					}
+					else if(7 == subscreenStatus)
+					{
 						lcd_puts("BRK ESTP");
 						bitPosition = CONFIGBITS_ESTOP_ON_BRAKE;
+						prefsPtr = &configBits;
+					}
+					else if(8 == subscreenStatus)
+					{
+						lcd_puts("LED BLNK");
+						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
 					else
@@ -2253,6 +2308,13 @@ int main(void)
 						lcd_putc('0' + (*prefsPtr) / 100);
 						lcd_putc('.');
 						lcd_putc('0' + ((*prefsPtr)/10) % 10);
+						lcd_putc('0' + (*prefsPtr) % 10);
+					}
+					else if(prefsPtr == &brakePulseWidth)
+					{
+						lcd_gotoxy(4,1);
+						lcd_putc('0' + (*prefsPtr) / 10);
+						lcd_putc('.');
 						lcd_putc('0' + (*prefsPtr) % 10);
 					}
 					else
@@ -2279,6 +2341,8 @@ int main(void)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
 									if(newMaxDeadReckoningTime_seconds > DEAD_RECKONING_TIME_MAX / 10)
 										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MAX / 10;
+									if(brakePulseWidth > BRAKE_PULSE_WIDTH_MAX)
+										brakePulseWidth = BRAKE_PULSE_WIDTH_MAX;
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2300,6 +2364,8 @@ int main(void)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
 									if(newMaxDeadReckoningTime_seconds < DEAD_RECKONING_TIME_MIN / 10)
 										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MIN / 10;
+									if(brakePulseWidth < BRAKE_PULSE_WIDTH_MIN)
+										brakePulseWidth = BRAKE_PULSE_WIDTH_MIN;
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2309,6 +2375,7 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime_seconds * 10);
+								eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, brakePulseWidth);
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
 								update_decisecs = (uint16_t)newUpdate_seconds * 10;
@@ -2333,7 +2400,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 7)
+								if(subscreenStatus > 9)
 									subscreenStatus = 1;
 								lcd_clrscr();
 							}
