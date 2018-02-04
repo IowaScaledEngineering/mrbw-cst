@@ -44,7 +44,10 @@ FUSE_E  = 0xFD
 GITREV := $(shell git rev-parse --short=6 HEAD)
 REV    := $(shell ./git-revision.sh)
 
-DEFINES := -DMRBEE -DGIT_REV=0x$(GITREV)L -D'VERSION_STRING="$(REV)"' -DENABLE_WATCHDOG -DWATCHDOG_TIMEOUT=WDTO_1S -DHWREV_MAJOR=1 -DHWREV_MINOR=1 -DMRBEE_IGNORE_FLOW
+MRBEE_DEFINES = -DMRBEE -DMRBEE_IGNORE_FLOW
+MRBEE_PINS = 
+
+DEFINES := -DGIT_REV=0x$(GITREV)L -D'VERSION_STRING="$(REV)"' -DENABLE_WATCHDOG -DWATCHDOG_TIMEOUT=WDTO_1S -DHWREV_MAJOR=1 -DHWREV_MINOR=1 $(MRBEE_DEFINES) $(MRBEE_PINS)
 SRCS = $(BASE_NAME).c lcd.c cst-common.c cst-lcd.c cst-hardware.c cst-tonnage.c cst-time.c $(MRBUS_LIB)/mrbee-avr.c $(MRBUS_LIB)/mrbus-crc.c $(MRBUS_LIB)/mrbus-queue.c
 INCS = $(MRBUS_LIB)/mrbee.h $(MRBUS_LIB)/mrbee-avr.h lcd.h cst-hardware.h
 

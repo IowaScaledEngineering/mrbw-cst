@@ -239,7 +239,6 @@ uint16_t sleep_tmr_reset_value;
 typedef enum
 {
 	MAIN_SCREEN = 0,
-//	DEBUG2_SCREEN,
 	ENGINE_SCREEN,
 	TONNAGE_SCREEN,
 	LOAD_CONFIG_SCREEN,
