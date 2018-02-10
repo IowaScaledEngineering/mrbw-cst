@@ -2480,10 +2480,7 @@ int main(void)
 						lcd_gotoxy(0,0);
 						if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
 						{
-							lcd_putc('E');
-							lcd_putc('M');
-							lcd_putc('R');
-							lcd_putc('G');
+							lcd_puts("EMRG");
 						}
 						else
 						{
