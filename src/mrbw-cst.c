@@ -471,8 +471,9 @@ void PktHandler(void)
 		// It's a version packet from our assigned base station
 		lastRSSI = rssi;
 		baseVersion = ((uint32_t)rxBuffer[7] << 16) | ((uint16_t)rxBuffer[8] << 8) | rxBuffer[9];
-		memset(baseString, 0, 9);  // Fill with NULLs before copying string
-		memcpy(baseString, &rxBuffer[12], max(rxBuffer[MRBUS_PKT_LEN]-12, 8));
+		memset(baseString,' ', 8);  // Fill with spaces before copying string
+		baseString[8] = 0;  // NULL terminate
+		memcpy(baseString, &rxBuffer[12], min(rxBuffer[MRBUS_PKT_LEN]-12, 8));
 	}
 	//*************** END PACKET HANDLER  ***************
 
