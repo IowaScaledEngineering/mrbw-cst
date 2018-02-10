@@ -144,6 +144,7 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_UP_BUTTON_FUNCTION         (0x10 + configOffset)
 #define EE_DOWN_BUTTON_FUNCTION       (0x11 + configOffset)
 #define EE_THR_UNLOCK_FUNCTION        (0x12 + configOffset)
+#define EE_BRAKE_OFF_FUNCTION         (0x13 + configOffset)
 
 #define EE_FUNC_FORCE_ON              (0x18 + configOffset)
 //      EE_FUNC_FORCE_ON               0x19
@@ -195,6 +196,7 @@ uint8_t bellFunction = 7;
 uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
 uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
 uint8_t brakeFunction = OFF_FUNCTION;
+uint8_t brakeOffFunction = OFF_FUNCTION;
 uint8_t auxFunction = OFF_FUNCTION;
 uint8_t engineOnFunction = 8;
 uint8_t engineStopFunction = OFF_FUNCTION;
@@ -270,6 +272,7 @@ typedef enum
 	HORN_FN = 0,
 	BELL_FN,
 	BRAKE_FN,
+	BRAKE_OFF_FN,
 	AUX_FN,
 	ENGINE_ON_FN,
 	ENGINE_OFF_FN,
@@ -739,6 +742,7 @@ void readConfig(void)
 	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
 	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
 	brakeFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
+	brakeOffFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION);
 	auxFunction = eeprom_read_byte((uint8_t*)EE_AUX_FUNCTION);
 	engineOnFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_ON_FUNCTION);
 	engineStopFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION);
@@ -822,6 +826,7 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
 		eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
+		eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, 9);
 		eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, 8);
 		eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, OFF_FUNCTION);
@@ -1687,6 +1692,11 @@ int main(void)
 							lcd_puts("BRAKE");
 							functionPtr = &brakeFunction;
 							break;
+						case BRAKE_OFF_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("BRK OFF");
+							functionPtr = &brakeOffFunction;
+							break;
 						case AUX_FN:
 							lcd_gotoxy(0,0);
 							lcd_puts("AUX");
@@ -1834,6 +1844,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);
 								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);
 								eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, brakeFunction);
+								eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, brakeOffFunction);
 								eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, auxFunction);
 								eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, engineOnFunction);
 								eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, engineStopFunction);
