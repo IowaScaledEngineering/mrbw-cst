@@ -80,9 +80,6 @@ volatile uint8_t pktTimeout = 0;
 uint32_t baseVersion;
 char baseString[9];
 
-#define MRBUS_TX_BUFFER_DEPTH 4
-#define MRBUS_RX_BUFFER_DEPTH 4
-
 #define STATUS_READ_SWITCHES          0x01
 
 #define HORN_CONTROL      0x01
@@ -178,7 +175,8 @@ uint8_t configBits;
 #define CONFIGBITS_VARIABLE_BRAKE    3
 
 
-
+#define MRBUS_TX_BUFFER_DEPTH 16
+#define MRBUS_RX_BUFFER_DEPTH 8
 
 MRBusPacket mrbusTxPktBufferArray[MRBUS_TX_BUFFER_DEPTH];
 MRBusPacket mrbusRxPktBufferArray[MRBUS_RX_BUFFER_DEPTH];
