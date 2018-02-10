@@ -173,6 +173,7 @@ uint8_t configBits;
 #define CONFIGBITS_ESTOP_ON_BRAKE    1
 #define CONFIGBITS_REVERSER_SWAP     2
 #define CONFIGBITS_VARIABLE_BRAKE    3
+#define CONFIGBITS_REVERSER_LOCK     4
 
 
 #define MRBUS_TX_BUFFER_DEPTH 16
@@ -1068,9 +1069,10 @@ int main(void)
 		}
 		
 		// Calculate active reverser setting
-		if( (activeReverserSetting != reverserPosition_tmp) && (0 == throttlePosition) )
+		if(activeReverserSetting != reverserPosition_tmp)
 		{
-			// Only allow reverser to change when throttle is in idle
+			if( !(configBits & _BV(CONFIGBITS_REVERSER_LOCK)) || (0 == throttlePosition) )
+			// Only allow reverser to change when reverser lock disabled, or when throttle is in idle
 			activeReverserSetting = reverserPosition_tmp;
 		}
 		
@@ -2294,11 +2296,21 @@ int main(void)
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else
+					else if(9 == subscreenStatus)
 					{
 						lcd_puts("REV SWAP");
 						bitPosition = CONFIGBITS_REVERSER_SWAP;
 						prefsPtr = &configBits;
+					}
+					else if(10 == subscreenStatus)
+					{
+						lcd_puts("REV LOCK");
+						bitPosition = CONFIGBITS_REVERSER_LOCK;
+						prefsPtr = &configBits;
+					}
+					else
+					{
+						subscreenStatus = 1;
 					}
 
 					if(bitPosition < 8)
@@ -2409,8 +2421,6 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 9)
-									subscreenStatus = 1;
 								lcd_clrscr();
 							}
 							break;
