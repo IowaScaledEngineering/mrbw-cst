@@ -2001,13 +2001,17 @@ int main(void)
 						positionPtr = &brakePosition;
 						thresholdPtr = &brakeLowThreshold;
 					}
-					else
+					else if(4 == subscreenStatus)
 					{
 						lcd_puts("BRAKE");
 						lcd_gotoxy(0,1);
 						lcd_puts("HIGH");
 						positionPtr = &brakePosition;
 						thresholdPtr = &brakeHighThreshold;
+					}
+					else
+					{
+						subscreenStatus = 1;
 					}
 					lcd_gotoxy(7,0);
 					if(0xFF == *thresholdPtr)
@@ -2057,8 +2061,6 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 4)
-									subscreenStatus = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2103,41 +2105,37 @@ int main(void)
 					{
 						lcd_puts("THRTL ID");
 						addrPtr = &newDevAddr;
+						lcd_gotoxy(4,1);
+						lcd_putc('A' + (newDevAddr - MRBUS_DEV_ADDR_MIN));
 					}
 					else if(2 == subscreenStatus)
 					{
 						lcd_puts("BASE ADR");
 						addrPtr = &newBaseAddr;
+						lcd_gotoxy(3,1);
+						printDec2DigWZero(newBaseAddr - MRBUS_BASE_ADDR_MIN);
 					}
-					else
+					else if(3 == subscreenStatus)
 					{
 						lcd_puts("TIME ADR");
 						addrPtr = &newTimeAddr;
-					}
-					if( (addrPtr == &newTimeAddr) && (0xFF == *addrPtr) )
-					{
-						lcd_gotoxy(2,1);
-						lcd_puts(" ALL");
-					}
-					else
-					{
-						if(addrPtr == &newDevAddr)
+						if(0xFF == newTimeAddr)
 						{
-							lcd_gotoxy(4,1);
-							lcd_putc('A' + ((*addrPtr) - MRBUS_DEV_ADDR_MIN));
-						}
-						else if(addrPtr == &newBaseAddr)
-						{
-							lcd_gotoxy(3,1);
-							printDec2DigWZero((*addrPtr) - MRBUS_BASE_ADDR_MIN);
+							lcd_gotoxy(2,1);
+							lcd_puts(" ALL");
 						}
 						else
 						{
 							lcd_gotoxy(2,1);
 							lcd_puts("0x");
-							printHex(*addrPtr);
+							printHex(newTimeAddr);
 						}
 					}
+					else
+					{
+						subscreenStatus = 1;
+					}
+
 					switch(button)
 					{
 						case UP_BUTTON:
@@ -2193,8 +2191,6 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 3)
-									subscreenStatus = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2694,6 +2690,11 @@ int main(void)
 							while(1);  // Force a watchdog reset
 						}
 					}
+					else
+					{
+						subscreenStatus = 1;
+					}
+
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -2709,8 +2710,6 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenStatus++;
-								if(subscreenStatus > 11)
-									subscreenStatus = 1;
 								lcd_clrscr();
 								resetCounter = RESET_COUNTER_RESET_VALUE;
 							}
