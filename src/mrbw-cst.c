@@ -2807,6 +2807,8 @@ int main(void)
 			functionMask |= (uint32_t)1 << (auxFunction & 0x1F);
 		if((controls & BRAKE_CONTROL) && !(brakeFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (brakeFunction & 0x1F);
+		if((brakePosition < brakeLowThreshold) && !(brakeOffFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (brakeOffFunction & 0x1F);
 		if(((ENGINE_ON == engineState)||(ENGINE_START) == engineState) && !(engineOnFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (engineOnFunction & 0x1F);
 		if((ENGINE_STOP == engineState) && !(engineStopFunction & OFF_FUNCTION))
