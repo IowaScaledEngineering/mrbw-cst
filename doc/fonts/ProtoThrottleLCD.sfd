@@ -20,7 +20,7 @@ OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
 CreationTime: 1506095843
-ModificationTime: 1508989363
+ModificationTime: 1518669370
 PfmFamily: 17
 TTFWeight: 500
 TTFWidth: 5
@@ -109,7 +109,7 @@ FitToEm: 1
 WinInfo: 0 48 16
 BeginPrivate: 0
 EndPrivate
-BeginChars: 256 67
+BeginChars: 256 69
 
 StartChar: ydieresis
 Encoding: 255 255 0
@@ -6102,6 +6102,138 @@ SplineSet
  764 622 l 1
  764 493 l 1
  634 493 l 1
+EndSplineSet
+EndChar
+
+StartChar: bracketleft
+Encoding: 91 91 67
+Width: 801
+VWidth: 1834
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+209 210 m 1
+ 209 339 l 1
+ 338 339 l 1
+ 338 210 l 1
+ 209 210 l 1
+209 351 m 1
+ 209 480 l 1
+ 338 480 l 1
+ 338 351 l 1
+ 209 351 l 1
+209 493 m 1
+ 209 622 l 1
+ 338 622 l 1
+ 338 493 l 1
+ 209 493 l 1
+209 635 m 1
+ 209 764 l 1
+ 338 764 l 1
+ 338 635 l 1
+ 209 635 l 1
+209 777 m 1
+ 209 906 l 1
+ 338 906 l 1
+ 338 777 l 1
+ 209 777 l 1
+209 68 m 1
+ 209 196 l 1
+ 338 196 l 1
+ 338 68 l 1
+ 209 68 l 1
+351 68 m 1
+ 351 196 l 1
+ 479 196 l 1
+ 479 68 l 1
+ 351 68 l 1
+492 68 m 1
+ 492 196 l 1
+ 621 196 l 1
+ 621 68 l 1
+ 492 68 l 1
+209 919 m 1
+ 209 1048 l 1
+ 338 1048 l 1
+ 338 919 l 1
+ 209 919 l 1
+351 919 m 1
+ 351 1048 l 1
+ 479 1048 l 1
+ 479 919 l 1
+ 351 919 l 1
+492 919 m 1
+ 492 1048 l 1
+ 621 1048 l 1
+ 621 919 l 1
+ 492 919 l 1
+EndSplineSet
+EndChar
+
+StartChar: bracketright
+Encoding: 93 93 68
+Width: 801
+VWidth: 1834
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+492 210 m 1
+ 492 339 l 1
+ 621 339 l 1
+ 621 210 l 1
+ 492 210 l 1
+492 351 m 1
+ 492 480 l 1
+ 621 480 l 1
+ 621 351 l 1
+ 492 351 l 1
+492 493 m 1
+ 492 622 l 1
+ 621 622 l 1
+ 621 493 l 1
+ 492 493 l 1
+492 635 m 1
+ 492 764 l 1
+ 621 764 l 1
+ 621 635 l 1
+ 492 635 l 1
+492 777 m 1
+ 492 906 l 1
+ 621 906 l 1
+ 621 777 l 1
+ 492 777 l 1
+209 68 m 1
+ 209 196 l 1
+ 338 196 l 1
+ 338 68 l 1
+ 209 68 l 1
+351 68 m 1
+ 351 196 l 1
+ 479 196 l 1
+ 479 68 l 1
+ 351 68 l 1
+492 68 m 1
+ 492 196 l 1
+ 621 196 l 1
+ 621 68 l 1
+ 492 68 l 1
+209 919 m 1
+ 209 1048 l 1
+ 338 1048 l 1
+ 338 919 l 1
+ 209 919 l 1
+351 919 m 1
+ 351 1048 l 1
+ 479 1048 l 1
+ 479 919 l 1
+ 351 919 l 1
+492 919 m 1
+ 492 1048 l 1
+ 621 1048 l 1
+ 621 919 l 1
+ 492 919 l 1
 EndSplineSet
 EndChar
 EndChars
