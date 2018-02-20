@@ -70,6 +70,8 @@ LICENSE:
 #define MRBUS_BASE_ADDR_DEFAULT            0xD0
 #define MRBUS_BASE_ADDR_MAX                0xEF
 
+#define TIME_SOURCE_ADDRESS_DEFAULT        0x00
+
 #define RESET_COUNTER_RESET_VALUE   5
 uint8_t resetCounter;
 
@@ -464,7 +466,10 @@ void PktHandler(void)
 		sei();
 	}
 	else if ('T' == rxBuffer[MRBUS_PKT_TYPE] &&
-		((0xFF == timeSourceAddress) || (rxBuffer[MRBUS_PKT_SRC] == timeSourceAddress)) )
+				( (0xFF == timeSourceAddress) || 
+				  (rxBuffer[MRBUS_PKT_SRC] == timeSourceAddress) ||
+				  ((rxBuffer[MRBUS_PKT_SRC] == mrbus_base_addr) && (0 == timeSourceAddress)) )
+		)
 	{
 		// It's a time packet from our time reference source
 		processTimePacket(rxBuffer);
@@ -798,7 +803,7 @@ void resetConfig(void)
 
 	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, MRBUS_DEV_ADDR_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_BASE_ADDR, MRBUS_BASE_ADDR_DEFAULT);
-	eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, 0xFF);
+	eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, TIME_SOURCE_ADDRESS_DEFAULT);
 
 	// Skip the following, since these are specific to each physical device:
 	//    EE_HORN_THRESHOLD
@@ -2130,7 +2135,12 @@ int main(void)
 					{
 						lcd_puts("TIME ADR");
 						addrPtr = &newTimeAddr;
-						if(0xFF == newTimeAddr)
+						if(0x00 == newTimeAddr)
+						{
+							lcd_gotoxy(2,1);
+							lcd_puts("BASE");
+						}
+						else if(0xFF == newTimeAddr)
 						{
 							lcd_gotoxy(2,1);
 							lcd_puts(" ALL");
@@ -2159,18 +2169,14 @@ int main(void)
 									newDevAddr = MRBUS_DEV_ADDR_MAX;
 								if(newBaseAddr > MRBUS_BASE_ADDR_MAX)
 									newBaseAddr = MRBUS_BASE_ADDR_MAX;
-								if(0xFF == newBaseAddr)
-									newBaseAddr = 0xFE;
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(*addrPtr > 1)
+								if(*addrPtr > 0)
 									(*addrPtr)--;
-								else
-									(*addrPtr) = 1;
 								// Check bounds
 								if(newDevAddr < MRBUS_DEV_ADDR_MIN)
 									newDevAddr = MRBUS_DEV_ADDR_MIN;
