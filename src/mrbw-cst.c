@@ -2907,6 +2907,10 @@ int main(void)
 				!(mrbusPktQueueFull(&mrbeeTxQueue))
 			)
 		{
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				decisecs = 0;
+			}
 			inputsChanged = 0;
 			lastActiveReverserSetting = activeReverserSetting;
 			lastActiveThrottleSetting = activeThrottleSetting;
@@ -2955,10 +2959,6 @@ int main(void)
 
 			txBuffer[14] = getBatteryVoltage();	
 			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-			{
-				decisecs = 0;
-			}
 		}
 
 		// Transmission criteria: something in the buffer ...and... it's been more than the minimum holdoff
