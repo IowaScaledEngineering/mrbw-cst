@@ -55,7 +55,7 @@ LICENSE:
 
 #define CONFIGBITS_DEFAULT                 0xF3
 
-#define TX_HOLDOFF_MIN                     15
+#define TX_HOLDOFF_MIN                     10
 #define TX_HOLDOFF_DEFAULT                 15
 
 #define UPDATE_DECISECS_MIN                10
