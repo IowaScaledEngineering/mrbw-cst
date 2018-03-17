@@ -22,7 +22,7 @@
       <setting command="EE">0</setting>
       <setting command="KY"></setting>
       <setting command="NI">0x20</setting>
-      <setting command="PL">4</setting>
+      <setting command="PL">0</setting>
       <setting command="CA">2C</setting>
       <setting command="SM">1</setting>
       <setting command="ST">1388</setting>
