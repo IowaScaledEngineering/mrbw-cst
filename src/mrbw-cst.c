@@ -3023,6 +3023,11 @@ int main(void)
 			setXbeeActive();
 			enableLCD();
 			initLCD();
+			if(DIAG_SCREEN == screenState)
+			{
+				// Change LCD chars if in the DIAG screen
+				setupDiagChars();
+			}
 			initialize100HzTimer();
 			enableSwitches();
 			enableThrottle();
