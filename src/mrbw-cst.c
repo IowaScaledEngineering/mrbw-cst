@@ -1437,6 +1437,8 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
+								newLocoAddress = locoAddress;
+								decimalNumberIndex = 0;
 								if(newLocoAddress & LOCO_ADDRESS_SHORT)
 								{
 									decimalNumber[0] = 's' - '0';
