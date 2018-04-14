@@ -1413,6 +1413,8 @@ int main(void)
 				break;
 
 			case LOCO_SCREEN:
+				// A little explanation...  We store the information about a short address in the first digit (decimalNumber[0])
+				//    If 0-9, then it's a long address.  If >9, and more specifically, ('s'-'0'), the it's a short address
 				enableLCDBacklight();
 				if(!subscreenStatus)
 				{
@@ -1474,10 +1476,11 @@ int main(void)
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if( (0 == decimalNumberIndex) && (9 == decimalNumber[decimalNumberIndex]) )
-									decimalNumber[decimalNumberIndex] = 's' - '0';  // Long to Short
+								if( (0 == decimalNumberIndex) && (decimalNumber[decimalNumberIndex] > 9) )
+									decimalNumber[decimalNumberIndex] = 0;  // Short to Long
 								else if(decimalNumber[decimalNumberIndex] < 9)
 									decimalNumber[decimalNumberIndex]++;
+								
 								// Validate number
 								if(decimalNumber[0] > 9)
 								{
@@ -1489,17 +1492,28 @@ int main(void)
 										decimalNumber[3] = 7;
 									}
 								}
-								
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(decimalNumber[decimalNumberIndex] > 9)
-									decimalNumber[decimalNumberIndex] = 9;  // Short to Long
-								else if(decimalNumber[decimalNumberIndex] > 0)
+								if( (0 == decimalNumberIndex) && (0 == decimalNumber[decimalNumberIndex]) )
+									decimalNumber[decimalNumberIndex] = 's' - '0';  // Long to Short
+								else if( (decimalNumber[decimalNumberIndex] > 0) && (decimalNumber[decimalNumberIndex] <= 9))
 									decimalNumber[decimalNumberIndex]--;
+
+								// Validate number
+								if(decimalNumber[0] > 9)
+								{
+									// Short Address
+									if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) > 127)
+									{
+										decimalNumber[1] = 1;
+										decimalNumber[2] = 2;
+										decimalNumber[3] = 7;
+									}
+								}
 								ticks_autoincrement = 0;
 							}
 							break;
