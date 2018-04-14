@@ -122,10 +122,14 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 
 //        Total available = 4096 bytes
 
-#define MAX_CONFIGS 20
+#define MAX_CONFIGS      20
+
+// Put working (scratchspace) config at the end of EEPROM space
+#define WORKING_CONFIG   31
 
 #define CONFIG_START                  0x80
 #define CONFIG_SIZE                   0x80
+
 
 // These are offsets from CONFIG_START
 #define EE_LOCO_ADDRESS               (0x00 + configOffset)
@@ -247,6 +251,7 @@ typedef enum
 	ENGINE_SCREEN,
 	TONNAGE_SCREEN,
 	LOAD_CONFIG_SCREEN,
+	SAVE_CONFIG_SCREEN,
 	LOCO_SCREEN,
 	FUNC_FORCE_SCREEN,
 	FUNC_CONFIG_SCREEN,
@@ -708,10 +713,12 @@ void readConfig(void)
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
 
+	// The following code used to calculate the active EEPROM memory space, based on the currently selected config #.
+	// Now we only have one config that is used during operation (WORKING_CONFIG), so make sure this is what we use.
 	configOffset = eeprom_read_byte((uint8_t*)EE_CURRENT_CONFIG);  // Abuse configOffset to read the config number
-	if (configOffset < 1 || configOffset > MAX_CONFIGS)
+	if(configOffset != WORKING_CONFIG)
 	{
-		configOffset = 1;
+		configOffset = WORKING_CONFIG;
 		eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, configOffset);
 	}
 	configOffset = calculateConfigOffset(configOffset);
@@ -789,6 +796,22 @@ void readConfig(void)
 	}
 }
 
+void copyConfig(uint8_t srcConfig, uint8_t destConfig)
+{
+	uint8_t i;
+	uint16_t sourceAddr;
+	uint16_t destAddr;
+
+	sourceAddr = calculateConfigOffset(srcConfig);
+	destAddr = calculateConfigOffset(destConfig);
+
+	for(i=0; i<CONFIG_SIZE; i++)
+	{
+		uint8_t tmpEE = eeprom_read_byte((uint8_t*)(sourceAddr++));
+		eeprom_write_byte((uint8_t*)(destAddr++), tmpEE);
+	}
+}
+
 void resetConfig(void)
 {
 	uint8_t i;
@@ -815,7 +838,7 @@ void resetConfig(void)
 
 	eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
 
-	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, 0);
+	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, WORKING_CONFIG);
 	
 	for (i=1; i<=MAX_CONFIGS; i++)
 	{
@@ -852,6 +875,8 @@ void resetConfig(void)
 		notchSpeed[7] = 119;
 		eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
 	}
+
+	copyConfig(1, WORKING_CONFIG);  // Grab one of the configs for default
 	
 	wdt_reset();
 	
@@ -930,7 +955,7 @@ int main(void)
 	init();
 
 	// Assign after init() so values are read from EEPROM first
-	uint8_t newConfigNumber = calculateConfigNumber(configOffset);
+	uint8_t newConfigNumber = 1;
 	uint16_t newLocoAddress = locoAddress;
 	uint8_t newDevAddr = mrbus_dev_addr;
 	uint8_t newBaseAddr = mrbus_base_addr;
@@ -1341,16 +1366,21 @@ int main(void)
 				break;
 
 			case LOAD_CONFIG_SCREEN:
+			case SAVE_CONFIG_SCREEN:
 				enableLCDBacklight();
 				lcd_gotoxy(0,0);
-				lcd_puts("LOAD CNF");
+				if(LOAD_CONFIG_SCREEN == screenState)
+					lcd_puts("LOAD");
+				else
+					lcd_puts("SAVE");
+				lcd_puts(" CNF");
 				lcd_gotoxy(0,1);
 				printDec2DigWZero(newConfigNumber);
 				lcd_puts(": ");
 				{
 					uint16_t tmpConfigOffset = configOffset;  // Save configOffset
 					configOffset = calculateConfigOffset(newConfigNumber);
-					uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
+					uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);  // Read loco address of newConfigNumber
 					if(tmpLocoAddress & LOCO_ADDRESS_SHORT)
 					{
 						if((tmpLocoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
@@ -1387,12 +1417,26 @@ int main(void)
 					case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, newConfigNumber);
-								readConfig();
-								newConfigNumber = calculateConfigNumber(configOffset);
 								lcd_clrscr();
 								lcd_gotoxy(0,0);
-								lcd_puts("LOADING");
+								if(LOAD_CONFIG_SCREEN == screenState)
+									lcd_puts("LOADING");
+								else
+									lcd_puts("SAVING");
+
+								// Copy selected config into working config
+								if(LOAD_CONFIG_SCREEN == screenState)
+								{
+									copyConfig(newConfigNumber, WORKING_CONFIG);
+								}
+								else
+								{
+									copyConfig(WORKING_CONFIG, newConfigNumber);
+								}
+
+								// Refresh.  Needed for load, not for save
+								readConfig();
+
 								lcd_gotoxy(0,1);
 								for(i=0; i<8; i++)
 								{
@@ -1405,7 +1449,6 @@ int main(void)
 							}
 							break;
 					case MENU_BUTTON:
-						newConfigNumber = calculateConfigNumber(configOffset);  // Reset since leaving menu without saving
 						break;
 					case NO_BUTTON:
 						break;
