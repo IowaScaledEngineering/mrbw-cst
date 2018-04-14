@@ -1243,7 +1243,7 @@ int main(void)
 				switch(button)
 				{
 					case UP_BUTTON:
-						if(OFF_FUNCTION == engineStopFunction)
+						if(engineStopFunction & OFF_FUNCTION)
 						{
 							// Level based start/stop
 							engineState = ENGINE_ON;
@@ -1260,7 +1260,7 @@ int main(void)
 						}
 						break;
 					case DOWN_BUTTON:
-						if(OFF_FUNCTION == engineStopFunction)
+						if(engineStopFunction & OFF_FUNCTION)
 						{
 							// Level based start/stop
 							engineState = ENGINE_OFF;
