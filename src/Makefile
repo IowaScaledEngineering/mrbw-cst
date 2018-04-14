@@ -28,7 +28,8 @@
 BASE_NAME = mrbw-cst
 
 #PROGRAMMER_TYPE=avrispmkii
-PROGRAMMER_TYPE=usbtiny
+#PROGRAMMER_TYPE=usbtiny
+PROGRAMMER_TYPE=iseavrprog
 PROGRAMMER_PORT=usb
 
 MRBUS_LIB=./mrbus/src/
