@@ -117,12 +117,15 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_BRAKE_HIGH_THRESHOLD       0x23
 #define EE_BRAKE_PULSE_WIDTH          0x24
 
-#define MAX_CONFIGS 15
+// 20 configs * 128 bytes = 2560 bytes
+//  +128 bytes for global = 2688 bytes
+
+//        Total available = 4096 bytes
+
+#define MAX_CONFIGS 20
 
 #define CONFIG_START                  0x80
 #define CONFIG_SIZE                   0x80
-
-// 15 configs * 128 bytes = 1920 bytes
 
 // These are offsets from CONFIG_START
 #define EE_LOCO_ADDRESS               (0x00 + configOffset)
