@@ -1,6 +1,8 @@
 #ifndef _CST_COMMON_H_
 #define _CST_COMMON_H_
 
+#define LOCO_ADDRESS_SHORT 0x8000
+
 #define BATTERY_CHAR            0
 #define BELL_CHAR               1
 #define HORN_CHAR               2

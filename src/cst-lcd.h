@@ -26,6 +26,7 @@ extern const uint8_t Splash8A[8];
 extern const uint8_t Splash8B[8];
 
 void displaySplashScreen(void);
+void printLocomotiveAddress(uint16_t addr);
 void initLCD(void);
 
 #endif

@@ -296,6 +296,19 @@ void displaySplashScreen(void)
 	wait100ms(15);
 }
 
+void printLocomotiveAddress(uint16_t addr)
+{
+	if(addr & LOCO_ADDRESS_SHORT)
+	{
+		lcd_putc('s');
+		printDec3DigWZero(addr & ~(LOCO_ADDRESS_SHORT));
+	}
+	else
+	{
+		printDec4DigWZero(addr);
+	}
+}
+
 void initLCD(void)
 {
 	lcd_init(LCD_DISP_ON);

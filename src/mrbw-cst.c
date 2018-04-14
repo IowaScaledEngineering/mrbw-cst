@@ -190,7 +190,6 @@ uint8_t mrbus_base_addr = 0;
 
 uint8_t lastRSSI = 0xFF;
 
-#define LOCO_ADDRESS_SHORT 0x8000
 uint16_t locoAddress = 0;
 
 uint8_t hornFunction = 2;
@@ -883,19 +882,6 @@ void init(void)
 	initialize100HzTimer();
 
 	DDRB |= _BV(PB3);
-}
-
-void printLocomotiveAddress(uint16_t addr)
-{
-	if(addr & LOCO_ADDRESS_SHORT)
-	{
-		lcd_putc('s');
-		printDec3DigWZero(addr & ~(LOCO_ADDRESS_SHORT));
-	}
-	else
-	{
-		printDec4DigWZero(addr);
-	}
 }
 
 int main(void)
