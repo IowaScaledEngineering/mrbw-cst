@@ -154,6 +154,7 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_DOWN_BUTTON_FUNCTION       (0x11 + configOffset)
 #define EE_THR_UNLOCK_FUNCTION        (0x12 + configOffset)
 #define EE_BRAKE_OFF_FUNCTION         (0x13 + configOffset)
+#define EE_REV_SWAP_FUNCTION          (0x14 + configOffset)
 
 #define EE_FUNC_FORCE_ON              (0x18 + configOffset)
 //      EE_FUNC_FORCE_ON               0x19
@@ -210,6 +211,7 @@ uint8_t engineOnFunction = 8;
 uint8_t engineStopFunction = OFF_FUNCTION;
 uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
 uint8_t throttleUnlockFunction = 9;
+uint8_t reverserSwapFunction = OFF_FUNCTION;
 
 #define BRAKE_DEAD_ZONE 5
 
@@ -285,7 +287,8 @@ typedef enum
 	AUX_FN,
 	ENGINE_ON_FN,
 	ENGINE_OFF_FN,
-	NEUTRAL_FN,
+	THR_UNLOCK_FN,
+	REV_SWAP_FN,
 	FRONT_HEADLIGHT_FN,
 	FRONT_DITCH_FN,
 	FRONT_DIM1_FN,
@@ -763,6 +766,7 @@ void readConfig(void)
 	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
 	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
 	throttleUnlockFunction = eeprom_read_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION);
+	reverserSwapFunction = eeprom_read_byte((uint8_t*)EE_REV_SWAP_FUNCTION);
 	
 	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
 	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
@@ -862,7 +866,8 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, 5);
 		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, 6);
-		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, 9);
+		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, OFF_FUNCTION);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
 		notchSpeed[0] = 7;
@@ -1076,7 +1081,8 @@ int main(void)
 
 		// Swap reverser if configured to do so
 		ReverserPosition reverserPosition_tmp = reverserPosition;
-		if(configBits & _BV(CONFIGBITS_REVERSER_SWAP))
+		if( (configBits & _BV(CONFIGBITS_REVERSER_SWAP)) ||
+			((!(reverserSwapFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (reverserSwapFunction & 0x1F)))) )
 		{
 			switch(reverserPosition_tmp)
 			{
@@ -1800,10 +1806,15 @@ int main(void)
 							lcd_puts("ENG STOP");
 							functionPtr = &engineStopFunction;
 							break;
-						case NEUTRAL_FN:
+						case THR_UNLOCK_FN:
 							lcd_gotoxy(0,0);
 							lcd_puts("THR UNLK");
 							functionPtr = &throttleUnlockFunction;
+							break;
+						case REV_SWAP_FN:
+							lcd_gotoxy(0,0);
+							lcd_puts("REV SWAP");
+							functionPtr = &reverserSwapFunction;
 							break;
 						case FRONT_DIM1_FN:
 							lcd_gotoxy(0,0);
@@ -1939,6 +1950,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
 								eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, throttleUnlockFunction);
+								eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, reverserSwapFunction);
 								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
