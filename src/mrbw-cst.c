@@ -1367,54 +1367,81 @@ int main(void)
 
 			case LOAD_CONFIG_SCREEN:
 			case SAVE_CONFIG_SCREEN:
-				enableLCDBacklight();
-				lcd_gotoxy(0,0);
-				if(LOAD_CONFIG_SCREEN == screenState)
-					lcd_puts("LOAD");
-				else
-					lcd_puts("SAVE");
-				lcd_puts(" CNF");
-				lcd_gotoxy(0,1);
-				printDec2DigWZero(newConfigNumber);
-				lcd_puts(": ");
+				if(!subscreenStatus)
 				{
-					uint16_t tmpConfigOffset = configOffset;  // Save configOffset
-					configOffset = calculateConfigOffset(newConfigNumber);
-					uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);  // Read loco address of newConfigNumber
-					if(tmpLocoAddress & LOCO_ADDRESS_SHORT)
-					{
-						if((tmpLocoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
-						{
-							// Invalid Short Address, reset to a sane value
-							tmpLocoAddress = 127 | LOCO_ADDRESS_SHORT;
-						}
-					}
+					enableLCDBacklight();
+					lcd_gotoxy(0,0);
+					if(LOAD_CONFIG_SCREEN == screenState)
+						lcd_puts("LOAD");
 					else
+						lcd_puts("SAVE");
+					lcd_puts(" CNF");
+					lcd_gotoxy(0,1);
+					printDec2DigWZero(newConfigNumber);
+					lcd_puts(": ");
 					{
-						if(tmpLocoAddress > 9999)
+						uint16_t tmpConfigOffset = configOffset;  // Save configOffset
+						configOffset = calculateConfigOffset(newConfigNumber);
+						uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);  // Read loco address of newConfigNumber
+						if(tmpLocoAddress & LOCO_ADDRESS_SHORT)
 						{
-							// Invalid Long Address, reset to a sane value
-							tmpLocoAddress = 9999;
+							if((tmpLocoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
+							{
+								// Invalid Short Address, reset to a sane value
+								tmpLocoAddress = 127 | LOCO_ADDRESS_SHORT;
+							}
 						}
+						else
+						{
+							if(tmpLocoAddress > 9999)
+							{
+								// Invalid Long Address, reset to a sane value
+								tmpLocoAddress = 9999;
+							}
+						}
+						printLocomotiveAddress(tmpLocoAddress);
+						configOffset = tmpConfigOffset;  // Restore old configOffset value
 					}
-					printLocomotiveAddress(tmpLocoAddress);
-					configOffset = tmpConfigOffset;  // Restore old configOffset value
+					switch(button)
+					{
+						case UP_BUTTON:
+							if((UP_BUTTON != previousButton) && (newConfigNumber < MAX_CONFIGS))
+							{
+								newConfigNumber++;
+							}
+							break;
+						case DOWN_BUTTON:
+							if((DOWN_BUTTON != previousButton) && (newConfigNumber > 1))
+							{
+								newConfigNumber--;
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
 				}
-				switch(button)
+				else
 				{
-					case UP_BUTTON:
-						if((UP_BUTTON != previousButton) && (newConfigNumber < MAX_CONFIGS))
-						{
-							newConfigNumber++;
-						}
-						break;
-					case DOWN_BUTTON:
-						if((DOWN_BUTTON != previousButton) && (newConfigNumber > 1))
-						{
-							newConfigNumber--;
-						}
-						break;
-					case SELECT_BUTTON:
+					enableLCDBacklight();
+					lcd_gotoxy(0,0);
+					lcd_puts("CONFIRM");
+					lcd_gotoxy(0,1);
+					if(LOAD_CONFIG_SCREEN == screenState)
+						lcd_puts("LOAD? -");
+					else
+						lcd_puts("SAVE? -");
+					lcd_putc(0x7E);
+					switch(button)
+					{
+						case DOWN_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
 								lcd_clrscr();
@@ -1446,12 +1473,20 @@ int main(void)
 								}
 								wait100ms(3);
 								screenState = LAST_SCREEN;
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
 							}
 							break;
-					case MENU_BUTTON:
-						break;
-					case NO_BUTTON:
-						break;
+						case MENU_BUTTON:
+							screenState--;  // Back up one screen.  It will increment in the global MENU button handling code since we just pressed MENU
+							subscreenStatus = 0;  // Escape submenu
+							lcd_clrscr();
+							break;
+						case SELECT_BUTTON:
+						case UP_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
 				}
 				break;
 
@@ -2792,6 +2827,7 @@ int main(void)
 				break;
 
 			case LAST_SCREEN:
+			default:
 				// Clean up and reset
 				lcd_clrscr();
 				screenState = 0;
