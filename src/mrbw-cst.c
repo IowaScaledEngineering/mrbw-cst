@@ -844,7 +844,7 @@ void resetConfig(void)
 	{
 		wdt_reset();
 		configOffset = calculateConfigOffset(i);
-		eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003);
+		eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003 | LOCO_ADDRESS_SHORT);
 		eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, 2);
 		eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, 1);
 		eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, OFF_FUNCTION);
