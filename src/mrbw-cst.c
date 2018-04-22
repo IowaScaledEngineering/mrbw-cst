@@ -222,8 +222,6 @@ uint8_t brakeThreshold;
 uint8_t brakeLowThreshold;
 uint8_t brakeHighThreshold;
 
-#define BRAKE_TIMER_DECISECS      5
-volatile uint8_t brakeTimer = 0;
 volatile uint8_t brakeCounter;
 
 uint8_t notchSpeed[8];
@@ -639,9 +637,6 @@ ISR(TIMER0_COMPA_vect)
 		if (engineTimer)
 			engineTimer--;
 		
-		if(brakeTimer)
-			brakeTimer--;
-
 		brakeCounter++;
 		if(brakeCounter >= (4*brakePulseWidth))
 			brakeCounter = 0;
@@ -966,7 +961,6 @@ int main(void)
 	uint8_t subscreenStatus = 0;
 
 	BrakeStates brakeState = BRAKE_LOW_BEGIN;
-	BrakeStates lastBrakeState = brakeState;
 
 	uint8_t allowLatch;
 	
@@ -1090,8 +1084,7 @@ int main(void)
 			{
 				case BRAKE_LOW_BEGIN:
 					controls |= BRAKE_OFF_CONTROL;  // Pulse the "brake off" control
-					if(!brakeTimer)
-						brakeState = BRAKE_LOW_WAIT;
+					brakeState = BRAKE_LOW_WAIT;
 					break;
 				case BRAKE_LOW_WAIT:
 					controls &= ~(BRAKE_OFF_CONTROL);
@@ -1101,8 +1094,7 @@ int main(void)
 
 				case BRAKE_20PCNT_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					if(!brakeTimer)
-						brakeState = BRAKE_20PCNT_WAIT;
+					brakeState = BRAKE_20PCNT_WAIT;
 					break;
 				case BRAKE_20PCNT_WAIT:
 					controls &= ~(BRAKE_CONTROL);
@@ -1114,8 +1106,7 @@ int main(void)
 
 				case BRAKE_40PCNT_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					if(!brakeTimer)
-						brakeState = BRAKE_40PCNT_WAIT;
+					brakeState = BRAKE_40PCNT_WAIT;
 					break;
 				case BRAKE_40PCNT_WAIT:
 					controls &= ~(BRAKE_CONTROL);
@@ -1127,8 +1118,7 @@ int main(void)
 
 				case BRAKE_60PCNT_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					if(!brakeTimer)
-						brakeState = BRAKE_60PCNT_WAIT;
+					brakeState = BRAKE_60PCNT_WAIT;
 					break;
 				case BRAKE_60PCNT_WAIT:
 					controls &= ~(BRAKE_CONTROL);
@@ -1140,8 +1130,7 @@ int main(void)
 
 				case BRAKE_80PCNT_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					if(!brakeTimer)
-						brakeState = BRAKE_80PCNT_WAIT;
+					brakeState = BRAKE_80PCNT_WAIT;
 					break;
 				case BRAKE_80PCNT_WAIT:
 					controls &= ~(BRAKE_CONTROL);
@@ -1153,21 +1142,13 @@ int main(void)
 
 				case BRAKE_FULL_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					if(!brakeTimer)
-						brakeState = BRAKE_FULL_WAIT;
+					brakeState = BRAKE_FULL_WAIT;
 					break;
 				case BRAKE_FULL_WAIT:
 					controls &= ~(BRAKE_CONTROL);
 					if(brakePosition < brakeLowThreshold)
 						brakeState = BRAKE_LOW_BEGIN;
 					break;
-			}
-
-			if(lastBrakeState != brakeState)
-			{
-				// Load the timer on any state change
-				brakeTimer = BRAKE_TIMER_DECISECS;
-				lastBrakeState = brakeState;
 			}
 		}
 		else if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && !(configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
@@ -2785,16 +2766,50 @@ int main(void)
 						}
 						else
 						{
-							if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
-								lcd_putc(FUNCTION_INACTIVE_CHAR);
-							else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
-								lcd_putc(FUNCTION_ACTIVE_CHAR);
-							else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
-								lcd_putc('*');
-							else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
-								lcd_putc('!');  // Invalid condition
-							printDec2Dig((brakePcnt>99)?99:brakePcnt);
-							lcd_putc('%');
+							if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && (configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
+							{
+								switch(brakeState)
+								{
+									// These two states get "brake off" set by first making sure "brake on" is clear (TCS decoders don't like these changing at the same time)
+									case BRAKE_LOW_BEGIN:
+									case BRAKE_LOW_WAIT:
+										lcd_puts("OFF ");
+										break;
+									case BRAKE_20PCNT_BEGIN:
+									case BRAKE_20PCNT_WAIT:
+										lcd_puts("BRK1");
+										break;
+									case BRAKE_40PCNT_BEGIN:
+									case BRAKE_40PCNT_WAIT:
+										lcd_puts("BRK2");
+										break;
+									case BRAKE_60PCNT_BEGIN:
+									case BRAKE_60PCNT_WAIT:
+										lcd_puts("BRK3");
+										break;
+									case BRAKE_80PCNT_BEGIN:
+									case BRAKE_80PCNT_WAIT:
+										lcd_puts("BRK4");
+										break;
+									case BRAKE_FULL_BEGIN:
+									case BRAKE_FULL_WAIT:
+										lcd_puts("BRK5");
+										break;
+								}
+							}
+							else
+							{
+								if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+									lcd_putc(FUNCTION_INACTIVE_CHAR);
+								else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+									lcd_putc(FUNCTION_ACTIVE_CHAR);
+								else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+									lcd_putc('*');
+								else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+									lcd_putc('!');  // Invalid condition
+								printDec2Dig((brakePcnt>99)?99:brakePcnt);
+								lcd_putc('%');
+							}
 						}
 						
 						lcd_gotoxy(7,0);
