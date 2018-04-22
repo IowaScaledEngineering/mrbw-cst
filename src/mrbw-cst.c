@@ -88,6 +88,7 @@ char baseString[9];
 #define BELL_CONTROL      0x02
 #define AUX_CONTROL       0x04
 #define BRAKE_CONTROL     0x08
+#define BRAKE_OFF_CONTROL 0x10
 
 #define OFF_FUNCTION      0x80
 #define LATCH_FUNCTION    0x40
@@ -1061,20 +1062,45 @@ int main(void)
 		{
 			// Variable brake
 			if( brakePcnt > (((brakeCounter / brakePulseWidth)+1)*20) )
-				controls |= BRAKE_CONTROL;
+			{
+				if(controls & BRAKE_OFF_CONTROL)
+					controls &= ~(BRAKE_OFF_CONTROL);  // Make sure "brake off" gets cleared before "brake on" is set (TCS decoders don't like these changing at the same time)
+				else
+					controls |= BRAKE_CONTROL;
+			}
 			else
-				controls &= ~(BRAKE_CONTROL);
+			{
+				if(controls & BRAKE_CONTROL)
+					controls &= ~(BRAKE_CONTROL);  // Make sure "brake on" gets cleared before "brake off" is set (TCS decoders don't like these changing at the same time)
+				else
+					controls |= BRAKE_OFF_CONTROL;
+			}
 		}
 		else
 		{
 			// On/off brake
-			if(brakePosition <= (brakeThreshold - BRAKE_HYSTERESIS))
+			if(brakePosition < brakeLowThreshold)
 			{
-				controls &= ~(BRAKE_CONTROL);
+				// Set "brake off" when the handle is fully disengaged
+				if(controls & BRAKE_CONTROL)
+					controls &= ~(BRAKE_CONTROL);  // Make sure "brake on" gets cleared before "brake off" is set (TCS decoders don't like these changing at the same time)
+				else
+					controls |= BRAKE_OFF_CONTROL;
 			}
-			else if(brakePosition >= brakeThreshold)
+			else if(brakePosition <= (controls & BRAKE_CONTROL?(brakeThreshold - BRAKE_HYSTERESIS):(brakeThreshold)))
 			{
-				controls |= BRAKE_CONTROL;
+				// Disable both "brake on" and "brake off" when between thresholds
+				// The other one will always be off, so no state checking, just clear them both
+				controls &= ~(BRAKE_CONTROL);
+				controls &= ~(BRAKE_OFF_CONTROL);
+			}
+			else
+			{
+				// Set "brake on" when above the threshold
+				if(controls & BRAKE_OFF_CONTROL)
+					controls &= ~(BRAKE_OFF_CONTROL);  // Make sure "brake off" gets cleared before "brake on" is set (TCS decoders don't like these changing at the same time)
+				else
+					controls |= BRAKE_CONTROL;
 			}
 		}		
 
@@ -2585,7 +2611,14 @@ int main(void)
 						}
 						else
 						{
-							lcd_putc((controls & BRAKE_CONTROL) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+							if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+								lcd_putc(FUNCTION_INACTIVE_CHAR);
+							else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+								lcd_putc(FUNCTION_ACTIVE_CHAR);
+							else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+								lcd_putc('*');
+							else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+								lcd_putc('!');  // Invalid condition
 							printDec2Dig((brakePcnt>99)?99:brakePcnt);
 							lcd_putc('%');
 						}
@@ -2906,7 +2939,7 @@ int main(void)
 			functionMask |= (uint32_t)1 << (auxFunction & 0x1F);
 		if((controls & BRAKE_CONTROL) && !(brakeFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (brakeFunction & 0x1F);
-		if((brakePosition < brakeLowThreshold) && !(brakeOffFunction & OFF_FUNCTION))
+		if((controls & BRAKE_OFF_CONTROL) && !(brakeOffFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (brakeOffFunction & 0x1F);
 		if(((ENGINE_ON == engineState)||(ENGINE_START) == engineState) && !(engineOnFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (engineOnFunction & 0x1F);
