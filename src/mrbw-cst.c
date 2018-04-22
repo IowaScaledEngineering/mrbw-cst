@@ -281,6 +281,22 @@ uint8_t buttonCount = 0;
 
 typedef enum
 {
+	BRAKE_LOW_BEGIN,
+	BRAKE_LOW_WAIT,
+	BRAKE_20PCNT_BEGIN,
+	BRAKE_20PCNT_WAIT,
+	BRAKE_40PCNT_BEGIN,
+	BRAKE_40PCNT_WAIT,
+	BRAKE_60PCNT_BEGIN,
+	BRAKE_60PCNT_WAIT,
+	BRAKE_80PCNT_BEGIN,
+	BRAKE_80PCNT_WAIT,
+	BRAKE_FULL_BEGIN,
+	BRAKE_FULL_WAIT,
+} BrakeStates;
+
+typedef enum
+{
 	HORN_FN = 0,
 	BELL_FN,
 	BRAKE_FN,
@@ -943,6 +959,8 @@ int main(void)
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
 	uint8_t subscreenStatus = 0;
 
+	BrakeStates brakeState = BRAKE_LOW_BEGIN;
+
 	uint8_t allowLatch;
 	
 	uint8_t decimalNumberIndex = 0;
@@ -1044,7 +1062,7 @@ int main(void)
 		else
 			brakePcnt = 100 * (brakePosition - brakeLowThreshold) / (brakeHighThreshold - brakeLowThreshold);
 
-		// Handle emergency on brake control
+		// Handle emergency on brake control.  Do this outside the main brake state machine so the effect is immediate
 		if(configBits & _BV(CONFIGBITS_ESTOP_ON_BRAKE))
 		{
 			if(brakePosition < brakeLowThreshold)
@@ -1058,6 +1076,35 @@ int main(void)
 		}
 		
 		// Handle brake
+/*		switch(brakeState)*/
+/*		{*/
+/*			case BRAKE_LOW_BEGIN:*/
+/*				break;*/
+/*			case BRAKE_LOW_WAIT:*/
+/*				break;*/
+/*			case BRAKE_20PCNT_BEGIN:*/
+/*				break;*/
+/*			case BRAKE_20PCNT_WAIT:*/
+/*				break;*/
+/*			case BRAKE_40PCNT_BEGIN:*/
+/*				break;*/
+/*			case BRAKE_40PCNT_WAIT:*/
+/*				break;*/
+/*			case BRAKE_60PCNT_BEGIN:*/
+/*				break;*/
+/*			case BRAKE_60PCNT_WAIT:*/
+/*				break;*/
+/*			case BRAKE_80PCNT_BEGIN:*/
+/*				break;*/
+/*			case BRAKE_80PCNT_WAIT:*/
+/*				break;*/
+/*			case BRAKE_FULL_BEGIN:*/
+/*				break;*/
+/*			case BRAKE_FULL_WAIT:*/
+/*				break;*/
+/*		}*/
+
+
 		if(configBits & _BV(CONFIGBITS_VARIABLE_BRAKE))
 		{
 			// Variable brake
@@ -1078,29 +1125,48 @@ int main(void)
 		}
 		else
 		{
-			// On/off brake
-			if(brakePosition < brakeLowThreshold)
+			switch(brakeState)
 			{
-				// Set "brake off" when the handle is fully disengaged
-				if(controls & BRAKE_CONTROL)
-					controls &= ~(BRAKE_CONTROL);  // Make sure "brake on" gets cleared before "brake off" is set (TCS decoders don't like these changing at the same time)
-				else
+				// This state machine handles the basic on/off brake.  The "brake off" control is set when the handle is fully left.  The
+				// "brake on" control is set when the handle is above the defined brake threshold.  Transitions always go through a middle
+				// state where both controls are cleared.  This is because TCS decoders don't like these functions changing at the same
+				// time in the same packet - one of the transitions is ignored.  The middle state forces the active function off before
+				// turning on the other function.
+				case BRAKE_LOW_BEGIN:
+				case BRAKE_LOW_WAIT:
+					// Set "brake off" when below the low threshold
 					controls |= BRAKE_OFF_CONTROL;
-			}
-			else if(brakePosition <= (controls & BRAKE_CONTROL?(brakeThreshold - BRAKE_HYSTERESIS):(brakeThreshold)))
-			{
-				// Disable both "brake on" and "brake off" when between thresholds
-				// The other one will always be off, so no state checking, just clear them both
-				controls &= ~(BRAKE_CONTROL);
-				controls &= ~(BRAKE_OFF_CONTROL);
-			}
-			else
-			{
-				// Set "brake on" when above the threshold
-				if(controls & BRAKE_OFF_CONTROL)
-					controls &= ~(BRAKE_OFF_CONTROL);  // Make sure "brake off" gets cleared before "brake on" is set (TCS decoders don't like these changing at the same time)
-				else
+					// Escape logic:
+					//    Go to the middle state if above the brakeLowThreshold
+					if(brakePosition >= brakeLowThreshold)
+						brakeState = BRAKE_20PCNT_BEGIN;
+					break;
+				case BRAKE_20PCNT_BEGIN:
+				case BRAKE_20PCNT_WAIT:
+				case BRAKE_40PCNT_BEGIN:
+				case BRAKE_40PCNT_WAIT:
+				case BRAKE_60PCNT_BEGIN:
+				case BRAKE_60PCNT_WAIT:
+				case BRAKE_80PCNT_BEGIN:
+				case BRAKE_80PCNT_WAIT:
+					// Disable both "brake on" and "brake off" when between thresholds
+					controls &= ~(BRAKE_CONTROL);
+					controls &= ~(BRAKE_OFF_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePosition >= brakeThreshold)
+						brakeState = BRAKE_FULL_BEGIN;
+					break;
+				case BRAKE_FULL_BEGIN:
+				case BRAKE_FULL_WAIT:
+					// Set "brake on" when above the brake threshold
 					controls |= BRAKE_CONTROL;
+					// Escape logic:
+					//    Limit (brakeThreshold - BRAKE_HYSTERESIS) to non-negative values.  Compare the brake setting to the higher of
+					//    the limited (brakeThreshold - BRAKE_HYSTERESIS) or brakeLowThreshold.  If below, go to the middle state.
+					if(brakePosition < max( ((brakeThreshold > BRAKE_HYSTERESIS)?(brakeThreshold - BRAKE_HYSTERESIS):0), brakeLowThreshold ) )
+						brakeState = BRAKE_20PCNT_BEGIN;
+					break;
 			}
 		}		
 
