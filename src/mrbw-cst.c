@@ -1089,7 +1089,7 @@ int main(void)
 			switch(brakeState)
 			{
 				case BRAKE_LOW_BEGIN:
-					controls |= BRAKE_OFF_CONTROL;
+					controls |= BRAKE_OFF_CONTROL;  // Pulse the "brake off" control
 					if(!brakeTimer)
 						brakeState = BRAKE_LOW_WAIT;
 					break;
@@ -1100,7 +1100,7 @@ int main(void)
 					break;
 
 				case BRAKE_20PCNT_BEGIN:
-					controls |= BRAKE_CONTROL;
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
 					if(!brakeTimer)
 						brakeState = BRAKE_20PCNT_WAIT;
 					break;
@@ -1113,7 +1113,7 @@ int main(void)
 					break;
 
 				case BRAKE_40PCNT_BEGIN:
-					controls |= BRAKE_CONTROL;
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
 					if(!brakeTimer)
 						brakeState = BRAKE_40PCNT_WAIT;
 					break;
@@ -1126,7 +1126,7 @@ int main(void)
 					break;
 
 				case BRAKE_60PCNT_BEGIN:
-					controls |= BRAKE_CONTROL;
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
 					if(!brakeTimer)
 						brakeState = BRAKE_60PCNT_WAIT;
 					break;
@@ -1139,7 +1139,7 @@ int main(void)
 					break;
 
 				case BRAKE_80PCNT_BEGIN:
-					controls |= BRAKE_CONTROL;
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
 					if(!brakeTimer)
 						brakeState = BRAKE_80PCNT_WAIT;
 					break;
@@ -1152,7 +1152,7 @@ int main(void)
 					break;
 
 				case BRAKE_FULL_BEGIN:
-					controls |= BRAKE_CONTROL;
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
 					if(!brakeTimer)
 						brakeState = BRAKE_FULL_WAIT;
 					break;
