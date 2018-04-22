@@ -1107,31 +1107,57 @@ int main(void)
 
 		if(configBits & _BV(CONFIGBITS_VARIABLE_BRAKE))
 		{
-			// Variable brake
-			if( brakePcnt > (((brakeCounter / brakePulseWidth)+1)*20) )
+			// This state machine handles the variable (PWM) brake.
+			switch(brakeState)
 			{
-				if(controls & BRAKE_OFF_CONTROL)
-					controls &= ~(BRAKE_OFF_CONTROL);  // Make sure "brake off" gets cleared before "brake on" is set (TCS decoders don't like these changing at the same time)
-				else
-					controls |= BRAKE_CONTROL;
-			}
-			else
-			{
-				if(controls & BRAKE_CONTROL)
-					controls &= ~(BRAKE_CONTROL);  // Make sure "brake on" gets cleared before "brake off" is set (TCS decoders don't like these changing at the same time)
-				else
+				// These two states get "brake off" set by first making sure "brake on" is clear (TCS decoders don't like these changing at the same time)
+				case BRAKE_LOW_BEGIN:
+					controls &= ~(BRAKE_CONTROL);
+					brakeState = BRAKE_LOW_WAIT;
+					break;
+				case BRAKE_LOW_WAIT:
 					controls |= BRAKE_OFF_CONTROL;
+					brakeState = BRAKE_20PCNT_BEGIN;
+					break;
+
+				// These states represent the PWM "brake off" period
+				case BRAKE_20PCNT_BEGIN:
+				case BRAKE_20PCNT_WAIT:
+				case BRAKE_40PCNT_BEGIN:
+				case BRAKE_40PCNT_WAIT:
+					if( brakePcnt >= (((brakeCounter / brakePulseWidth)+1)*20) )
+						brakeState = BRAKE_FULL_BEGIN;
+					break;
+
+				// These states represent the PWM "brake on" period
+				case BRAKE_60PCNT_BEGIN:
+				case BRAKE_60PCNT_WAIT:
+				case BRAKE_80PCNT_BEGIN:
+				case BRAKE_80PCNT_WAIT:
+					if( brakePcnt < (((brakeCounter / brakePulseWidth)+1)*20) )
+						brakeState = BRAKE_LOW_BEGIN;
+					break;
+
+				// These two states get "brake on" set by first making sure "brake off" is clear (TCS decoders don't like these changing at the same time)
+				case BRAKE_FULL_BEGIN:
+					controls &= ~(BRAKE_OFF_CONTROL);
+					brakeState = BRAKE_FULL_WAIT;
+					break;
+				case BRAKE_FULL_WAIT:
+					controls |= BRAKE_CONTROL;
+					brakeState = BRAKE_60PCNT_BEGIN;
+					break;
 			}
 		}
 		else
 		{
+			// This state machine handles the basic on/off brake.  The "brake off" control is set when the handle is fully left.  The
+			// "brake on" control is set when the handle is above the defined brake threshold.  Transitions always go through a middle
+			// state where both controls are cleared.  This is because TCS decoders don't like these functions changing at the same
+			// time in the same packet - one of the transitions is ignored.  The middle state forces the active function off before
+			// turning on the other function.
 			switch(brakeState)
 			{
-				// This state machine handles the basic on/off brake.  The "brake off" control is set when the handle is fully left.  The
-				// "brake on" control is set when the handle is above the defined brake threshold.  Transitions always go through a middle
-				// state where both controls are cleared.  This is because TCS decoders don't like these functions changing at the same
-				// time in the same packet - one of the transitions is ignored.  The middle state forces the active function off before
-				// turning on the other function.
 				case BRAKE_LOW_BEGIN:
 				case BRAKE_LOW_WAIT:
 					// Set "brake off" when below the low threshold
