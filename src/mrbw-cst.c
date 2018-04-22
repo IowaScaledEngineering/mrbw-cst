@@ -53,8 +53,6 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_DEFAULT       5
 #define SLEEP_TMR_RESET_VALUE_MAX          99
 
-#define CONFIGBITS_DEFAULT                 0xF3
-
 #define TX_HOLDOFF_MIN                     10
 #define TX_HOLDOFF_DEFAULT                 15
 
@@ -186,6 +184,9 @@ uint8_t configBits;
 #define CONFIGBITS_REVERSER_SWAP     2
 #define CONFIGBITS_VARIABLE_BRAKE    3
 #define CONFIGBITS_REVERSER_LOCK     4
+#define CONFIGBITS_STEPPED_BRAKE     5
+
+#define CONFIGBITS_DEFAULT                 (_BV(CONFIGBITS_LED_BLINK) | _BV(CONFIGBITS_ESTOP_ON_BRAKE) | _BV(CONFIGBITS_REVERSER_LOCK))
 
 
 #define MRBUS_TX_BUFFER_DEPTH 16
@@ -221,6 +222,8 @@ uint8_t brakeThreshold;
 uint8_t brakeLowThreshold;
 uint8_t brakeHighThreshold;
 
+#define BRAKE_TIMER_DECISECS      5
+volatile uint8_t brakeTimer = 0;
 volatile uint8_t brakeCounter;
 
 uint8_t notchSpeed[8];
@@ -340,7 +343,7 @@ typedef enum
 } EngineState;
 
 #define ENGINE_TIMER_DECISECS      50
-uint8_t engineTimer = 0;
+volatile uint8_t engineTimer = 0;
 
 inline uint16_t calculateConfigOffset(uint8_t cfgNum)
 {
@@ -636,10 +639,13 @@ ISR(TIMER0_COMPA_vect)
 		if (engineTimer)
 			engineTimer--;
 		
+		if(brakeTimer)
+			brakeTimer--;
+
 		brakeCounter++;
 		if(brakeCounter >= (4*brakePulseWidth))
 			brakeCounter = 0;
-
+		
 		updateTime10Hz();
 	}
 
@@ -960,6 +966,7 @@ int main(void)
 	uint8_t subscreenStatus = 0;
 
 	BrakeStates brakeState = BRAKE_LOW_BEGIN;
+	BrakeStates lastBrakeState = brakeState;
 
 	uint8_t allowLatch;
 	
@@ -1076,36 +1083,94 @@ int main(void)
 		}
 		
 		// Handle brake
-/*		switch(brakeState)*/
-/*		{*/
-/*			case BRAKE_LOW_BEGIN:*/
-/*				break;*/
-/*			case BRAKE_LOW_WAIT:*/
-/*				break;*/
-/*			case BRAKE_20PCNT_BEGIN:*/
-/*				break;*/
-/*			case BRAKE_20PCNT_WAIT:*/
-/*				break;*/
-/*			case BRAKE_40PCNT_BEGIN:*/
-/*				break;*/
-/*			case BRAKE_40PCNT_WAIT:*/
-/*				break;*/
-/*			case BRAKE_60PCNT_BEGIN:*/
-/*				break;*/
-/*			case BRAKE_60PCNT_WAIT:*/
-/*				break;*/
-/*			case BRAKE_80PCNT_BEGIN:*/
-/*				break;*/
-/*			case BRAKE_80PCNT_WAIT:*/
-/*				break;*/
-/*			case BRAKE_FULL_BEGIN:*/
-/*				break;*/
-/*			case BRAKE_FULL_WAIT:*/
-/*				break;*/
-/*		}*/
+		if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && (configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
+		{
+			// This state machine handles the variable (stepped) brake.
+			switch(brakeState)
+			{
+				case BRAKE_LOW_BEGIN:
+					controls |= BRAKE_OFF_CONTROL;
+					if(!brakeTimer)
+						brakeState = BRAKE_LOW_WAIT;
+					break;
+				case BRAKE_LOW_WAIT:
+					controls &= ~(BRAKE_OFF_CONTROL);
+					if(brakePcnt >= 20)
+						brakeState = BRAKE_20PCNT_BEGIN;
+					break;
 
+				case BRAKE_20PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;
+					if(!brakeTimer)
+						brakeState = BRAKE_20PCNT_WAIT;
+					break;
+				case BRAKE_20PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePcnt >= 40)
+						brakeState = BRAKE_40PCNT_BEGIN;
+					break;
 
-		if(configBits & _BV(CONFIGBITS_VARIABLE_BRAKE))
+				case BRAKE_40PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;
+					if(!brakeTimer)
+						brakeState = BRAKE_40PCNT_WAIT;
+					break;
+				case BRAKE_40PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePcnt >= 60)
+						brakeState = BRAKE_60PCNT_BEGIN;
+					break;
+
+				case BRAKE_60PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;
+					if(!brakeTimer)
+						brakeState = BRAKE_60PCNT_WAIT;
+					break;
+				case BRAKE_60PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePcnt >= 80)
+						brakeState = BRAKE_80PCNT_BEGIN;
+					break;
+
+				case BRAKE_80PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;
+					if(!brakeTimer)
+						brakeState = BRAKE_80PCNT_WAIT;
+					break;
+				case BRAKE_80PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePosition > brakeHighThreshold)
+						brakeState = BRAKE_FULL_BEGIN;
+					break;
+
+				case BRAKE_FULL_BEGIN:
+					controls |= BRAKE_CONTROL;
+					if(!brakeTimer)
+						brakeState = BRAKE_FULL_WAIT;
+					break;
+				case BRAKE_FULL_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					break;
+			}
+
+			if(lastBrakeState != brakeState)
+			{
+				// Load the timer on any state change
+				brakeTimer = BRAKE_TIMER_DECISECS;
+				lastBrakeState = brakeState;
+			}
+		}
+		else if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && !(configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
 		{
 			// This state machine handles the variable (PWM) brake.
 			switch(brakeState)
@@ -2504,31 +2569,37 @@ int main(void)
 					}
 					else if(6 == subscreenStatus)
 					{
+						lcd_puts("BRK TYPE");
+						bitPosition = CONFIGBITS_STEPPED_BRAKE;
+						prefsPtr = &configBits;
+					}
+					else if(7 == subscreenStatus)
+					{
 						lcd_puts("BRK PWM");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
 						bitPosition = 8;
 						prefsPtr = &brakePulseWidth;
 					}
-					else if(7 == subscreenStatus)
+					else if(8 == subscreenStatus)
 					{
 						lcd_puts("BRK ESTP");
 						bitPosition = CONFIGBITS_ESTOP_ON_BRAKE;
 						prefsPtr = &configBits;
 					}
-					else if(8 == subscreenStatus)
+					else if(9 == subscreenStatus)
 					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(9 == subscreenStatus)
+					else if(10 == subscreenStatus)
 					{
 						lcd_puts("REV SWAP");
 						bitPosition = CONFIGBITS_REVERSER_SWAP;
 						prefsPtr = &configBits;
 					}
-					else if(10 == subscreenStatus)
+					else if(11 == subscreenStatus)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
@@ -2542,10 +2613,21 @@ int main(void)
 					if(bitPosition < 8)
 					{
 						lcd_gotoxy(4,1);
-						if(*prefsPtr & _BV(bitPosition))
-							lcd_puts(" ON ");
+						if(CONFIGBITS_STEPPED_BRAKE == bitPosition)
+						{
+							// Special case for brake type
+							if(*prefsPtr & _BV(bitPosition))
+								lcd_puts("STEP");
+							else
+								lcd_puts(" PWM");
+						}
 						else
-							lcd_puts(" OFF");
+						{
+							if(*prefsPtr & _BV(bitPosition))
+								lcd_puts(" ON ");
+							else
+								lcd_puts(" OFF");
+						}
 					}
 					else if(prefsPtr == &txHoldoff_centisecs)
 					{
