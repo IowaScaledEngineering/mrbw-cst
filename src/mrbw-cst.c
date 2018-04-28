@@ -53,8 +53,6 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_DEFAULT       5
 #define SLEEP_TMR_RESET_VALUE_MAX          99
 
-#define CONFIGBITS_DEFAULT                 0xF3
-
 #define TX_HOLDOFF_MIN                     10
 #define TX_HOLDOFF_DEFAULT                 15
 
@@ -186,6 +184,9 @@ uint8_t configBits;
 #define CONFIGBITS_REVERSER_SWAP     2
 #define CONFIGBITS_VARIABLE_BRAKE    3
 #define CONFIGBITS_REVERSER_LOCK     4
+#define CONFIGBITS_STEPPED_BRAKE     5
+
+#define CONFIGBITS_DEFAULT                 (_BV(CONFIGBITS_LED_BLINK) | _BV(CONFIGBITS_ESTOP_ON_BRAKE) | _BV(CONFIGBITS_REVERSER_LOCK))
 
 
 #define MRBUS_TX_BUFFER_DEPTH 16
@@ -281,6 +282,22 @@ uint8_t buttonCount = 0;
 
 typedef enum
 {
+	BRAKE_LOW_BEGIN,
+	BRAKE_LOW_WAIT,
+	BRAKE_20PCNT_BEGIN,
+	BRAKE_20PCNT_WAIT,
+	BRAKE_40PCNT_BEGIN,
+	BRAKE_40PCNT_WAIT,
+	BRAKE_60PCNT_BEGIN,
+	BRAKE_60PCNT_WAIT,
+	BRAKE_80PCNT_BEGIN,
+	BRAKE_80PCNT_WAIT,
+	BRAKE_FULL_BEGIN,
+	BRAKE_FULL_WAIT,
+} BrakeStates;
+
+typedef enum
+{
 	HORN_FN = 0,
 	BELL_FN,
 	BRAKE_FN,
@@ -324,7 +341,7 @@ typedef enum
 } EngineState;
 
 #define ENGINE_TIMER_DECISECS      50
-uint8_t engineTimer = 0;
+volatile uint8_t engineTimer = 0;
 
 inline uint16_t calculateConfigOffset(uint8_t cfgNum)
 {
@@ -623,7 +640,7 @@ ISR(TIMER0_COMPA_vect)
 		brakeCounter++;
 		if(brakeCounter >= (4*brakePulseWidth))
 			brakeCounter = 0;
-
+		
 		updateTime10Hz();
 	}
 
@@ -943,6 +960,8 @@ int main(void)
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
 	uint8_t subscreenStatus = 0;
 
+	BrakeStates brakeState = BRAKE_LOW_BEGIN;
+
 	uint8_t allowLatch;
 	
 	uint8_t decimalNumberIndex = 0;
@@ -1044,7 +1063,7 @@ int main(void)
 		else
 			brakePcnt = 100 * (brakePosition - brakeLowThreshold) / (brakeHighThreshold - brakeLowThreshold);
 
-		// Handle emergency on brake control
+		// Handle emergency on brake control.  Do this outside the main brake state machine so the effect is immediate
 		if(configBits & _BV(CONFIGBITS_ESTOP_ON_BRAKE))
 		{
 			if(brakePosition < brakeLowThreshold)
@@ -1058,49 +1077,168 @@ int main(void)
 		}
 		
 		// Handle brake
-		if(configBits & _BV(CONFIGBITS_VARIABLE_BRAKE))
+		if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && (configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
 		{
-			// Variable brake
-			if( brakePcnt > (((brakeCounter / brakePulseWidth)+1)*20) )
+			// This state machine handles the variable (stepped) brake.
+			switch(brakeState)
 			{
-				if(controls & BRAKE_OFF_CONTROL)
-					controls &= ~(BRAKE_OFF_CONTROL);  // Make sure "brake off" gets cleared before "brake on" is set (TCS decoders don't like these changing at the same time)
-				else
-					controls |= BRAKE_CONTROL;
+				case BRAKE_LOW_BEGIN:
+					controls |= BRAKE_OFF_CONTROL;  // Pulse the "brake off" control
+					brakeState = BRAKE_LOW_WAIT;
+					break;
+				case BRAKE_LOW_WAIT:
+					controls &= ~(BRAKE_OFF_CONTROL);
+					if(brakePcnt >= 20)
+						brakeState = BRAKE_20PCNT_BEGIN;
+					break;
+
+				case BRAKE_20PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
+					brakeState = BRAKE_20PCNT_WAIT;
+					break;
+				case BRAKE_20PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePcnt >= 40)
+						brakeState = BRAKE_40PCNT_BEGIN;
+					break;
+
+				case BRAKE_40PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
+					brakeState = BRAKE_40PCNT_WAIT;
+					break;
+				case BRAKE_40PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePcnt >= 60)
+						brakeState = BRAKE_60PCNT_BEGIN;
+					break;
+
+				case BRAKE_60PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
+					brakeState = BRAKE_60PCNT_WAIT;
+					break;
+				case BRAKE_60PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePcnt >= 80)
+						brakeState = BRAKE_80PCNT_BEGIN;
+					break;
+
+				case BRAKE_80PCNT_BEGIN:
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
+					brakeState = BRAKE_80PCNT_WAIT;
+					break;
+				case BRAKE_80PCNT_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePosition > brakeHighThreshold)
+						brakeState = BRAKE_FULL_BEGIN;
+					break;
+
+				case BRAKE_FULL_BEGIN:
+					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
+					brakeState = BRAKE_FULL_WAIT;
+					break;
+				case BRAKE_FULL_WAIT:
+					controls &= ~(BRAKE_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					break;
 			}
-			else
+		}
+		else if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && !(configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
+		{
+			// This state machine handles the variable (PWM) brake.
+			switch(brakeState)
 			{
-				if(controls & BRAKE_CONTROL)
-					controls &= ~(BRAKE_CONTROL);  // Make sure "brake on" gets cleared before "brake off" is set (TCS decoders don't like these changing at the same time)
-				else
+				// These two states get "brake off" set by first making sure "brake on" is clear (TCS decoders don't like these changing at the same time)
+				case BRAKE_LOW_BEGIN:
+					controls &= ~(BRAKE_CONTROL);
+					brakeState = BRAKE_LOW_WAIT;
+					break;
+				case BRAKE_LOW_WAIT:
 					controls |= BRAKE_OFF_CONTROL;
+					brakeState = BRAKE_20PCNT_BEGIN;
+					break;
+
+				// These states represent the PWM "brake off" period
+				case BRAKE_20PCNT_BEGIN:
+				case BRAKE_20PCNT_WAIT:
+				case BRAKE_40PCNT_BEGIN:
+				case BRAKE_40PCNT_WAIT:
+					if( brakePcnt >= (((brakeCounter / brakePulseWidth)+1)*20) )
+						brakeState = BRAKE_FULL_BEGIN;
+					break;
+
+				// These states represent the PWM "brake on" period
+				case BRAKE_60PCNT_BEGIN:
+				case BRAKE_60PCNT_WAIT:
+				case BRAKE_80PCNT_BEGIN:
+				case BRAKE_80PCNT_WAIT:
+					if( brakePcnt < (((brakeCounter / brakePulseWidth)+1)*20) )
+						brakeState = BRAKE_LOW_BEGIN;
+					break;
+
+				// These two states get "brake on" set by first making sure "brake off" is clear (TCS decoders don't like these changing at the same time)
+				case BRAKE_FULL_BEGIN:
+					controls &= ~(BRAKE_OFF_CONTROL);
+					brakeState = BRAKE_FULL_WAIT;
+					break;
+				case BRAKE_FULL_WAIT:
+					controls |= BRAKE_CONTROL;
+					brakeState = BRAKE_60PCNT_BEGIN;
+					break;
 			}
 		}
 		else
 		{
-			// On/off brake
-			if(brakePosition < brakeLowThreshold)
+			// This state machine handles the basic on/off brake.  The "brake off" control is set when the handle is fully left.  The
+			// "brake on" control is set when the handle is above the defined brake threshold.  Transitions always go through a middle
+			// state where both controls are cleared.  This is because TCS decoders don't like these functions changing at the same
+			// time in the same packet - one of the transitions is ignored.  The middle state forces the active function off before
+			// turning on the other function.
+			switch(brakeState)
 			{
-				// Set "brake off" when the handle is fully disengaged
-				if(controls & BRAKE_CONTROL)
-					controls &= ~(BRAKE_CONTROL);  // Make sure "brake on" gets cleared before "brake off" is set (TCS decoders don't like these changing at the same time)
-				else
+				case BRAKE_LOW_BEGIN:
+				case BRAKE_LOW_WAIT:
+					// Set "brake off" when below the low threshold
 					controls |= BRAKE_OFF_CONTROL;
-			}
-			else if(brakePosition <= (controls & BRAKE_CONTROL?(brakeThreshold - BRAKE_HYSTERESIS):(brakeThreshold)))
-			{
-				// Disable both "brake on" and "brake off" when between thresholds
-				// The other one will always be off, so no state checking, just clear them both
-				controls &= ~(BRAKE_CONTROL);
-				controls &= ~(BRAKE_OFF_CONTROL);
-			}
-			else
-			{
-				// Set "brake on" when above the threshold
-				if(controls & BRAKE_OFF_CONTROL)
-					controls &= ~(BRAKE_OFF_CONTROL);  // Make sure "brake off" gets cleared before "brake on" is set (TCS decoders don't like these changing at the same time)
-				else
+					// Escape logic:
+					//    Go to the middle state if above the brakeLowThreshold
+					if(brakePosition >= brakeLowThreshold)
+						brakeState = BRAKE_20PCNT_BEGIN;
+					break;
+				case BRAKE_20PCNT_BEGIN:
+				case BRAKE_20PCNT_WAIT:
+				case BRAKE_40PCNT_BEGIN:
+				case BRAKE_40PCNT_WAIT:
+				case BRAKE_60PCNT_BEGIN:
+				case BRAKE_60PCNT_WAIT:
+				case BRAKE_80PCNT_BEGIN:
+				case BRAKE_80PCNT_WAIT:
+					// Disable both "brake on" and "brake off" when between thresholds
+					controls &= ~(BRAKE_CONTROL);
+					controls &= ~(BRAKE_OFF_CONTROL);
+					if(brakePosition < brakeLowThreshold)
+						brakeState = BRAKE_LOW_BEGIN;
+					else if(brakePosition >= brakeThreshold)
+						brakeState = BRAKE_FULL_BEGIN;
+					break;
+				case BRAKE_FULL_BEGIN:
+				case BRAKE_FULL_WAIT:
+					// Set "brake on" when above the brake threshold
 					controls |= BRAKE_CONTROL;
+					// Escape logic:
+					//    Limit (brakeThreshold - BRAKE_HYSTERESIS) to non-negative values.  Compare the brake setting to the higher of
+					//    the limited (brakeThreshold - BRAKE_HYSTERESIS) or brakeLowThreshold.  If below, go to the middle state.
+					if(brakePosition < max( ((brakeThreshold > BRAKE_HYSTERESIS)?(brakeThreshold - BRAKE_HYSTERESIS):0), brakeLowThreshold ) )
+						brakeState = BRAKE_20PCNT_BEGIN;
+					break;
 			}
 		}		
 
@@ -2412,31 +2550,37 @@ int main(void)
 					}
 					else if(6 == subscreenStatus)
 					{
+						lcd_puts("BRK TYPE");
+						bitPosition = CONFIGBITS_STEPPED_BRAKE;
+						prefsPtr = &configBits;
+					}
+					else if(7 == subscreenStatus)
+					{
 						lcd_puts("BRK PWM");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
 						bitPosition = 8;
 						prefsPtr = &brakePulseWidth;
 					}
-					else if(7 == subscreenStatus)
+					else if(8 == subscreenStatus)
 					{
 						lcd_puts("BRK ESTP");
 						bitPosition = CONFIGBITS_ESTOP_ON_BRAKE;
 						prefsPtr = &configBits;
 					}
-					else if(8 == subscreenStatus)
+					else if(9 == subscreenStatus)
 					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(9 == subscreenStatus)
+					else if(10 == subscreenStatus)
 					{
 						lcd_puts("REV SWAP");
 						bitPosition = CONFIGBITS_REVERSER_SWAP;
 						prefsPtr = &configBits;
 					}
-					else if(10 == subscreenStatus)
+					else if(11 == subscreenStatus)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
@@ -2450,10 +2594,21 @@ int main(void)
 					if(bitPosition < 8)
 					{
 						lcd_gotoxy(4,1);
-						if(*prefsPtr & _BV(bitPosition))
-							lcd_puts(" ON ");
+						if(CONFIGBITS_STEPPED_BRAKE == bitPosition)
+						{
+							// Special case for brake type
+							if(*prefsPtr & _BV(bitPosition))
+								lcd_puts("STEP");
+							else
+								lcd_puts(" PWM");
+						}
 						else
-							lcd_puts(" OFF");
+						{
+							if(*prefsPtr & _BV(bitPosition))
+								lcd_puts(" ON ");
+							else
+								lcd_puts(" OFF");
+						}
 					}
 					else if(prefsPtr == &txHoldoff_centisecs)
 					{
@@ -2611,16 +2766,50 @@ int main(void)
 						}
 						else
 						{
-							if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
-								lcd_putc(FUNCTION_INACTIVE_CHAR);
-							else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
-								lcd_putc(FUNCTION_ACTIVE_CHAR);
-							else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
-								lcd_putc('*');
-							else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
-								lcd_putc('!');  // Invalid condition
-							printDec2Dig((brakePcnt>99)?99:brakePcnt);
-							lcd_putc('%');
+							if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && (configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
+							{
+								switch(brakeState)
+								{
+									// These two states get "brake off" set by first making sure "brake on" is clear (TCS decoders don't like these changing at the same time)
+									case BRAKE_LOW_BEGIN:
+									case BRAKE_LOW_WAIT:
+										lcd_puts("OFF ");
+										break;
+									case BRAKE_20PCNT_BEGIN:
+									case BRAKE_20PCNT_WAIT:
+										lcd_puts("BRK1");
+										break;
+									case BRAKE_40PCNT_BEGIN:
+									case BRAKE_40PCNT_WAIT:
+										lcd_puts("BRK2");
+										break;
+									case BRAKE_60PCNT_BEGIN:
+									case BRAKE_60PCNT_WAIT:
+										lcd_puts("BRK3");
+										break;
+									case BRAKE_80PCNT_BEGIN:
+									case BRAKE_80PCNT_WAIT:
+										lcd_puts("BRK4");
+										break;
+									case BRAKE_FULL_BEGIN:
+									case BRAKE_FULL_WAIT:
+										lcd_puts("BRK5");
+										break;
+								}
+							}
+							else
+							{
+								if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+									lcd_putc(FUNCTION_INACTIVE_CHAR);
+								else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+									lcd_putc(FUNCTION_ACTIVE_CHAR);
+								else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+									lcd_putc('*');
+								else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+									lcd_putc('!');  // Invalid condition
+								printDec2Dig((brakePcnt>99)?99:brakePcnt);
+								lcd_putc('%');
+							}
 						}
 						
 						lcd_gotoxy(7,0);
