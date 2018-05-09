@@ -1,0 +1,61 @@
+# PcbXY Version 1.0
+# Date: Tue 08 May 2018 09:00:03 PM GMT UTC
+# Author: Michael Petersen
+# Title: (unknown) - PCB X-Y
+# RefDes, Description, Value, X, Y, rotation, top/bottom
+# X,Y in mil.  rotation in degrees.
+# --------------------------------------------
+U2,"TQFP44","unknown",1610.00,2655.00,90,top
+H4,"STANDOFF_HEX_n4","unknown",2475.00,1125.00,0,top
+H3,"STANDOFF_HEX_n4","unknown",275.00,1125.00,0,top
+H2,"STANDOFF_HEX_n4","unknown",2475.00,4870.00,0,top
+H1,"STANDOFF_HEX_n4","unknown",275.00,4870.00,0,top
+R7,"RPACK4-1206","100k",1375.00,4370.00,90,top
+P3,"TC33_trimmer","10k",2362.17,4435.00,0,top
+P1,"BOURNS_PTV09","100k",2165.00,2051.97,90,bottom
+SW2,"CK_PVA1","unknown",2370.00,2500.00,270,bottom
+SW3,"CK_PVA1","unknown",2150.00,5220.00,270,bottom
+MP1,"SOT26","unknown",345.00,2656.00,90,top
+R3,"0805","100k",400.00,2485.00,0,top
+R1,"0805","499k",795.00,2505.00,0,top
+C3,"0805","10uF",795.00,2305.00,180,top
+C2,"0805","33pF",795.00,2405.00,180,top
+R2,"0805","287k",650.00,2435.00,270,top
+U1,"LTC_DDB8","unknown",785.00,2645.00,90,top
+C1,"0805","10uF",650.00,2645.00,270,top
+L1,"MSS6132","4.7uH",740.00,2885.00,0,top
+MN1,"SOT23_MOS","unknown",330.00,4387.33,0,top
+R4,"0805","20",330.00,4600.00,90,top
+C8,"0805","22pF",1900.00,2010.00,180,top
+C9,"0805","22pF",1720.00,2010.00,0,top
+C4,"0805","0.1uF",1290.00,2390.00,270,top
+C5,"0805","0.1uF",1660.00,3165.00,180,top
+C6,"0805","0.1uF",1590.00,3075.00,0,top
+C10,"0805","1uF",700.00,4675.00,180,top
+C11,"0805","8.2pF",700.00,4775.00,180,top
+SW5,"25LB10-Q-SOCKETED","unknown",935.00,1271.25,0,bottom
+J2,"JUMPER3x2-SMT","unknown",1750.00,1270.00,90,top
+C7,"0805","1uF",1430.00,1220.00,0,top
+R5,"0805","10k",1430.00,1320.00,0,top
+SW4,"25LB10-Q-SOCKETED","unknown",1375.00,4038.75,0,bottom
+J1,"KEYSTONE_2462","unknown",306.00,2655.00,270,top
+R6,"RPACK4-1206","100k",1215.00,1400.00,90,top
+R11,"RPACK2-0606","1k",1375.00,4975.00,90,top
+JP1,"JUMPER4-SMT","unknown",2130.00,4230.00,0,top
+Y1,"crystal-4-smd","11.0592MHz",1740.00,2160.00,270,top
+D1,"0805","unknown",970.00,5390.00,0,top
+D2,"0805","unknown",1780.00,5390.00,180,top
+H5,"SOLDERED_HOLE_250MIL","unknown",2165.00,1630.00,270,top
+XU3,"XBEE-SMT","unknown",1375.00,4800.00,0,top
+U5,"SOT26","unknown",1085.00,4166.00,90,top
+U4,"SOT26","unknown",2386.00,3010.00,0,top
+U6,"SOT26","unknown",684.00,1415.00,180,top
+J3,"MOLEX-43045-02xx","unknown",1375.00,337.67,0,top
+TP1,"JUMPER1","unknown",1150.00,2950.00,0,bottom
+C12,"0805","DNI",855.86,395.00,0,top
+R10,"RPACK4-1206","100k",1375.00,650.00,270,top
+C13,"0805","DNI",1894.14,395.04,180,top
+SW7,"KC14","unknown",2076.42,352.98,180,bottom
+SW6,"KC14","unknown",726.42,352.98,180,bottom
+P2,"BOURNS_PTV09","100k",1121.97,5230.00,180,bottom
+X1,"MRBW-CST-LCD","unknown",1375.00,4235.00,0,bottom
