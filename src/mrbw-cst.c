@@ -166,14 +166,14 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 //      EE_FUNC_FORCE_OFF              0x1E
 //      EE_FUNC_FORCE_OFF              0x1F
 
-#define EE_NOTCH_SPEED                (0x20 + configOffset)
-//      EE_NOTCH_SPEED                 0x21
-//      EE_NOTCH_SPEED                 0x22
-//      EE_NOTCH_SPEED                 0x23
-//      EE_NOTCH_SPEED                 0x24
-//      EE_NOTCH_SPEED                 0x25
-//      EE_NOTCH_SPEED                 0x26
-//      EE_NOTCH_SPEED                 0x27
+#define EE_NOTCH_SPEEDSTEP                (0x20 + configOffset)
+//      EE_NOTCH_SPEEDSTEP                 0x21
+//      EE_NOTCH_SPEEDSTEP                 0x22
+//      EE_NOTCH_SPEEDSTEP                 0x23
+//      EE_NOTCH_SPEEDSTEP                 0x24
+//      EE_NOTCH_SPEEDSTEP                 0x25
+//      EE_NOTCH_SPEEDSTEP                 0x26
+//      EE_NOTCH_SPEEDSTEP                 0x27
 
 uint16_t configOffset;
 
@@ -229,7 +229,7 @@ uint8_t brakeHighThreshold;
 
 volatile uint8_t brakeCounter;
 
-uint8_t notchSpeed[8];
+uint8_t notchSpeedStep[8];
 
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
@@ -817,13 +817,13 @@ void readConfig(void)
 	}
 
 	// Notches
-	eeprom_read_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+	eeprom_read_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
 	for(i=0; i<8; i++)
 	{
-		if(notchSpeed[i] > 126)
-			notchSpeed[i] = 126;
-		if(notchSpeed[i] < 1)
-			notchSpeed[i] = 1;
+		if(notchSpeedStep[i] > 126)
+			notchSpeedStep[i] = 126;
+		if(notchSpeedStep[i] < 1)
+			notchSpeedStep[i] = 1;
 	}
 }
 
@@ -897,15 +897,15 @@ void resetConfig(void)
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
 		eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
 		eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
-		notchSpeed[0] = 7;
-		notchSpeed[1] = 23;
-		notchSpeed[2] = 39;
-		notchSpeed[3] = 55;
-		notchSpeed[4] = 71;
-		notchSpeed[5] = 87;
-		notchSpeed[6] = 103;
-		notchSpeed[7] = 119;
-		eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+		notchSpeedStep[0] = 7;
+		notchSpeedStep[1] = 23;
+		notchSpeedStep[2] = 39;
+		notchSpeedStep[3] = 55;
+		notchSpeedStep[4] = 71;
+		notchSpeedStep[5] = 87;
+		notchSpeedStep[6] = 103;
+		notchSpeedStep[7] = 119;
+		eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
 	}
 
 	copyConfig(1, WORKING_CONFIG);  // Grab one of the configs for default
@@ -2183,33 +2183,33 @@ int main(void)
 					uint8_t notch = subscreenStatus;
 					lcd_putc('0' + notch);
 					lcd_gotoxy(0,1);
-					printDec4Dig(notchSpeed[notch-1]);
+					printDec4Dig(notchSpeedStep[notch-1]);
 					switch(button)
 					{
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(notchSpeed[notch-1] < 126)
-									notchSpeed[notch-1]++;
+								if(notchSpeedStep[notch-1] < 126)
+									notchSpeedStep[notch-1]++;
 								else
-									notchSpeed[notch-1] = 126;
+									notchSpeedStep[notch-1] = 126;
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(notchSpeed[notch-1] > 1)
-									notchSpeed[notch-1]--;
+								if(notchSpeedStep[notch-1] > 1)
+									notchSpeedStep[notch-1]--;
 								else
-									notchSpeed[notch-1] = 1;
+									notchSpeedStep[notch-1] = 1;
 								ticks_autoincrement = 0;
 							}
 							break;
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+								eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
 								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
@@ -3368,7 +3368,7 @@ int main(void)
 			else if(0 == activeThrottleSetting)
 				txBuffer[8] = 0;
 			else
-				txBuffer[8] = notchSpeed[activeThrottleSetting-1] + 1;
+				txBuffer[8] = notchSpeedStep[activeThrottleSetting-1] + 1;
 			
 			switch(activeReverserSetting)
 			{
