@@ -240,3 +240,8 @@ uint16_t getTimeScaleFactor(void)
 	return timeScaleFactor;
 }
 
+void clearDeadReckoningTime(void)
+{
+	deadReckoningTime = 0;
+}
+

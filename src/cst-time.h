@@ -31,6 +31,7 @@ void updateTime(void);
 uint8_t setMaxDeadReckoningTime(uint8_t t);
 uint8_t getMaxDeadReckoningTime(void);
 uint16_t getTimeScaleFactor(void);
+void clearDeadReckoningTime(void);
 
 #endif
 

@@ -41,6 +41,9 @@ LICENSE:
 #include "cst-time.h"
 
 //#define FAST_SLEEP
+#ifdef FAST_SLEEP
+#warning "Fast Sleep Enabled!"
+#endif
 
 #define max(a,b)  ((a)>(b)?(a):(b))
 
@@ -705,9 +708,9 @@ void readConfig(void)
 
 	// Fast clock
 	uint8_t maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_DEAD_RECKONING_TIME);
-	uint8_t newMaxDeadReckoningTime_seconds = setMaxDeadReckoningTime(maxDeadReckoningTime);
-	if(newMaxDeadReckoningTime_seconds != maxDeadReckoningTime)
-		eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime_seconds);
+	uint8_t newMaxDeadReckoningTime = setMaxDeadReckoningTime(maxDeadReckoningTime);
+	if(newMaxDeadReckoningTime != maxDeadReckoningTime)
+		eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime);
 
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 
@@ -933,6 +936,8 @@ void init(void)
 
 	pktTimeout = 0;  // Assume no base unit until we hear from one
 	lastRSSI = 0xFF;
+
+	clearDeadReckoningTime();
 	
 	readConfig();
 
@@ -3475,6 +3480,7 @@ int main(void)
 			processButtons(inputButtons);
 			processSwitches(inputButtons);
 			previousButton = button;  // Prevent extraneous menu advances
+			clearDeadReckoningTime();
 
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
