@@ -1344,7 +1344,8 @@ int main(void)
 				printTime();
 				printBattery();
 				
-				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+//				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+				if(0)
 				{
 					printTonnage();
 				}
