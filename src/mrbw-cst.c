@@ -114,7 +114,6 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_BRAKE_THRESHOLD            0x21
 #define EE_BRAKE_LOW_THRESHOLD        0x22
 #define EE_BRAKE_HIGH_THRESHOLD       0x23
-#define EE_BRAKE_PULSE_WIDTH          0x24
 
 // 20 configs * 128 bytes = 2560 bytes
 //  +128 bytes for global = 2688 bytes
@@ -155,6 +154,9 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_BRAKE_OFF_FUNCTION         (0x13 + configOffset)
 #define EE_REV_SWAP_FUNCTION          (0x14 + configOffset)
 
+#define EE_BRAKE_PULSE_WIDTH          (0x16 + configOffset)
+#define EE_OPTIONBITS                 (0x17 + configOffset)
+
 #define EE_FUNC_FORCE_ON              (0x18 + configOffset)
 //      EE_FUNC_FORCE_ON               0x19
 //      EE_FUNC_FORCE_ON               0x1A
@@ -164,29 +166,32 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 //      EE_FUNC_FORCE_OFF              0x1E
 //      EE_FUNC_FORCE_OFF              0x1F
 
-#define EE_NOTCH_SPEED                (0x20 + configOffset)
-//      EE_NOTCH_SPEED                 0x21
-//      EE_NOTCH_SPEED                 0x22
-//      EE_NOTCH_SPEED                 0x23
-//      EE_NOTCH_SPEED                 0x24
-//      EE_NOTCH_SPEED                 0x25
-//      EE_NOTCH_SPEED                 0x26
-//      EE_NOTCH_SPEED                 0x27
+#define EE_NOTCH_SPEEDSTEP                (0x20 + configOffset)
+//      EE_NOTCH_SPEEDSTEP                 0x21
+//      EE_NOTCH_SPEEDSTEP                 0x22
+//      EE_NOTCH_SPEEDSTEP                 0x23
+//      EE_NOTCH_SPEEDSTEP                 0x24
+//      EE_NOTCH_SPEEDSTEP                 0x25
+//      EE_NOTCH_SPEEDSTEP                 0x26
+//      EE_NOTCH_SPEEDSTEP                 0x27
 
 uint16_t configOffset;
 
 
 // Misc boolean config bits
-uint8_t configBits;
-
 #define CONFIGBITS_LED_BLINK         0
-#define CONFIGBITS_ESTOP_ON_BRAKE    1
-#define CONFIGBITS_REVERSER_SWAP     2
-#define CONFIGBITS_VARIABLE_BRAKE    3
 #define CONFIGBITS_REVERSER_LOCK     4
-#define CONFIGBITS_STEPPED_BRAKE     5
 
-#define CONFIGBITS_DEFAULT                 (_BV(CONFIGBITS_LED_BLINK) | _BV(CONFIGBITS_ESTOP_ON_BRAKE) | _BV(CONFIGBITS_REVERSER_LOCK))
+#define CONFIGBITS_DEFAULT                 (_BV(CONFIGBITS_LED_BLINK) | _BV(CONFIGBITS_REVERSER_LOCK))
+uint8_t configBits = CONFIGBITS_DEFAULT;
+
+#define OPTIONBITS_ESTOP_ON_BRAKE    0
+#define OPTIONBITS_REVERSER_SWAP     1
+#define OPTIONBITS_VARIABLE_BRAKE    2
+#define OPTIONBITS_STEPPED_BRAKE     3
+
+#define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE))
+uint8_t optionBits = OPTIONBITS_DEFAULT;
 
 
 #define MRBUS_TX_BUFFER_DEPTH 16
@@ -224,7 +229,7 @@ uint8_t brakeHighThreshold;
 
 volatile uint8_t brakeCounter;
 
-uint8_t notchSpeed[8];
+uint8_t notchSpeedStep[8];
 
 volatile uint16_t button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
@@ -260,6 +265,7 @@ typedef enum
 	FUNC_FORCE_SCREEN,
 	FUNC_CONFIG_SCREEN,
 	NOTCH_CONFIG_SCREEN,
+	OPTION_SCREEN,
 	THRESHOLD_CAL_SCREEN,
 	COMM_SCREEN,
 	PREFS_SCREEN,
@@ -795,6 +801,9 @@ void readConfig(void)
 	brakeLowThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_LOW_THRESHOLD);
 	brakeHighThreshold = eeprom_read_byte((uint8_t*)EE_BRAKE_HIGH_THRESHOLD);
 	
+	// Options
+	optionBits = eeprom_read_byte((uint8_t*)EE_OPTIONBITS);
+
 	brakePulseWidth = eeprom_read_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH);
 	if(brakePulseWidth < BRAKE_PULSE_WIDTH_MIN)
 	{
@@ -808,13 +817,13 @@ void readConfig(void)
 	}
 
 	// Notches
-	eeprom_read_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+	eeprom_read_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
 	for(i=0; i<8; i++)
 	{
-		if(notchSpeed[i] > 126)
-			notchSpeed[i] = 126;
-		if(notchSpeed[i] < 1)
-			notchSpeed[i] = 1;
+		if(notchSpeedStep[i] > 126)
+			notchSpeedStep[i] = 126;
+		if(notchSpeedStep[i] < 1)
+			notchSpeedStep[i] = 1;
 	}
 }
 
@@ -858,8 +867,6 @@ void resetConfig(void)
 	//    EE_BRAKE_LOW_THRESHOLD
 	//    EE_BRAKE_HIGH_THRESHOLD
 
-	eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
-
 	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, WORKING_CONFIG);
 	
 	for (i=1; i<=MAX_CONFIGS; i++)
@@ -888,15 +895,17 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, OFF_FUNCTION);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
 		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
-		notchSpeed[0] = 7;
-		notchSpeed[1] = 23;
-		notchSpeed[2] = 39;
-		notchSpeed[3] = 55;
-		notchSpeed[4] = 71;
-		notchSpeed[5] = 87;
-		notchSpeed[6] = 103;
-		notchSpeed[7] = 119;
-		eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+		eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
+		eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
+		notchSpeedStep[0] = 7;
+		notchSpeedStep[1] = 23;
+		notchSpeedStep[2] = 39;
+		notchSpeedStep[3] = 55;
+		notchSpeedStep[4] = 71;
+		notchSpeedStep[5] = 87;
+		notchSpeedStep[6] = 103;
+		notchSpeedStep[7] = 119;
+		eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
 	}
 
 	copyConfig(1, WORKING_CONFIG);  // Grab one of the configs for default
@@ -991,6 +1000,7 @@ int main(void)
 
 	uint8_t *addrPtr = &newDevAddr;
 	uint8_t *prefsPtr = &newSleepTimeout;
+	uint8_t *optionsPtr = &optionBits;
 	
 	setXbeeActive();
 
@@ -1064,7 +1074,7 @@ int main(void)
 			brakePcnt = 100 * (brakePosition - brakeLowThreshold) / (brakeHighThreshold - brakeLowThreshold);
 
 		// Handle emergency on brake control.  Do this outside the main brake state machine so the effect is immediate
-		if(configBits & _BV(CONFIGBITS_ESTOP_ON_BRAKE))
+		if(optionBits & _BV(OPTIONBITS_ESTOP_ON_BRAKE))
 		{
 			if(brakePosition < brakeLowThreshold)
 				throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
@@ -1077,7 +1087,7 @@ int main(void)
 		}
 		
 		// Handle brake
-		if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && (configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
+		if( (optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE)) && (optionBits & _BV(OPTIONBITS_STEPPED_BRAKE)) )
 		{
 			// This state machine handles the variable (stepped) brake.
 			switch(brakeState)
@@ -1151,7 +1161,7 @@ int main(void)
 					break;
 			}
 		}
-		else if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && !(configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
+		else if( (optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE)) && !(optionBits & _BV(OPTIONBITS_STEPPED_BRAKE)) )
 		{
 			// This state machine handles the variable (PWM) brake.
 			switch(brakeState)
@@ -1245,7 +1255,7 @@ int main(void)
 
 		// Swap reverser if configured to do so
 		ReverserPosition reverserPosition_tmp = reverserPosition;
-		if( (configBits & _BV(CONFIGBITS_REVERSER_SWAP)) ||
+		if( (optionBits & _BV(OPTIONBITS_REVERSER_SWAP)) ||
 			((!(reverserSwapFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (reverserSwapFunction & 0x1F)))) )
 		{
 			switch(reverserPosition_tmp)
@@ -2173,33 +2183,33 @@ int main(void)
 					uint8_t notch = subscreenStatus;
 					lcd_putc('0' + notch);
 					lcd_gotoxy(0,1);
-					printDec4Dig(notchSpeed[notch-1]);
+					printDec4Dig(notchSpeedStep[notch-1]);
 					switch(button)
 					{
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(notchSpeed[notch-1] < 126)
-									notchSpeed[notch-1]++;
+								if(notchSpeedStep[notch-1] < 126)
+									notchSpeedStep[notch-1]++;
 								else
-									notchSpeed[notch-1] = 126;
+									notchSpeedStep[notch-1] = 126;
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								if(notchSpeed[notch-1] > 1)
-									notchSpeed[notch-1]--;
+								if(notchSpeedStep[notch-1] > 1)
+									notchSpeedStep[notch-1]--;
 								else
-									notchSpeed[notch-1] = 1;
+									notchSpeedStep[notch-1] = 1;
 								ticks_autoincrement = 0;
 							}
 							break;
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								eeprom_write_block((void *)notchSpeed, (void *)EE_NOTCH_SPEED, 8);
+								eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
 								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
@@ -2216,6 +2226,170 @@ int main(void)
 								subscreenStatus++;
 								if(subscreenStatus > 8)
 									subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case NO_BUTTON:
+							break;
+					}
+				}
+				break;
+
+			case OPTION_SCREEN:
+				enableLCDBacklight();
+				if(!subscreenStatus)
+				{
+					lcd_gotoxy(1,0);
+					lcd_puts("OPTIONS");
+					lcd_gotoxy(0,1);
+					lcd_putc(0x7F);
+					lcd_puts("-");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenStatus = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					uint8_t bitPosition = 8;  // <8 means boolean
+					enableLCDBacklight();
+					lcd_gotoxy(0,0);
+					if(1 == subscreenStatus)
+					{
+						lcd_puts("VAR BRK");
+						bitPosition = OPTIONBITS_VARIABLE_BRAKE;
+						optionsPtr = &optionBits;
+					}
+					else if(2 == subscreenStatus)
+					{
+						lcd_puts("BRK TYPE");
+						bitPosition = OPTIONBITS_STEPPED_BRAKE;
+						optionsPtr = &optionBits;
+					}
+					else if(3 == subscreenStatus)
+					{
+						lcd_puts("BRK PWM");
+						lcd_gotoxy(7,1);
+						lcd_puts("s");
+						bitPosition = 8;
+						optionsPtr = &brakePulseWidth;
+					}
+					else if(4 == subscreenStatus)
+					{
+						lcd_puts("BRK ESTP");
+						bitPosition = OPTIONBITS_ESTOP_ON_BRAKE;
+						optionsPtr = &optionBits;
+					}
+					else if(5 == subscreenStatus)
+					{
+						lcd_puts("REV SWAP");
+						bitPosition = OPTIONBITS_REVERSER_SWAP;
+						optionsPtr = &optionBits;
+					}
+					else
+					{
+						subscreenStatus = 1;
+					}
+
+					if(bitPosition < 8)
+					{
+						lcd_gotoxy(4,1);
+						if(OPTIONBITS_STEPPED_BRAKE == bitPosition)
+						{
+							// Special case for brake type
+							if(*optionsPtr & _BV(bitPosition))
+								lcd_puts("STEP");
+							else
+								lcd_puts(" PWM");
+						}
+						else
+						{
+							if(*optionsPtr & _BV(bitPosition))
+								lcd_puts(" ON ");
+							else
+								lcd_puts(" OFF");
+						}
+					}
+					else if(optionsPtr == &brakePulseWidth)
+					{
+						lcd_gotoxy(4,1);
+						lcd_putc('0' + (*optionsPtr) / 10);
+						lcd_putc('.');
+						lcd_putc('0' + (*optionsPtr) % 10);
+					}
+					else
+					{
+						lcd_gotoxy(4,1);
+						printDec3Dig(*optionsPtr);
+					}
+
+					
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(bitPosition < 8)
+								{
+									*optionsPtr |= _BV(bitPosition);
+								}
+								else
+								{
+									if(*optionsPtr < 0xFF)
+										(*optionsPtr)++;
+									if(brakePulseWidth > BRAKE_PULSE_WIDTH_MAX)
+										brakePulseWidth = BRAKE_PULSE_WIDTH_MAX;
+									ticks_autoincrement = 0;
+								}
+							}
+							break;
+						case DOWN_BUTTON:
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								if(bitPosition < 8)
+								{
+									*optionsPtr &= ~_BV(bitPosition);
+								}
+								else
+								{
+									if(*optionsPtr > 1)
+										(*optionsPtr)--;
+									if(brakePulseWidth < BRAKE_PULSE_WIDTH_MIN)
+										brakePulseWidth = BRAKE_PULSE_WIDTH_MIN;
+									ticks_autoincrement = 0;
+								}
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, brakePulseWidth);
+								eeprom_write_byte((uint8_t*)EE_OPTIONBITS, optionBits);
+								readConfig();
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
+								subscreenStatus = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenStatus++;
 								lcd_clrscr();
 							}
 							break;
@@ -2544,43 +2718,11 @@ int main(void)
 					}
 					else if(5 == subscreenStatus)
 					{
-						lcd_puts("VAR BRK");
-						bitPosition = CONFIGBITS_VARIABLE_BRAKE;
-						prefsPtr = &configBits;
-					}
-					else if(6 == subscreenStatus)
-					{
-						lcd_puts("BRK TYPE");
-						bitPosition = CONFIGBITS_STEPPED_BRAKE;
-						prefsPtr = &configBits;
-					}
-					else if(7 == subscreenStatus)
-					{
-						lcd_puts("BRK PWM");
-						lcd_gotoxy(7,1);
-						lcd_puts("s");
-						bitPosition = 8;
-						prefsPtr = &brakePulseWidth;
-					}
-					else if(8 == subscreenStatus)
-					{
-						lcd_puts("BRK ESTP");
-						bitPosition = CONFIGBITS_ESTOP_ON_BRAKE;
-						prefsPtr = &configBits;
-					}
-					else if(9 == subscreenStatus)
-					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(10 == subscreenStatus)
-					{
-						lcd_puts("REV SWAP");
-						bitPosition = CONFIGBITS_REVERSER_SWAP;
-						prefsPtr = &configBits;
-					}
-					else if(11 == subscreenStatus)
+					else if(6 == subscreenStatus)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
@@ -2593,22 +2735,10 @@ int main(void)
 
 					if(bitPosition < 8)
 					{
-						lcd_gotoxy(4,1);
-						if(CONFIGBITS_STEPPED_BRAKE == bitPosition)
-						{
-							// Special case for brake type
-							if(*prefsPtr & _BV(bitPosition))
-								lcd_puts("STEP");
-							else
-								lcd_puts(" PWM");
-						}
+						if(*prefsPtr & _BV(bitPosition))
+							lcd_puts(" ON ");
 						else
-						{
-							if(*prefsPtr & _BV(bitPosition))
-								lcd_puts(" ON ");
-							else
-								lcd_puts(" OFF");
-						}
+							lcd_puts(" OFF");
 					}
 					else if(prefsPtr == &txHoldoff_centisecs)
 					{
@@ -2616,13 +2746,6 @@ int main(void)
 						lcd_putc('0' + (*prefsPtr) / 100);
 						lcd_putc('.');
 						lcd_putc('0' + ((*prefsPtr)/10) % 10);
-						lcd_putc('0' + (*prefsPtr) % 10);
-					}
-					else if(prefsPtr == &brakePulseWidth)
-					{
-						lcd_gotoxy(4,1);
-						lcd_putc('0' + (*prefsPtr) / 10);
-						lcd_putc('.');
 						lcd_putc('0' + (*prefsPtr) % 10);
 					}
 					else
@@ -2651,8 +2774,6 @@ int main(void)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
 									if(newMaxDeadReckoningTime_seconds > DEAD_RECKONING_TIME_MAX / 10)
 										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MAX / 10;
-									if(brakePulseWidth > BRAKE_PULSE_WIDTH_MAX)
-										brakePulseWidth = BRAKE_PULSE_WIDTH_MAX;
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2674,8 +2795,6 @@ int main(void)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
 									if(newMaxDeadReckoningTime_seconds < DEAD_RECKONING_TIME_MIN / 10)
 										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MIN / 10;
-									if(brakePulseWidth < BRAKE_PULSE_WIDTH_MIN)
-										brakePulseWidth = BRAKE_PULSE_WIDTH_MIN;
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2685,7 +2804,6 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime_seconds * 10);
-								eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, brakePulseWidth);
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
 								update_decisecs = (uint16_t)newUpdate_seconds * 10;
@@ -2766,7 +2884,7 @@ int main(void)
 						}
 						else
 						{
-							if( (configBits & _BV(CONFIGBITS_VARIABLE_BRAKE)) && (configBits & _BV(CONFIGBITS_STEPPED_BRAKE)) )
+							if( (optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE)) && (optionBits & _BV(OPTIONBITS_STEPPED_BRAKE)) )
 							{
 								switch(brakeState)
 								{
@@ -3250,7 +3368,7 @@ int main(void)
 			else if(0 == activeThrottleSetting)
 				txBuffer[8] = 0;
 			else
-				txBuffer[8] = notchSpeed[activeThrottleSetting-1] + 1;
+				txBuffer[8] = notchSpeedStep[activeThrottleSetting-1] + 1;
 			
 			switch(activeReverserSetting)
 			{
