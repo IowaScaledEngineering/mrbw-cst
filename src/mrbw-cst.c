@@ -2741,6 +2741,7 @@ int main(void)
 
 					if(bitPosition < 8)
 					{
+						lcd_gotoxy(4,1);
 						if(*prefsPtr & _BV(bitPosition))
 							lcd_puts(" ON ");
 						else
