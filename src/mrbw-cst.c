@@ -1168,7 +1168,7 @@ int main(void)
 		}
 		else if( (optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE)) && !(optionBits & _BV(OPTIONBITS_STEPPED_BRAKE)) )
 		{
-			// This state machine handles the variable (PWM) brake.
+			// This state machine handles the variable (pulse) brake.
 			switch(brakeState)
 			{
 				// These two states get "brake off" set by first making sure "brake on" is clear (TCS decoders don't like these changing at the same time)
@@ -1181,7 +1181,7 @@ int main(void)
 					brakeState = BRAKE_20PCNT_BEGIN;
 					break;
 
-				// These states represent the PWM "brake off" period
+				// These states represent the pulse "brake off" period
 				case BRAKE_20PCNT_BEGIN:
 				case BRAKE_20PCNT_WAIT:
 				case BRAKE_40PCNT_BEGIN:
@@ -1190,7 +1190,7 @@ int main(void)
 						brakeState = BRAKE_FULL_BEGIN;
 					break;
 
-				// These states represent the PWM "brake on" period
+				// These states represent the pulse "brake on" period
 				case BRAKE_60PCNT_BEGIN:
 				case BRAKE_60PCNT_WAIT:
 				case BRAKE_80PCNT_BEGIN:
@@ -2268,7 +2268,7 @@ int main(void)
 				}
 				else
 				{
-					uint8_t bitPosition = 8;  // <8 means boolean
+					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
@@ -2285,10 +2285,10 @@ int main(void)
 					}
 					else if(3 == subscreenStatus)
 					{
-						lcd_puts("BRK PWM");
+						lcd_puts("BRK RATE");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
-						bitPosition = 8;
+						bitPosition = 0xFF;
 						optionsPtr = &brakePulseWidth;
 					}
 					else if(4 == subscreenStatus)
@@ -2305,27 +2305,33 @@ int main(void)
 					}
 					else
 					{
+						bitPosition = 8;
 						subscreenStatus = 1;
 					}
 
 					if(bitPosition < 8)
 					{
-						lcd_gotoxy(4,1);
 						if(OPTIONBITS_STEPPED_BRAKE == bitPosition)
 						{
 							// Special case for brake type
+							lcd_gotoxy(3,1);
 							if(*optionsPtr & _BV(bitPosition))
-								lcd_puts("STEP");
+								lcd_puts(" STEP");
 							else
-								lcd_puts(" PWM");
+								lcd_puts("PULSE");
 						}
 						else
 						{
+							lcd_gotoxy(5,1);
 							if(*optionsPtr & _BV(bitPosition))
-								lcd_puts(" ON ");
+								lcd_puts("ON ");
 							else
-								lcd_puts(" OFF");
+								lcd_puts("OFF");
 						}
+					}
+					else if(8 == bitPosition)
+					{
+						// Do nothing
 					}
 					else if(optionsPtr == &brakePulseWidth)
 					{
@@ -2683,7 +2689,7 @@ int main(void)
 				}
 				else
 				{
-					uint8_t bitPosition = 8;  // <8 means boolean
+					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
 					if(1 == subscreenStatus)
@@ -2693,7 +2699,7 @@ int main(void)
 						lcd_puts("DLY:");
 						lcd_gotoxy(7,1);
 						lcd_puts("M");
-						bitPosition = 8;
+						bitPosition = 0xFF;
 						prefsPtr = &newSleepTimeout;
 					}
 					else if(2 == subscreenStatus)
@@ -2703,7 +2709,7 @@ int main(void)
 						lcd_puts("CLK:");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
-						bitPosition = 8;
+						bitPosition = 0xFF;
 						prefsPtr = &newMaxDeadReckoningTime_seconds;
 					}
 					else if(3 == subscreenStatus)
@@ -2711,7 +2717,7 @@ int main(void)
 						lcd_puts("TX INTVL");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
-						bitPosition = 8;
+						bitPosition = 0xFF;
 						prefsPtr = &newUpdate_seconds;
 					}
 					else if(4 == subscreenStatus)
@@ -2719,7 +2725,7 @@ int main(void)
 						lcd_puts("TX HLDOF");
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
-						bitPosition = 8;
+						bitPosition = 0xFF;
 						prefsPtr = &txHoldoff_centisecs;
 					}
 					else if(5 == subscreenStatus)
@@ -2736,6 +2742,7 @@ int main(void)
 					}
 					else
 					{
+						bitPosition = 8;
 						subscreenStatus = 1;
 					}
 
@@ -2746,6 +2753,10 @@ int main(void)
 							lcd_puts(" ON ");
 						else
 							lcd_puts(" OFF");
+					}
+					else if(8 == bitPosition)
+					{
+						// Do nothing
 					}
 					else if(prefsPtr == &txHoldoff_centisecs)
 					{
