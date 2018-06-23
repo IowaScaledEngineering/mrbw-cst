@@ -22,8 +22,14 @@ LICENSE:
 #include <stdlib.h>
 
 #include "lcd.h"
-
 #include "cst-common.h"
+#include "cst-battery.h"
+
+// VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
+#define VBATT_OKAY  220 
+// VBATT_WARN is the battery voltage (in centivolts) above which the batteries are considered a warning, but not
+//  in critical shape.  This should *always* be less than VBATT_OKAY
+#define VBATT_WARN  200
 
 const uint8_t BatteryFull[8] =
 {
@@ -62,13 +68,7 @@ const uint8_t BatteryEmpty[8] =
 
 BatteryState batteryState = FULL;
 BatteryState lastBatteryState = FULL;
-uint8_t batteryVoltage = 0;
-
-// VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
-#define VBATT_OKAY  220 
-// VBATT_WARN is the battery voltage (in centivolts) above which the batteries are considered a warning, but not
-//  in critical shape.  This should *always* be less than VBATT_OKAY
-#define VBATT_WARN  200
+uint16_t batteryVoltage = 0;
 
 void setupBatteryChar(void)
 {
@@ -88,7 +88,27 @@ void setupBatteryChar(void)
 
 uint8_t getBatteryVoltage(void)
 {
-	return batteryVoltage;
+	return (batteryVoltage >> 8);
+}
+
+#define BATTERY_FILTER_COEF 16
+
+void setBatteryVoltage(uint8_t voltage)
+{
+	uint16_t voltage16 = (uint16_t)voltage << 8;
+
+	// Filter the voltage
+	if(voltage16 > batteryVoltage)
+		batteryVoltage += (voltage16 - batteryVoltage) / BATTERY_FILTER_COEF;
+	else if(voltage16 < batteryVoltage)
+		batteryVoltage -= (batteryVoltage - voltage16) / BATTERY_FILTER_COEF;
+	
+	if (getBatteryVoltage() >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+		batteryState = FULL;
+	else if (getBatteryVoltage() >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+		batteryState = HALF;
+	else
+		batteryState = EMPTY;
 }
 
 void printBattery(void)

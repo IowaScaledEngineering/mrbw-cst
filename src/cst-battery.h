@@ -10,6 +10,7 @@ typedef enum
 
 void setupBatteryChar(void);
 uint8_t getBatteryVoltage(void);
+void setBatteryVoltage(uint8_t voltage);
 void printBattery(void);
 
 #endif
