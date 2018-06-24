@@ -1367,7 +1367,8 @@ int main(void)
 					case UP_BUTTON:
 						if(UP_BUTTON != previousButton)
 						{
-							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+							if(0)
 							{
 								incrementTonnage();
 							}
@@ -1383,7 +1384,8 @@ int main(void)
 					case DOWN_BUTTON:
 						if(DOWN_BUTTON != previousButton)
 						{
-							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+							if(0)
 							{
 								decrementTonnage();
 							}
