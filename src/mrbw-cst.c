@@ -85,11 +85,11 @@ char baseString[9];
 
 #define STATUS_READ_SWITCHES          0x01
 
-#define HORN_CONTROL      0x01
-#define BELL_CONTROL      0x02
-#define AUX_CONTROL       0x04
-#define BRAKE_CONTROL     0x08
-#define BRAKE_OFF_CONTROL 0x10
+#define HORN_CONTROL          0x01
+#define BELL_CONTROL          0x02
+#define AUX_CONTROL           0x04
+#define BRAKE_CONTROL         0x08
+#define BRAKE_RELEASE_CONTROL 0x10
 
 #define OFF_FUNCTION      0x80
 #define LATCH_FUNCTION    0x40
@@ -154,7 +154,7 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_UP_BUTTON_FUNCTION         (0x10 + configOffset)
 #define EE_DOWN_BUTTON_FUNCTION       (0x11 + configOffset)
 #define EE_THR_UNLOCK_FUNCTION        (0x12 + configOffset)
-#define EE_BRAKE_OFF_FUNCTION         (0x13 + configOffset)
+#define EE_BRAKE_RELEASE_FUNCTION     (0x13 + configOffset)
 #define EE_REV_SWAP_FUNCTION          (0x14 + configOffset)
 
 #define EE_BRAKE_PULSE_WIDTH          (0x16 + configOffset)
@@ -192,8 +192,9 @@ uint8_t configBits = CONFIGBITS_DEFAULT;
 #define OPTIONBITS_REVERSER_SWAP     1
 #define OPTIONBITS_VARIABLE_BRAKE    2
 #define OPTIONBITS_STEPPED_BRAKE     3
+#define OPTIONBITS_PARABOLIC_BRAKE   4
 
-#define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE))
+#define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE) | _BV(OPTIONBITS_PARABOLIC_BRAKE))
 uint8_t optionBits = OPTIONBITS_DEFAULT;
 
 
@@ -215,7 +216,7 @@ uint8_t bellFunction = 7;
 uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
 uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
 uint8_t brakeFunction = OFF_FUNCTION;
-uint8_t brakeOffFunction = OFF_FUNCTION;
+uint8_t brakeReleaseFunction = OFF_FUNCTION;
 uint8_t auxFunction = OFF_FUNCTION;
 uint8_t engineOnFunction = 8;
 uint8_t engineStopFunction = OFF_FUNCTION;
@@ -293,14 +294,14 @@ typedef enum
 {
 	BRAKE_LOW_BEGIN,
 	BRAKE_LOW_WAIT,
-	BRAKE_20PCNT_BEGIN,
-	BRAKE_20PCNT_WAIT,
-	BRAKE_40PCNT_BEGIN,
-	BRAKE_40PCNT_WAIT,
-	BRAKE_60PCNT_BEGIN,
-	BRAKE_60PCNT_WAIT,
-	BRAKE_80PCNT_BEGIN,
-	BRAKE_80PCNT_WAIT,
+	BRAKE_THR1_BEGIN,
+	BRAKE_THR1_WAIT,
+	BRAKE_THR2_BEGIN,
+	BRAKE_THR2_WAIT,
+	BRAKE_THR3_BEGIN,
+	BRAKE_THR3_WAIT,
+	BRAKE_THR4_BEGIN,
+	BRAKE_THR4_WAIT,
 	BRAKE_FULL_BEGIN,
 	BRAKE_FULL_WAIT,
 } BrakeStates;
@@ -310,7 +311,7 @@ typedef enum
 	HORN_FN = 0,
 	BELL_FN,
 	BRAKE_FN,
-	BRAKE_OFF_FN,
+	BRAKE_RELEASE_FN,
 	AUX_FN,
 	ENGINE_ON_FN,
 	ENGINE_OFF_FN,
@@ -786,7 +787,7 @@ void readConfig(void)
 	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
 	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
 	brakeFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
-	brakeOffFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION);
+	brakeReleaseFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_RELEASE_FUNCTION);
 	auxFunction = eeprom_read_byte((uint8_t*)EE_AUX_FUNCTION);
 	engineOnFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_ON_FUNCTION);
 	engineStopFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION);
@@ -888,7 +889,7 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
 		eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
-		eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, OFF_FUNCTION);
+		eeprom_write_byte((uint8_t*)EE_BRAKE_RELEASE_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, 9);
 		eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, 8);
 		eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, OFF_FUNCTION);
@@ -1098,56 +1099,56 @@ int main(void)
 			switch(brakeState)
 			{
 				case BRAKE_LOW_BEGIN:
-					controls |= BRAKE_OFF_CONTROL;  // Pulse the "brake off" control
+					controls |= BRAKE_RELEASE_CONTROL;  // Pulse the "brake off" control
 					brakeState = BRAKE_LOW_WAIT;
 					break;
 				case BRAKE_LOW_WAIT:
-					controls &= ~(BRAKE_OFF_CONTROL);
+					controls &= ~(BRAKE_RELEASE_CONTROL);
 					if(brakePcnt >= 20)
-						brakeState = BRAKE_20PCNT_BEGIN;
+						brakeState = BRAKE_THR1_BEGIN;
 					break;
 
-				case BRAKE_20PCNT_BEGIN:
+				case BRAKE_THR1_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					brakeState = BRAKE_20PCNT_WAIT;
+					brakeState = BRAKE_THR1_WAIT;
 					break;
-				case BRAKE_20PCNT_WAIT:
+				case BRAKE_THR1_WAIT:
 					controls &= ~(BRAKE_CONTROL);
 					if(brakePosition < brakeLowThreshold)
 						brakeState = BRAKE_LOW_BEGIN;
 					else if(brakePcnt >= 40)
-						brakeState = BRAKE_40PCNT_BEGIN;
+						brakeState = BRAKE_THR2_BEGIN;
 					break;
 
-				case BRAKE_40PCNT_BEGIN:
+				case BRAKE_THR2_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					brakeState = BRAKE_40PCNT_WAIT;
+					brakeState = BRAKE_THR2_WAIT;
 					break;
-				case BRAKE_40PCNT_WAIT:
+				case BRAKE_THR2_WAIT:
 					controls &= ~(BRAKE_CONTROL);
 					if(brakePosition < brakeLowThreshold)
 						brakeState = BRAKE_LOW_BEGIN;
 					else if(brakePcnt >= 60)
-						brakeState = BRAKE_60PCNT_BEGIN;
+						brakeState = BRAKE_THR3_BEGIN;
 					break;
 
-				case BRAKE_60PCNT_BEGIN:
+				case BRAKE_THR3_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					brakeState = BRAKE_60PCNT_WAIT;
+					brakeState = BRAKE_THR3_WAIT;
 					break;
-				case BRAKE_60PCNT_WAIT:
+				case BRAKE_THR3_WAIT:
 					controls &= ~(BRAKE_CONTROL);
 					if(brakePosition < brakeLowThreshold)
 						brakeState = BRAKE_LOW_BEGIN;
 					else if(brakePcnt >= 80)
-						brakeState = BRAKE_80PCNT_BEGIN;
+						brakeState = BRAKE_THR4_BEGIN;
 					break;
 
-				case BRAKE_80PCNT_BEGIN:
+				case BRAKE_THR4_BEGIN:
 					controls |= BRAKE_CONTROL;  // Pulse the "brake on" control
-					brakeState = BRAKE_80PCNT_WAIT;
+					brakeState = BRAKE_THR4_WAIT;
 					break;
-				case BRAKE_80PCNT_WAIT:
+				case BRAKE_THR4_WAIT:
 					controls &= ~(BRAKE_CONTROL);
 					if(brakePosition < brakeLowThreshold)
 						brakeState = BRAKE_LOW_BEGIN;
@@ -1177,36 +1178,36 @@ int main(void)
 					brakeState = BRAKE_LOW_WAIT;
 					break;
 				case BRAKE_LOW_WAIT:
-					controls |= BRAKE_OFF_CONTROL;
-					brakeState = BRAKE_20PCNT_BEGIN;
+					controls |= BRAKE_RELEASE_CONTROL;
+					brakeState = BRAKE_THR1_BEGIN;
 					break;
 
 				// These states represent the pulse "brake off" period
-				case BRAKE_20PCNT_BEGIN:
-				case BRAKE_20PCNT_WAIT:
-				case BRAKE_40PCNT_BEGIN:
-				case BRAKE_40PCNT_WAIT:
+				case BRAKE_THR1_BEGIN:
+				case BRAKE_THR1_WAIT:
+				case BRAKE_THR2_BEGIN:
+				case BRAKE_THR2_WAIT:
 					if( brakePcnt >= (((brakeCounter / brakePulseWidth)+1)*20) )
 						brakeState = BRAKE_FULL_BEGIN;
 					break;
 
 				// These states represent the pulse "brake on" period
-				case BRAKE_60PCNT_BEGIN:
-				case BRAKE_60PCNT_WAIT:
-				case BRAKE_80PCNT_BEGIN:
-				case BRAKE_80PCNT_WAIT:
+				case BRAKE_THR3_BEGIN:
+				case BRAKE_THR3_WAIT:
+				case BRAKE_THR4_BEGIN:
+				case BRAKE_THR4_WAIT:
 					if( brakePcnt < (((brakeCounter / brakePulseWidth)+1)*20) )
 						brakeState = BRAKE_LOW_BEGIN;
 					break;
 
 				// These two states get "brake on" set by first making sure "brake off" is clear (TCS decoders don't like these changing at the same time)
 				case BRAKE_FULL_BEGIN:
-					controls &= ~(BRAKE_OFF_CONTROL);
+					controls &= ~(BRAKE_RELEASE_CONTROL);
 					brakeState = BRAKE_FULL_WAIT;
 					break;
 				case BRAKE_FULL_WAIT:
 					controls |= BRAKE_CONTROL;
-					brakeState = BRAKE_60PCNT_BEGIN;
+					brakeState = BRAKE_THR3_BEGIN;
 					break;
 			}
 		}
@@ -1222,23 +1223,23 @@ int main(void)
 				case BRAKE_LOW_BEGIN:
 				case BRAKE_LOW_WAIT:
 					// Set "brake off" when below the low threshold
-					controls |= BRAKE_OFF_CONTROL;
+					controls |= BRAKE_RELEASE_CONTROL;
 					// Escape logic:
 					//    Go to the middle state if above the brakeLowThreshold
 					if(brakePosition >= brakeLowThreshold)
-						brakeState = BRAKE_20PCNT_BEGIN;
+						brakeState = BRAKE_THR1_BEGIN;
 					break;
-				case BRAKE_20PCNT_BEGIN:
-				case BRAKE_20PCNT_WAIT:
-				case BRAKE_40PCNT_BEGIN:
-				case BRAKE_40PCNT_WAIT:
-				case BRAKE_60PCNT_BEGIN:
-				case BRAKE_60PCNT_WAIT:
-				case BRAKE_80PCNT_BEGIN:
-				case BRAKE_80PCNT_WAIT:
+				case BRAKE_THR1_BEGIN:
+				case BRAKE_THR1_WAIT:
+				case BRAKE_THR2_BEGIN:
+				case BRAKE_THR2_WAIT:
+				case BRAKE_THR3_BEGIN:
+				case BRAKE_THR3_WAIT:
+				case BRAKE_THR4_BEGIN:
+				case BRAKE_THR4_WAIT:
 					// Disable both "brake on" and "brake off" when between thresholds
 					controls &= ~(BRAKE_CONTROL);
-					controls &= ~(BRAKE_OFF_CONTROL);
+					controls &= ~(BRAKE_RELEASE_CONTROL);
 					if(brakePosition < brakeLowThreshold)
 						brakeState = BRAKE_LOW_BEGIN;
 					else if(brakePosition >= brakeThreshold)
@@ -1252,7 +1253,7 @@ int main(void)
 					//    Limit (brakeThreshold - BRAKE_HYSTERESIS) to non-negative values.  Compare the brake setting to the higher of
 					//    the limited (brakeThreshold - BRAKE_HYSTERESIS) or brakeLowThreshold.  If below, go to the middle state.
 					if(brakePosition < max( ((brakeThreshold > BRAKE_HYSTERESIS)?(brakeThreshold - BRAKE_HYSTERESIS):0), brakeLowThreshold ) )
-						brakeState = BRAKE_20PCNT_BEGIN;
+						brakeState = BRAKE_THR1_BEGIN;
 					break;
 			}
 		}		
@@ -1968,10 +1969,10 @@ int main(void)
 							lcd_puts("BRAKE");
 							functionPtr = &brakeFunction;
 							break;
-						case BRAKE_OFF_FN:
+						case BRAKE_RELEASE_FN:
 							lcd_gotoxy(0,0);
 							lcd_puts("BRK OFF");
-							functionPtr = &brakeOffFunction;
+							functionPtr = &brakeReleaseFunction;
 							break;
 						case AUX_FN:
 							lcd_gotoxy(0,0);
@@ -2125,7 +2126,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);
 								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);
 								eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, brakeFunction);
-								eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, brakeOffFunction);
+								eeprom_write_byte((uint8_t*)EE_BRAKE_RELEASE_FUNCTION, brakeReleaseFunction);
 								eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, auxFunction);
 								eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, engineOnFunction);
 								eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, engineStopFunction);
@@ -2913,20 +2914,20 @@ int main(void)
 									case BRAKE_LOW_WAIT:
 										lcd_puts("OFF ");
 										break;
-									case BRAKE_20PCNT_BEGIN:
-									case BRAKE_20PCNT_WAIT:
+									case BRAKE_THR1_BEGIN:
+									case BRAKE_THR1_WAIT:
 										lcd_puts("BRK1");
 										break;
-									case BRAKE_40PCNT_BEGIN:
-									case BRAKE_40PCNT_WAIT:
+									case BRAKE_THR2_BEGIN:
+									case BRAKE_THR2_WAIT:
 										lcd_puts("BRK2");
 										break;
-									case BRAKE_60PCNT_BEGIN:
-									case BRAKE_60PCNT_WAIT:
+									case BRAKE_THR3_BEGIN:
+									case BRAKE_THR3_WAIT:
 										lcd_puts("BRK3");
 										break;
-									case BRAKE_80PCNT_BEGIN:
-									case BRAKE_80PCNT_WAIT:
+									case BRAKE_THR4_BEGIN:
+									case BRAKE_THR4_WAIT:
 										lcd_puts("BRK4");
 										break;
 									case BRAKE_FULL_BEGIN:
@@ -2937,13 +2938,13 @@ int main(void)
 							}
 							else
 							{
-								if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+								if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_RELEASE_CONTROL) )
 									lcd_putc(FUNCTION_INACTIVE_CHAR);
-								else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+								else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_RELEASE_CONTROL) )
 									lcd_putc(FUNCTION_ACTIVE_CHAR);
-								else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+								else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_RELEASE_CONTROL) )
 									lcd_putc('*');
-								else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+								else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_RELEASE_CONTROL) )
 									lcd_putc('!');  // Invalid condition
 								printDec2Dig((brakePcnt>99)?99:brakePcnt);
 								lcd_putc('%');
@@ -3266,8 +3267,8 @@ int main(void)
 			functionMask |= (uint32_t)1 << (auxFunction & 0x1F);
 		if((controls & BRAKE_CONTROL) && !(brakeFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (brakeFunction & 0x1F);
-		if((controls & BRAKE_OFF_CONTROL) && !(brakeOffFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (brakeOffFunction & 0x1F);
+		if((controls & BRAKE_RELEASE_CONTROL) && !(brakeReleaseFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (brakeReleaseFunction & 0x1F);
 		if(((ENGINE_ON == engineState)||(ENGINE_START) == engineState) && !(engineOnFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (engineOnFunction & 0x1F);
 		if((ENGINE_STOP == engineState) && !(engineStopFunction & OFF_FUNCTION))
