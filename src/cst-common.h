@@ -1,6 +1,8 @@
 #ifndef _CST_COMMON_H_
 #define _CST_COMMON_H_
 
+#define max(a,b)  ((a)>(b)?(a):(b))
+
 #define LOCO_ADDRESS_SHORT 0x8000
 
 #define BATTERY_CHAR            0
