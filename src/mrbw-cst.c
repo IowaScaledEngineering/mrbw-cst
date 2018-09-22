@@ -973,6 +973,7 @@ int main(void)
 	
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
 	uint8_t subscreenState = 0;
+	uint8_t subscreenCount = 0;
 
 	BrakeStates brakeState = BRAKE_LOW_BEGIN;
 
@@ -3009,6 +3010,28 @@ int main(void)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
+						lcd_puts("FN:");
+						lcd_gotoxy(0,1);
+						lcd_putc('0'+subscreenCount);
+						lcd_puts("0+");
+						for(i=0; i<10; i++)
+						{
+							uint8_t fnum = (10*subscreenCount)+i;
+							lcd_gotoxy((i%5)+3, i/5);
+							if(functionMask & ((uint32_t)1 << (fnum)))
+							{
+								lcd_putc('0' + i);
+							}
+							else
+							{
+								lcd_putc(' ');
+							}
+						}
+					}
+					else if(3 == subscreenState)
+					{
+						enableLCDBacklight();
+						lcd_gotoxy(0,0);
 						lcd_puts("SLEEP");
 						lcd_gotoxy(0,1);
 						ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -3019,7 +3042,7 @@ int main(void)
 						lcd_gotoxy(5,1);
 						lcd_puts("sec");
 					}
-					else if(3 == subscreenState)
+					else if(4 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3041,7 +3064,7 @@ int main(void)
 								lcd_putc(' ');
 						}
 					}
-					else if(4 == subscreenState)
+					else if(5 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3073,7 +3096,7 @@ int main(void)
 							lcd_puts("NO SIGNL");
 						}
 					}
-					else if(5 == subscreenState)
+					else if(6 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3090,7 +3113,7 @@ int main(void)
 						lcd_putc('0' + timeScaleFactor%10);
 						lcd_puts(":1");
 					}
-					else if(6 == subscreenState)
+					else if(7 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3102,7 +3125,7 @@ int main(void)
 						lcd_putc('0' + ((getBatteryVoltage()*2)%10));
 						lcd_putc('V');
 					}
-					else if(7 == subscreenState)
+					else if(8 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3110,7 +3133,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(VERSION_STRING);
 					}
-					else if(8 == subscreenState)
+					else if(9 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3120,7 +3143,7 @@ int main(void)
 						printHex((GIT_REV >> 8) & 0xFF);
 						printHex(GIT_REV & 0xFF);
 					}
-					else if(9 == subscreenState)
+					else if(10 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3128,7 +3151,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(baseString);
 					}
-					else if(10 == subscreenState)
+					else if(11 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3138,7 +3161,7 @@ int main(void)
 						printHex((baseVersion >> 8) & 0xFF);
 						printHex(baseVersion & 0xFF);
 					}
-					else if(11 == subscreenState)
+					else if(12 == subscreenState)
 					{
 						if(resetCounter)
 						{
@@ -3171,6 +3194,7 @@ int main(void)
 							{
 								setupClockChars();   // Restore clock characters
 								subscreenState = 0;  // Escape submenu
+								subscreenCount = 0;
 								lcd_clrscr();
 							}
 							break;
@@ -3179,6 +3203,7 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenState++;
+								subscreenCount = 0;
 								lcd_clrscr();
 								resetCounter = RESET_COUNTER_RESET_VALUE;
 							}
@@ -3186,12 +3211,24 @@ int main(void)
 						case DOWN_BUTTON:
 							if(DOWN_BUTTON != previousButton)
 							{
-								// Decrement here, but it's only used in the reset screen
-								// It will be reset prior to entering reset screen
+								// Decrement here blindly, but it's only used in the reset screen
+								// It will be reset anyway prior to entering reset screen
 								resetCounter--;
+								
+								if(subscreenCount)
+									subscreenCount--;
 							}
 							break;
 						case UP_BUTTON:
+							if(UP_BUTTON != previousButton)
+							{
+								// Decrement here blindly, but it's only used in the reset screen
+								// It will be reset anyway prior to entering reset screen
+								resetCounter--;
+								
+								if(subscreenCount < 2)
+									subscreenCount++;
+							}
 						case NO_BUTTON:
 							break;
 					}
