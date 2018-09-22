@@ -972,7 +972,7 @@ int main(void)
 	uint8_t backlight = 0;
 	
 	Screens screenState = LAST_SCREEN;  // Initialize to the last one, since that's the only state guaranteed to be present
-	uint8_t subscreenStatus = 0;
+	uint8_t subscreenState = 0;
 
 	BrakeStates brakeState = BRAKE_LOW_BEGIN;
 
@@ -1555,7 +1555,7 @@ int main(void)
 
 			case LOAD_CONFIG_SCREEN:
 			case SAVE_CONFIG_SCREEN:
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
@@ -1607,7 +1607,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -1661,13 +1661,13 @@ int main(void)
 								}
 								wait100ms(3);
 								screenState = LAST_SCREEN;
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
 						case MENU_BUTTON:
 							screenState--;  // Back up one screen.  It will increment in the global MENU button handling code since we just pressed MENU
-							subscreenStatus = 0;  // Escape submenu
+							subscreenState = 0;  // Escape submenu
 							lcd_clrscr();
 							break;
 						case SELECT_BUTTON:
@@ -1682,7 +1682,7 @@ int main(void)
 				// A little explanation...  We store the information about a short address in the first digit (decimalNumber[0])
 				//    If 0-9, then it's a long address.  If >9, and more specifically, ('s'-'0'), the it's a short address
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(5,0);
 					lcd_puts("SET");
@@ -1710,7 +1710,7 @@ int main(void)
 									decimalNumber[2] = (newLocoAddress / 10) % 10;
 									decimalNumber[3] = (newLocoAddress) % 10;
 								}
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -1797,7 +1797,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -1817,7 +1817,7 @@ int main(void)
 
 			case FUNC_FORCE_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(3,0);
 					lcd_puts("FORCE");
@@ -1829,7 +1829,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								functionNumber = 0;
 								lcd_clrscr();
 							}
@@ -1902,7 +1902,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -1924,7 +1924,7 @@ int main(void)
 
 			case FUNC_CONFIG_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(2,0);
 					lcd_puts("CONFIG");
@@ -1936,7 +1936,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								functionSetting = 0;
 								lcd_clrscr();
 							}
@@ -2138,7 +2138,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -2160,7 +2160,7 @@ int main(void)
 
 			case NOTCH_CONFIG_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(3,0);
 					lcd_puts("NOTCH");
@@ -2172,7 +2172,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2188,7 +2188,7 @@ int main(void)
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
 					lcd_puts("NOTCH ");
-					uint8_t notch = subscreenStatus;
+					uint8_t notch = subscreenState;
 					lcd_putc('0' + notch);
 					lcd_gotoxy(0,1);
 					printDec4Dig(notchSpeedStep[notch-1]);
@@ -2223,7 +2223,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -2231,9 +2231,9 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								subscreenStatus++;
-								if(subscreenStatus > 8)
-									subscreenStatus = 1;
+								subscreenState++;
+								if(subscreenState > 8)
+									subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2245,7 +2245,7 @@ int main(void)
 
 			case OPTION_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(1,0);
 					lcd_puts("OPTIONS");
@@ -2257,7 +2257,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2273,19 +2273,19 @@ int main(void)
 					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					if(1 == subscreenStatus)
+					if(1 == subscreenState)
 					{
 						lcd_puts("VAR BRK");
 						bitPosition = OPTIONBITS_VARIABLE_BRAKE;
 						optionsPtr = &optionBits;
 					}
-					else if(2 == subscreenStatus)
+					else if(2 == subscreenState)
 					{
 						lcd_puts("BRK TYPE");
 						bitPosition = OPTIONBITS_STEPPED_BRAKE;
 						optionsPtr = &optionBits;
 					}
-					else if(3 == subscreenStatus)
+					else if(3 == subscreenState)
 					{
 						lcd_puts("BRK RATE");
 						lcd_gotoxy(7,1);
@@ -2293,13 +2293,13 @@ int main(void)
 						bitPosition = 0xFF;
 						optionsPtr = &brakePulseWidth;
 					}
-					else if(4 == subscreenStatus)
+					else if(4 == subscreenState)
 					{
 						lcd_puts("BRK ESTP");
 						bitPosition = OPTIONBITS_ESTOP_ON_BRAKE;
 						optionsPtr = &optionBits;
 					}
-					else if(5 == subscreenStatus)
+					else if(5 == subscreenState)
 					{
 						lcd_puts("REV SWAP");
 						bitPosition = OPTIONBITS_REVERSER_SWAP;
@@ -2308,7 +2308,7 @@ int main(void)
 					else
 					{
 						bitPosition = 8;
-						subscreenStatus = 1;
+						subscreenState = 1;
 					}
 
 					if(bitPosition < 8)
@@ -2395,7 +2395,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -2403,7 +2403,7 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								subscreenStatus++;
+								subscreenState++;
 								lcd_clrscr();
 							}
 							break;
@@ -2415,7 +2415,7 @@ int main(void)
 
 			case THRESHOLD_CAL_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(0,0);
 					lcd_puts("THRSHOLD");
@@ -2427,7 +2427,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2444,19 +2444,19 @@ int main(void)
 					uint8_t *thresholdPtr = &hornThreshold;
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					if(1 == subscreenStatus)
+					if(1 == subscreenState)
 					{
 						lcd_puts("HORN");
 						positionPtr = &hornPosition;
 						thresholdPtr = &hornThreshold;
 					}
-					else if(2 == subscreenStatus)
+					else if(2 == subscreenState)
 					{
 						lcd_puts("BRAKE");
 						positionPtr = &brakePosition;
 						thresholdPtr = &brakeThreshold;
 					}
-					else if(3 == subscreenStatus)
+					else if(3 == subscreenState)
 					{
 						lcd_puts("BRAKE");
 						lcd_gotoxy(0,1);
@@ -2464,7 +2464,7 @@ int main(void)
 						positionPtr = &brakePosition;
 						thresholdPtr = &brakeLowThreshold;
 					}
-					else if(4 == subscreenStatus)
+					else if(4 == subscreenState)
 					{
 						lcd_puts("BRAKE");
 						lcd_gotoxy(0,1);
@@ -2474,7 +2474,7 @@ int main(void)
 					}
 					else
 					{
-						subscreenStatus = 1;
+						subscreenState = 1;
 					}
 					lcd_gotoxy(7,0);
 					if(0xFF == *thresholdPtr)
@@ -2515,7 +2515,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -2523,7 +2523,7 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								subscreenStatus++;
+								subscreenState++;
 								lcd_clrscr();
 							}
 							break;
@@ -2537,7 +2537,7 @@ int main(void)
 
 			case COMM_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(4,0);
 					lcd_puts("COMM");
@@ -2549,7 +2549,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2564,21 +2564,21 @@ int main(void)
 				{
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					if(1 == subscreenStatus)
+					if(1 == subscreenState)
 					{
 						lcd_puts("THRTL ID");
 						addrPtr = &newDevAddr;
 						lcd_gotoxy(4,1);
 						lcd_putc('A' + (newDevAddr - MRBUS_DEV_ADDR_MIN));
 					}
-					else if(2 == subscreenStatus)
+					else if(2 == subscreenState)
 					{
 						lcd_puts("BASE ADR");
 						addrPtr = &newBaseAddr;
 						lcd_gotoxy(3,1);
 						printDec2DigWZero(newBaseAddr - MRBUS_BASE_ADDR_MIN);
 					}
-					else if(3 == subscreenStatus)
+					else if(3 == subscreenState)
 					{
 						lcd_puts("TIME ADR");
 						addrPtr = &newTimeAddr;
@@ -2601,7 +2601,7 @@ int main(void)
 					}
 					else
 					{
-						subscreenStatus = 1;
+						subscreenState = 1;
 					}
 
 					switch(button)
@@ -2646,7 +2646,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -2654,7 +2654,7 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								subscreenStatus++;
+								subscreenState++;
 								lcd_clrscr();
 							}
 							break;
@@ -2666,7 +2666,7 @@ int main(void)
 
 			case PREFS_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(3,0);
 					lcd_puts("PREFS");
@@ -2678,7 +2678,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2694,7 +2694,7 @@ int main(void)
 					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					if(1 == subscreenStatus)
+					if(1 == subscreenState)
 					{
 						lcd_puts("SLEEP");
 						lcd_gotoxy(0,1);
@@ -2704,7 +2704,7 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &newSleepTimeout;
 					}
-					else if(2 == subscreenStatus)
+					else if(2 == subscreenState)
 					{
 						lcd_puts("TIMEOUT");
 						lcd_gotoxy(0,1);
@@ -2714,7 +2714,7 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &newMaxDeadReckoningTime_seconds;
 					}
-					else if(3 == subscreenStatus)
+					else if(3 == subscreenState)
 					{
 						lcd_puts("TX INTVL");
 						lcd_gotoxy(7,1);
@@ -2722,7 +2722,7 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &newUpdate_seconds;
 					}
-					else if(4 == subscreenStatus)
+					else if(4 == subscreenState)
 					{
 						lcd_puts("TX HLDOF");
 						lcd_gotoxy(7,1);
@@ -2730,13 +2730,13 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &txHoldoff_centisecs;
 					}
-					else if(5 == subscreenStatus)
+					else if(5 == subscreenState)
 					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(6 == subscreenStatus)
+					else if(6 == subscreenState)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
@@ -2745,7 +2745,7 @@ int main(void)
 					else
 					{
 						bitPosition = 8;
-						subscreenStatus = 1;
+						subscreenState = 1;
 					}
 
 					if(bitPosition < 8)
@@ -2839,7 +2839,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -2847,7 +2847,7 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								subscreenStatus++;
+								subscreenState++;
 								lcd_clrscr();
 							}
 							break;
@@ -2859,7 +2859,7 @@ int main(void)
 
 			case DIAG_SCREEN:
 				enableLCDBacklight();
-				if(!subscreenStatus)
+				if(!subscreenState)
 				{
 					lcd_gotoxy(3,0);
 					lcd_puts("DIAGS");
@@ -2872,7 +2872,7 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								setupDiagChars();
-								subscreenStatus = 1;
+								subscreenState = 1;
 								lcd_clrscr();
 							}
 							break;
@@ -2885,7 +2885,7 @@ int main(void)
 				}
 				else
 				{
-					if(1 == subscreenStatus)
+					if(1 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(5,0);
@@ -3005,7 +3005,7 @@ int main(void)
 								break;
 						}
 					}
-					else if(2 == subscreenStatus)
+					else if(2 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3019,7 +3019,7 @@ int main(void)
 						lcd_gotoxy(5,1);
 						lcd_puts("sec");
 					}
-					else if(3 == subscreenStatus)
+					else if(3 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3041,7 +3041,7 @@ int main(void)
 								lcd_putc(' ');
 						}
 					}
-					else if(4 == subscreenStatus)
+					else if(4 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3073,7 +3073,7 @@ int main(void)
 							lcd_puts("NO SIGNL");
 						}
 					}
-					else if(5 == subscreenStatus)
+					else if(5 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3090,7 +3090,7 @@ int main(void)
 						lcd_putc('0' + timeScaleFactor%10);
 						lcd_puts(":1");
 					}
-					else if(6 == subscreenStatus)
+					else if(6 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3102,7 +3102,7 @@ int main(void)
 						lcd_putc('0' + ((getBatteryVoltage()*2)%10));
 						lcd_putc('V');
 					}
-					else if(7 == subscreenStatus)
+					else if(7 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3110,7 +3110,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(VERSION_STRING);
 					}
-					else if(8 == subscreenStatus)
+					else if(8 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3120,7 +3120,7 @@ int main(void)
 						printHex((GIT_REV >> 8) & 0xFF);
 						printHex(GIT_REV & 0xFF);
 					}
-					else if(9 == subscreenStatus)
+					else if(9 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3128,7 +3128,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(baseString);
 					}
-					else if(10 == subscreenStatus)
+					else if(10 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3138,7 +3138,7 @@ int main(void)
 						printHex((baseVersion >> 8) & 0xFF);
 						printHex(baseVersion & 0xFF);
 					}
-					else if(11 == subscreenStatus)
+					else if(11 == subscreenState)
 					{
 						if(resetCounter)
 						{
@@ -3161,7 +3161,7 @@ int main(void)
 					}
 					else
 					{
-						subscreenStatus = 1;
+						subscreenState = 1;
 					}
 
 					switch(button)
@@ -3170,7 +3170,7 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								setupClockChars();   // Restore clock characters
-								subscreenStatus = 0;  // Escape submenu
+								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
 							break;
@@ -3178,7 +3178,7 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								subscreenStatus++;
+								subscreenState++;
 								lcd_clrscr();
 								resetCounter = RESET_COUNTER_RESET_VALUE;
 							}
@@ -3207,7 +3207,7 @@ int main(void)
 		}
 		// Process Menu button, but only if not in a subscreen
 		// Do this after main screen loop so screens can also do cleanup when menu is pressed
-		if(!subscreenStatus)
+		if(!subscreenState)
 		{
 			if(MENU_BUTTON == button)
 			{
