@@ -1070,6 +1070,7 @@ int main(void)
 		{
 			if(CRITICAL != lastBatteryState)
 				lcd_clrscr();  // Clear if entering critical state
+			led = LED_OFF;
 			lcd_gotoxy(2,0);
 			lcd_puts("LOW");
 			lcd_gotoxy(0,1);
