@@ -1028,7 +1028,7 @@ int main(void)
 
 	wdt_reset();
 
-	// Fire off initial reset version packet
+	// Queue up initial reset version packet (not sent until end of first main loop)
 	createVersionPacket(0xFF, txBuffer);
 	mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 
