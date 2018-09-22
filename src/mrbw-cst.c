@@ -1007,7 +1007,7 @@ int main(void)
 	uint8_t *addrPtr = &newDevAddr;
 	uint8_t *prefsPtr = &newSleepTimeout;
 	uint8_t *optionsPtr = &optionBits;
-	
+
 	setXbeeActive();
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -1044,6 +1044,8 @@ int main(void)
 	// Initialize the buttons so there are no startup artifacts when we actually use them
 	inputButtons = PINB & (0xF6);
 
+	BatteryState lastBatteryState = getBatteryState();
+	
 	while(1)
 	{
 		wdt_reset();
@@ -1062,6 +1064,24 @@ int main(void)
 		}
 
 		processADC();
+
+		// Check for critical battery level
+		if(CRITICAL == getBatteryState())
+		{
+			if(CRITICAL != lastBatteryState)
+				lcd_clrscr();  // Clear if entering critical state
+			lcd_gotoxy(2,0);
+			lcd_puts("LOW");
+			lcd_gotoxy(0,1);
+			lcd_puts("BATTERY");
+			lastBatteryState = getBatteryState();  // Do this here since we are going to skip the rest of the loop
+			continue;
+		}
+		else if(lastBatteryState == CRITICAL)
+		{
+			lcd_clrscr();  // Clear is leaving critical state
+		}
+		lastBatteryState = getBatteryState();
 
 		// Convert horn to on/off control
 		if(hornPosition <= (hornThreshold - HORN_HYSTERESIS))

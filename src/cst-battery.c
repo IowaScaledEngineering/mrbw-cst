@@ -30,6 +30,9 @@ LICENSE:
 // VBATT_WARN is the battery voltage (in centivolts) above which the batteries are considered a warning, but not
 //  in critical shape.  This should *always* be less than VBATT_OKAY
 #define VBATT_WARN  200
+// VBATT_CRITICAL is the battery voltage (in centivolts) below which the throttle should stop operating.
+//  This should *always* be less than VBATT_WARN
+#define VBATT_CRITICAL  180
 
 const uint8_t BatteryFull[8] =
 {
@@ -81,6 +84,7 @@ void setupBatteryChar(void)
 			lcd_setup_custom(BATTERY_CHAR, BatteryHalf);
 			break;
 		case EMPTY:
+		case CRITICAL:
 			lcd_setup_custom(BATTERY_CHAR, BatteryEmpty);
 			break;
 	}
@@ -89,6 +93,11 @@ void setupBatteryChar(void)
 uint8_t getBatteryVoltage(void)
 {
 	return (batteryVoltage >> 8);
+}
+
+BatteryState getBatteryState(void)
+{
+	return batteryState;
 }
 
 #define BATTERY_FILTER_COEF 16
@@ -109,8 +118,10 @@ void setBatteryVoltage(uint8_t voltage)
 		batteryState = FULL;
 	else if (getBatteryVoltage() >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
 		batteryState = HALF;
-	else
+	else if (getBatteryVoltage() >= (VBATT_CRITICAL/2))  // Divide by 2 since batteryVoltage LSB = 20mV
 		batteryState = EMPTY;
+	else
+		batteryState = CRITICAL;
 }
 
 void printBattery(void)

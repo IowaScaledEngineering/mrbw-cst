@@ -3,13 +3,15 @@
 
 typedef enum
 {
-	EMPTY = 0,
+	FULL = 0,
 	HALF,
-	FULL
+	EMPTY,
+	CRITICAL
 } BatteryState;
 
 void setupBatteryChar(void);
 uint8_t getBatteryVoltage(void);
+BatteryState getBatteryState(void);
 void setBatteryVoltage(uint8_t voltage);
 void printBattery(void);
 
