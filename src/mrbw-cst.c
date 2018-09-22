@@ -2888,147 +2888,150 @@ int main(void)
 				{
 					if(1 == subscreenState)
 					{
-						enableLCDBacklight();
-						lcd_gotoxy(5,0);
-						if(0 == activeThrottleSetting)
+						if(!subscreenCount)
 						{
-							lcd_putc('I');
-						}
-						else
-						{
-							lcd_putc('0' + activeThrottleSetting);
-						}
-						lcd_gotoxy(0,0);
-						if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
-						{
-							lcd_puts("EMRG");
-						}
-						else
-						{
-							if( (optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE)) && (optionBits & _BV(OPTIONBITS_STEPPED_BRAKE)) )
+							enableLCDBacklight();
+							lcd_gotoxy(5,0);
+							if(0 == activeThrottleSetting)
 							{
-								switch(brakeState)
-								{
-									// These two states get "brake off" set by first making sure "brake on" is clear (TCS decoders don't like these changing at the same time)
-									case BRAKE_LOW_BEGIN:
-									case BRAKE_LOW_WAIT:
-										lcd_puts("OFF ");
-										break;
-									case BRAKE_20PCNT_BEGIN:
-									case BRAKE_20PCNT_WAIT:
-										lcd_puts("BRK1");
-										break;
-									case BRAKE_40PCNT_BEGIN:
-									case BRAKE_40PCNT_WAIT:
-										lcd_puts("BRK2");
-										break;
-									case BRAKE_60PCNT_BEGIN:
-									case BRAKE_60PCNT_WAIT:
-										lcd_puts("BRK3");
-										break;
-									case BRAKE_80PCNT_BEGIN:
-									case BRAKE_80PCNT_WAIT:
-										lcd_puts("BRK4");
-										break;
-									case BRAKE_FULL_BEGIN:
-									case BRAKE_FULL_WAIT:
-										lcd_puts("BRK5");
-										break;
-								}
+								lcd_putc('I');
 							}
 							else
 							{
-								if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
-									lcd_putc(FUNCTION_INACTIVE_CHAR);
-								else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
-									lcd_putc(FUNCTION_ACTIVE_CHAR);
-								else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+								lcd_putc('0' + activeThrottleSetting);
+							}
+							lcd_gotoxy(0,0);
+							if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
+							{
+								lcd_puts("EMRG");
+							}
+							else
+							{
+								if( (optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE)) && (optionBits & _BV(OPTIONBITS_STEPPED_BRAKE)) )
+								{
+									switch(brakeState)
+									{
+										// These two states get "brake off" set by first making sure "brake on" is clear (TCS decoders don't like these changing at the same time)
+										case BRAKE_LOW_BEGIN:
+										case BRAKE_LOW_WAIT:
+											lcd_puts("OFF ");
+											break;
+										case BRAKE_20PCNT_BEGIN:
+										case BRAKE_20PCNT_WAIT:
+											lcd_puts("BRK1");
+											break;
+										case BRAKE_40PCNT_BEGIN:
+										case BRAKE_40PCNT_WAIT:
+											lcd_puts("BRK2");
+											break;
+										case BRAKE_60PCNT_BEGIN:
+										case BRAKE_60PCNT_WAIT:
+											lcd_puts("BRK3");
+											break;
+										case BRAKE_80PCNT_BEGIN:
+										case BRAKE_80PCNT_WAIT:
+											lcd_puts("BRK4");
+											break;
+										case BRAKE_FULL_BEGIN:
+										case BRAKE_FULL_WAIT:
+											lcd_puts("BRK5");
+											break;
+									}
+								}
+								else
+								{
+									if( !(controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+										lcd_putc(FUNCTION_INACTIVE_CHAR);
+									else if( (controls & BRAKE_CONTROL) && !(controls & BRAKE_OFF_CONTROL) )
+										lcd_putc(FUNCTION_ACTIVE_CHAR);
+									else if( !(controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+										lcd_putc('*');
+									else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
+										lcd_putc('!');  // Invalid condition
+									printDec2Dig((brakePcnt>99)?99:brakePcnt);
+									lcd_putc('%');
+								}
+							}
+						
+							lcd_gotoxy(7,0);
+							switch(activeReverserSetting)
+							{
+								case FORWARD:
+									lcd_putc('F');
+									break;
+								case NEUTRAL:
+									lcd_putc('N');
+									break;
+								case REVERSE:
+									lcd_putc('R');
+									break;
+							}
+
+							lcd_gotoxy(2, 1);
+							lcd_putc((controls & AUX_CONTROL) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+							lcd_gotoxy(4, 1);
+							lcd_putc((controls & BELL_CONTROL) ? BELL_CHAR : ' ');
+							lcd_gotoxy(5, 1);
+							lcd_putc((controls & HORN_CONTROL) ? HORN_CHAR : ' ');
+
+							lcd_gotoxy(7, 1);
+							switch(frontLight)
+							{
+								case LIGHT_OFF:
+									lcd_putc('-');
+									break;
+								case LIGHT_DIM:
+									lcd_putc('D');
+									break;
+								case LIGHT_BRIGHT:
+									lcd_putc('B');
+									break;
+								case LIGHT_BRIGHT_DITCH:
 									lcd_putc('*');
-								else if( (controls & BRAKE_CONTROL) && (controls & BRAKE_OFF_CONTROL) )
-									lcd_putc('!');  // Invalid condition
-								printDec2Dig((brakePcnt>99)?99:brakePcnt);
-								lcd_putc('%');
+									break;
+							}
+
+							lcd_gotoxy(0, 1);
+							switch(rearLight)
+							{
+								case LIGHT_OFF:
+									lcd_putc('-');
+									break;
+								case LIGHT_DIM:
+									lcd_putc('D');
+									break;
+								case LIGHT_BRIGHT:
+									lcd_putc('B');
+									break;
+								case LIGHT_BRIGHT_DITCH:
+									lcd_putc('*');
+									break;
 							}
 						}
-						
-						lcd_gotoxy(7,0);
-						switch(activeReverserSetting)
+						else
 						{
-							case FORWARD:
-								lcd_putc('F');
-								break;
-							case NEUTRAL:
-								lcd_putc('N');
-								break;
-							case REVERSE:
-								lcd_putc('R');
-								break;
-						}
-
-						lcd_gotoxy(2, 1);
-						lcd_putc((controls & AUX_CONTROL) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-						lcd_gotoxy(4, 1);
-						lcd_putc((controls & BELL_CONTROL) ? BELL_CHAR : ' ');
-						lcd_gotoxy(5, 1);
-						lcd_putc((controls & HORN_CONTROL) ? HORN_CHAR : ' ');
-
-						lcd_gotoxy(7, 1);
-						switch(frontLight)
-						{
-							case LIGHT_OFF:
-								lcd_putc('-');
-								break;
-							case LIGHT_DIM:
-								lcd_putc('D');
-								break;
-							case LIGHT_BRIGHT:
-								lcd_putc('B');
-								break;
-							case LIGHT_BRIGHT_DITCH:
-								lcd_putc('*');
-								break;
-						}
-
-						lcd_gotoxy(0, 1);
-						switch(rearLight)
-						{
-							case LIGHT_OFF:
-								lcd_putc('-');
-								break;
-							case LIGHT_DIM:
-								lcd_putc('D');
-								break;
-							case LIGHT_BRIGHT:
-								lcd_putc('B');
-								break;
-							case LIGHT_BRIGHT_DITCH:
-								lcd_putc('*');
-								break;
+							enableLCDBacklight();
+							lcd_gotoxy(0,0);
+							lcd_puts("FN:");
+							lcd_gotoxy(0,1);
+							lcd_putc('0'+(subscreenCount-1));
+							lcd_puts("0+");
+							for(i=0; i<10; i++)
+							{
+								uint8_t fnum = (10*(subscreenCount-1))+i;
+								lcd_gotoxy((i%5)+3, i/5);
+								if(functionMask & ((uint32_t)1 << (fnum)))
+								{
+									lcd_putc('0' + i);
+								}
+								else
+								{
+									lcd_putc(' ');
+								}
+							}
 						}
 					}
 					else if(2 == subscreenState)
-					{
-						enableLCDBacklight();
-						lcd_gotoxy(0,0);
-						lcd_puts("FN:");
-						lcd_gotoxy(0,1);
-						lcd_putc('0'+subscreenCount);
-						lcd_puts("0+");
-						for(i=0; i<10; i++)
-						{
-							uint8_t fnum = (10*subscreenCount)+i;
-							lcd_gotoxy((i%5)+3, i/5);
-							if(functionMask & ((uint32_t)1 << (fnum)))
-							{
-								lcd_putc('0' + i);
-							}
-							else
-							{
-								lcd_putc(' ');
-							}
-						}
-					}
-					else if(3 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3042,7 +3045,7 @@ int main(void)
 						lcd_gotoxy(5,1);
 						lcd_puts("sec");
 					}
-					else if(4 == subscreenState)
+					else if(3 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3064,7 +3067,7 @@ int main(void)
 								lcd_putc(' ');
 						}
 					}
-					else if(5 == subscreenState)
+					else if(4 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3096,7 +3099,7 @@ int main(void)
 							lcd_puts("NO SIGNL");
 						}
 					}
-					else if(6 == subscreenState)
+					else if(5 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3113,7 +3116,7 @@ int main(void)
 						lcd_putc('0' + timeScaleFactor%10);
 						lcd_puts(":1");
 					}
-					else if(7 == subscreenState)
+					else if(6 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3125,7 +3128,7 @@ int main(void)
 						lcd_putc('0' + ((getBatteryVoltage()*2)%10));
 						lcd_putc('V');
 					}
-					else if(8 == subscreenState)
+					else if(7 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3133,7 +3136,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(VERSION_STRING);
 					}
-					else if(9 == subscreenState)
+					else if(8 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3143,7 +3146,7 @@ int main(void)
 						printHex((GIT_REV >> 8) & 0xFF);
 						printHex(GIT_REV & 0xFF);
 					}
-					else if(10 == subscreenState)
+					else if(9 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3151,7 +3154,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(baseString);
 					}
-					else if(11 == subscreenState)
+					else if(10 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3161,7 +3164,7 @@ int main(void)
 						printHex((baseVersion >> 8) & 0xFF);
 						printHex(baseVersion & 0xFF);
 					}
-					else if(12 == subscreenState)
+					else if(11 == subscreenState)
 					{
 						if(resetCounter)
 						{
@@ -3216,7 +3219,10 @@ int main(void)
 								resetCounter--;
 								
 								if(subscreenCount)
+								{
 									subscreenCount--;
+									lcd_clrscr();
+								}
 							}
 							break;
 						case UP_BUTTON:
@@ -3226,8 +3232,11 @@ int main(void)
 								// It will be reset anyway prior to entering reset screen
 								resetCounter--;
 								
-								if(subscreenCount < 2)
+								if(subscreenCount < 3)
+								{
 									subscreenCount++;
+									lcd_clrscr();
+								}
 							}
 						case NO_BUTTON:
 							break;
