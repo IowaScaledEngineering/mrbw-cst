@@ -1071,6 +1071,11 @@ int main(void)
 			if(CRITICAL != lastBatteryState)
 				lcd_clrscr();  // Clear if entering critical state
 			led = LED_OFF;
+			setXbeeSleep();
+			disableLCDBacklight();
+			disableSwitches();
+			disableButtons();
+			disableThrottle();
 			lcd_gotoxy(2,0);
 			lcd_puts("LOW");
 			lcd_gotoxy(0,1);
@@ -1080,7 +1085,20 @@ int main(void)
 		}
 		else if(lastBatteryState == CRITICAL)
 		{
-			lcd_clrscr();  // Clear is leaving critical state
+			lcd_clrscr();  // Clear if leaving critical state
+			setXbeeActive();
+			enableSwitches();
+			enableButtons();
+			enableThrottle();
+			// Initialize the buttons so there are no startup artifacts when we actually use them
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
+			inputButtons = debounce(inputButtons, (PINB & (0xF6)));
+			processButtons(inputButtons);
+			processSwitches(inputButtons);
+			previousButton = button;  // Prevent extraneous menu advances
+			clearDeadReckoningTime();
 		}
 		lastBatteryState = getBatteryState();
 
