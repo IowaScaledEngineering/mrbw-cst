@@ -1036,13 +1036,13 @@ int main(void)
 
 	led = LED_OFF;
 
+	enableButtons();
+	enableSwitches();
+
 	initLCD();
 
 	// Initialize the buttons so there are no startup artifacts when we actually use them
 	inputButtons = PINB & (0xF6);
-
-	buttonsEnable();
-	enableSwitches();
 
 	while(1)
 	{

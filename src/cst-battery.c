@@ -98,7 +98,9 @@ void setBatteryVoltage(uint8_t voltage)
 	uint16_t voltage16 = (uint16_t)voltage << 8;
 
 	// Filter the voltage
-	if(voltage16 > batteryVoltage)
+	if(0 == batteryVoltage)
+		batteryVoltage = voltage16;
+	else if(voltage16 > batteryVoltage)
 		batteryVoltage += (voltage16 - batteryVoltage) / BATTERY_FILTER_COEF;
 	else if(voltage16 < batteryVoltage)
 		batteryVoltage -= (batteryVoltage - voltage16) / BATTERY_FILTER_COEF;

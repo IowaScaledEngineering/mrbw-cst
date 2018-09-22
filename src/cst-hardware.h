@@ -110,12 +110,12 @@ inline void disableSwitches()
 	PORTB &= ~(0b00000110);  // Pullups off
 }
 
-inline void buttonsEnable()
+inline void enableButtons()
 {
 	PORTB |= 0b11110000;  // Pullups on
 }
 
-inline void buttonsDisable()
+inline void disableButtons()
 {
 	PORTB &= ~(0b11110000);  // Pullups off
 }

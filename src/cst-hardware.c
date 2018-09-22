@@ -61,7 +61,7 @@ void initPorts()
 	//  PB6 - Input  - Softkey 2
 	//  PB7 - Input  - Softkey 3
 	DDRB  = 0b00001001;
-	buttonsEnable();
+	enableButtons();
 	enableSwitches();
 
 	// Pin Assignments for PORTC/DDRC
@@ -461,7 +461,7 @@ void processADC()
 uint8_t adcLoopInitialized(void)
 {
 	// Make sure all the ADC averaging is settled
-	if(adcLoopCount > 32)
+	if(adcLoopCount > 64)
 		return(1);
 	else
 		return(0);
