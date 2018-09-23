@@ -248,6 +248,7 @@ uint8_t txHoldoff_centisecs = TX_HOLDOFF_DEFAULT;
 
 static uint8_t timeSourceAddress = 0xFF;
 
+#define THROTTLE_STATUS_SLEEP           0x80
 #define THROTTLE_STATUS_ALL_STOP        0x02
 #define THROTTLE_STATUS_EMERGENCY       0x01
 
@@ -273,6 +274,7 @@ typedef enum
 	COMM_SCREEN,
 	PREFS_SCREEN,
 	DIAG_SCREEN,
+	SLEEP_SCREEN,
 	LAST_SCREEN  // Must be the last screen
 } Screens;
 
@@ -2905,7 +2907,7 @@ int main(void)
 					lcd_puts("DIAGS");
 					lcd_gotoxy(0,1);
 					lcd_putc(0x7F);
-					lcd_puts("-");
+					lcd_putc('-');
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -3283,8 +3285,42 @@ int main(void)
 				}
 				break;
 
+			case SLEEP_SCREEN:
+				enableLCDBacklight();
+				lcd_gotoxy(3,0);
+				lcd_puts("POWER");
+				lcd_gotoxy(0,1);
+				lcd_putc(0x7F);
+				lcd_puts("-   OFF");
+				switch(button)
+				{
+					case SELECT_BUTTON:
+						if((SELECT_BUTTON != previousButton) && (0 == subscreenState))
+						{
+							subscreenState++;
+						}
+						break;
+					case NO_BUTTON:
+						if((NO_BUTTON != previousButton) && (0 != subscreenState))
+						{
+							// Force sleep.  Do this on the trailing edge so the release doesn't wake the throttle from sleep
+							ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+							{
+								throttleStatus |= THROTTLE_STATUS_SLEEP;
+							}
+							// Reset menu so things are clean when returning from sleep
+							subscreenState = 0;
+							screenState = LAST_SCREEN;
+						}
+						break;
+					case MENU_BUTTON:
+					case UP_BUTTON:
+					case DOWN_BUTTON:
+						break;
+				}
+				break;
+
 			case LAST_SCREEN:
-			default:
 				// Clean up and reset
 				lcd_clrscr();
 				screenState = 0;
@@ -3517,7 +3553,7 @@ int main(void)
 		{
 			decisecs_tmp = sleepTimeout_decisecs;
 		}
-		if (0 == decisecs_tmp)
+		if((0 == decisecs_tmp) || (throttleStatus & THROTTLE_STATUS_SLEEP))
 		{
 			wdt_reset();
 
@@ -3585,6 +3621,7 @@ int main(void)
 			{
 				sleepTimeout_decisecs = sleep_tmr_reset_value;
 			}
+			throttleStatus &= ~THROTTLE_STATUS_SLEEP;
 		}
 
 	}
