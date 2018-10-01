@@ -12,6 +12,7 @@
 #define FUNCTION_ACTIVE_CHAR    4
 #define TONNAGE_TOP             5
 #define TONNAGE_BOTTOM          6
+#define AUX_CHAR                7
 
 void wait100ms(uint16_t loops);
 

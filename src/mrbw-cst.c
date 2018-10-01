@@ -1404,6 +1404,12 @@ int main(void)
 					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 				}
 
+				lcd_gotoxy(0,1);
+				if(controls & AUX_CONTROL)
+					lcd_putc(AUX_CHAR);
+				else
+					lcd_putc(' ');
+
 				switch(button)
 				{
 					case UP_BUTTON:

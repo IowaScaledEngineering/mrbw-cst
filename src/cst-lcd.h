@@ -3,6 +3,7 @@
 
 extern const uint8_t Bell[8];
 extern const uint8_t Horn[8];
+extern const uint8_t Aux[8];
 extern const uint8_t SoftkeyInactive[8];
 extern const uint8_t SoftkeyActive[8];
 

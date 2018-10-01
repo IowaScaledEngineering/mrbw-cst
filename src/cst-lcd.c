@@ -55,6 +55,18 @@ const uint8_t Horn[8] =
 	0b00000000
 };
 
+const uint8_t Aux[8] =
+{
+	0b00001000,
+	0b00010100,
+	0b00011100,
+	0b00010100,
+	0b00001010,
+	0b00000100,
+	0b00001010,
+	0b00000000
+};
+
 const uint8_t SoftkeyInactive[8] =
 {
 	0b00000000,
@@ -88,6 +100,11 @@ void setupSoftkeyChars(void)
 {
 	lcd_setup_custom(FUNCTION_INACTIVE_CHAR, SoftkeyInactive);
 	lcd_setup_custom(FUNCTION_ACTIVE_CHAR, SoftkeyActive);
+}
+
+void setupAuxChars(void)
+{
+	lcd_setup_custom(AUX_CHAR, Aux);
 }
 
 // Splash Screen Characters
@@ -323,6 +340,7 @@ void initLCD(void)
 	setupSoftkeyChars();
 	setupTonnageChars();
 	setupClockChars();
+	setupAuxChars();
 }
 
 
