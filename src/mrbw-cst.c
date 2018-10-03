@@ -3446,8 +3446,15 @@ int main(void)
 						// Advanced functions NOT active
 						if(THRESHOLD_CAL_SCREEN == screenState)
 						{
-							// Skip menu
-							screenState++;
+							if(	(0xFF != hornThreshold) &&
+								(0xFF != brakeThreshold) &&
+								(0xFF != brakeLowThreshold) &&
+								(0xFF != brakeHighThreshold)
+								)
+							{
+								// Skip threshold menu, but only if already calilbrated
+								screenState++;
+							}
 						}
 					}
 					
