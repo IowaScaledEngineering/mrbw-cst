@@ -2841,7 +2841,7 @@ int main(void)
 								{
 									*prefsPtr |= _BV(bitPosition);
 								}
-								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (controls & HORN_CONTROL) )
+								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) )
 								{
 									if(*prefsPtr < 0xFF)
 										(*prefsPtr)++;
@@ -2862,7 +2862,7 @@ int main(void)
 								{
 									*prefsPtr &= ~_BV(bitPosition);
 								}
-								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (controls & HORN_CONTROL) )
+								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) )
 								{
 									if(*prefsPtr > 1)
 										(*prefsPtr)--;
