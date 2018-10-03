@@ -2461,6 +2461,16 @@ int main(void)
 							{
 								// Menu pressed, advance menu
 								subscreenState++;
+
+								// Conditionally skip menus if they don't apply
+								while(	((2 == subscreenState) && !(optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE))) ||  // Skip brake type when variable brake disabled
+										((3 == subscreenState) && !(optionBits & _BV(OPTIONBITS_VARIABLE_BRAKE))) ||  // Skip pulse width when variable brake disabled
+										((3 == subscreenState) &&  (optionBits & _BV(OPTIONBITS_STEPPED_BRAKE)))      // Skip pulse width when brake type = stepped
+										)
+								{
+									subscreenState++;
+								}
+
 								lcd_clrscr();
 							}
 							break;
