@@ -181,13 +181,14 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 uint16_t configOffset;
 
 
-// Misc boolean config bits
+// Boolean config bits (EEPROM, global)
 #define CONFIGBITS_LED_BLINK         0
 #define CONFIGBITS_REVERSER_LOCK     4
 
 #define CONFIGBITS_DEFAULT                 (_BV(CONFIGBITS_LED_BLINK) | _BV(CONFIGBITS_REVERSER_LOCK))
 uint8_t configBits = CONFIGBITS_DEFAULT;
 
+// Boolean option bits (EEPROM, per config)
 #define OPTIONBITS_ESTOP_ON_BRAKE    0
 #define OPTIONBITS_REVERSER_SWAP     1
 #define OPTIONBITS_VARIABLE_BRAKE    2
@@ -195,6 +196,13 @@ uint8_t configBits = CONFIGBITS_DEFAULT;
 
 #define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE))
 uint8_t optionBits = OPTIONBITS_DEFAULT;
+
+// Boolean system bits (volatile, global)
+#define SYSTEMBITS_MENU_LOCK         0
+#define SYSTEMBITS_ADV_FUNC          1
+
+#define SYSTEMBITS_DEFAULT                 0x00
+uint8_t systemBits = SYSTEMBITS_DEFAULT;
 
 
 #define MRBUS_TX_BUFFER_DEPTH 16
@@ -270,11 +278,11 @@ typedef enum
 	FUNC_CONFIG_SCREEN,
 	NOTCH_CONFIG_SCREEN,
 	OPTION_SCREEN,
-	THRESHOLD_CAL_SCREEN,
+	SYSTEM_SCREEN,
 	COMM_SCREEN,
 	PREFS_SCREEN,
+	THRESHOLD_CAL_SCREEN,
 	DIAG_SCREEN,
-	SLEEP_SCREEN,
 	LAST_SCREEN  // Must be the last screen
 } Screens;
 
@@ -942,6 +950,7 @@ void init(void)
 	clearDeadReckoningTime();
 	
 	readConfig();
+	systemBits = SYSTEMBITS_DEFAULT;
 
 	initPorts();
 	initADC();
@@ -2905,6 +2914,127 @@ int main(void)
 				}
 				break;
 
+			case SYSTEM_SCREEN:
+				enableLCDBacklight();
+				if(!subscreenState)
+				{
+					lcd_gotoxy(2,0);
+					lcd_puts("SYSTEM");
+					lcd_gotoxy(0,1);
+					lcd_putc(0x7F);
+					lcd_puts("-");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenState = 1;
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					uint8_t bitPosition = 0xFF;  // <8 means boolean
+					enableLCDBacklight();
+					lcd_gotoxy(0,0);
+					if(1 == subscreenState)
+					{
+						lcd_gotoxy(0,0);
+						lcd_puts("POWER");
+						lcd_gotoxy(0,1);
+						lcd_puts("DOWN  -");
+						lcd_putc(0x7E);
+						bitPosition = 0xFF;  // Don't set any bits
+						prefsPtr = &systemBits;
+					}
+					else if(2 == subscreenState)
+					{
+						lcd_puts("MENU LCK");
+						bitPosition = SYSTEMBITS_MENU_LOCK;
+						prefsPtr = &systemBits;
+					}
+					else if(3 == subscreenState)
+					{
+						lcd_puts("ADV FUNC");
+						bitPosition = SYSTEMBITS_ADV_FUNC;
+						prefsPtr = &systemBits;
+					}
+					else
+					{
+						bitPosition = 8;
+						subscreenState = 1;
+					}
+
+
+					if(bitPosition < 8)
+					{
+						lcd_gotoxy(4,1);
+						if(*prefsPtr & _BV(bitPosition))
+							lcd_puts(" ON ");
+						else
+							lcd_puts(" OFF");
+					}
+
+
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(UP_BUTTON != previousButton)
+							{
+								if(bitPosition < 8)
+								{
+									*prefsPtr |= _BV(bitPosition);
+								}
+							}
+							break;
+						case DOWN_BUTTON:
+							if(DOWN_BUTTON != previousButton)
+							{
+								if(bitPosition < 8)
+								{
+									*prefsPtr &= ~_BV(bitPosition);
+								}
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenState = 0;  // Escape submenu
+								lcd_clrscr();
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenState++;
+								lcd_clrscr();
+							}
+							break;
+						case NO_BUTTON:
+							if((DOWN_BUTTON == previousButton) && (1 == subscreenState))  // Power off
+							{
+								// Force sleep.  Do this on the trailing edge so the release doesn't wake the throttle from sleep
+								ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+								{
+									throttleStatus |= THROTTLE_STATUS_SLEEP;
+								}
+								// Reset menu so things are clean when returning from sleep
+								subscreenState = 0;
+								screenState = LAST_SCREEN;
+							}
+							break;
+					}
+				}
+				break;
+				
 			case DIAG_SCREEN:
 				enableLCDBacklight();
 				if(!subscreenState)
@@ -3291,41 +3421,6 @@ int main(void)
 				}
 				break;
 
-			case SLEEP_SCREEN:
-				enableLCDBacklight();
-				lcd_gotoxy(3,0);
-				lcd_puts("POWER");
-				lcd_gotoxy(0,1);
-				lcd_putc(0x7F);
-				lcd_puts("-   OFF");
-				switch(button)
-				{
-					case SELECT_BUTTON:
-						if((SELECT_BUTTON != previousButton) && (0 == subscreenState))
-						{
-							subscreenState++;
-						}
-						break;
-					case NO_BUTTON:
-						if((NO_BUTTON != previousButton) && (0 != subscreenState))
-						{
-							// Force sleep.  Do this on the trailing edge so the release doesn't wake the throttle from sleep
-							ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-							{
-								throttleStatus |= THROTTLE_STATUS_SLEEP;
-							}
-							// Reset menu so things are clean when returning from sleep
-							subscreenState = 0;
-							screenState = LAST_SCREEN;
-						}
-						break;
-					case MENU_BUTTON:
-					case UP_BUTTON:
-					case DOWN_BUTTON:
-						break;
-				}
-				break;
-
 			case LAST_SCREEN:
 				// Clean up and reset
 				lcd_clrscr();
@@ -3343,7 +3438,36 @@ int main(void)
 					// Menu pressed, advance menu
 					lcd_clrscr();
 					screenState++;  // No range checking needed since LAST_SCREEN will reset the counter
-					ticks_autoincrement = 0;
+					ticks_autoincrement = 0;  // Reset to zero so a long press can be detected
+					
+					// Check for conditional menus
+					if(!(systemBits & _BV(SYSTEMBITS_ADV_FUNC)))
+					{
+						// Advanced functions NOT active
+						if(THRESHOLD_CAL_SCREEN == screenState)
+						{
+							// Skip menu
+							screenState++;
+						}
+					}
+					
+					if(systemBits & _BV(SYSTEMBITS_MENU_LOCK))
+					{
+						// Menu lock active
+						while( 	(ENGINE_SCREEN != screenState) &&
+								(TONNAGE_SCREEN != screenState) &&
+								(LOAD_CONFIG_SCREEN != screenState) &&
+								(LOCO_SCREEN != screenState) &&
+								(FUNC_FORCE_SCREEN != screenState) &&
+								(SYSTEM_SCREEN != screenState) &&
+								(LAST_SCREEN != screenState)
+							)
+						{
+							// Skip menu(s)
+							screenState++;
+						}
+					}
+					
 				}
 				if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 				{
