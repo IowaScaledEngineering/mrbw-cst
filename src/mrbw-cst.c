@@ -106,6 +106,9 @@ char baseString[9];
 uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 
 // Set EEPROM locations
+#define EE_VERSION_MAJOR              0x0E
+#define EE_VERSION_MINOR              0x0F
+
 #define EE_CURRENT_CONFIG             0x10
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
 #define EE_DEAD_RECKONING_TIME        0x12
@@ -401,8 +404,8 @@ void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 	buf[7]  = 0xFF & ((uint32_t)(GIT_REV))>>16; // Software Revision
 	buf[8]  = 0xFF & ((uint32_t)(GIT_REV))>>8; // Software Revision
 	buf[9]  = 0xFF & (GIT_REV); // Software Revision
-	buf[10]  = HWREV_MAJOR; // Hardware Major Revision
-	buf[11]  = HWREV_MINOR; // Hardware Minor Revision
+	buf[10] = HWREV_MAJOR; // Hardware Major Revision
+	buf[11] = HWREV_MINOR; // Hardware Minor Revision
 	buf[12] = 'C';
 	buf[13] = 'S';
 	buf[14] = 'T';
@@ -673,6 +676,40 @@ ISR(TIMER0_COMPA_vect)
 void readConfig(void)
 {
 	uint8_t i;
+	
+	char version_string[] = VERSION_STRING;
+	char *ptr = version_string;
+	uint8_t version = 0;
+		while(('.' != *ptr) && ('\0' != *ptr))
+	{
+		version *= 10;
+		version += *ptr - '0';
+		ptr++;
+	}
+	uint8_t ee_version = eeprom_read_byte((uint8_t*)EE_VERSION_MAJOR);
+	if(ee_version != version)
+	{
+		eeprom_write_byte((uint8_t*)EE_VERSION_MAJOR, version);
+	}
+
+	if('.' == *ptr)
+	{
+		ptr++;
+	}
+
+	version = 0;
+	while(('.' != *ptr) && ('\0' != *ptr))
+	{
+		version *= 10;
+		version += *ptr - '0';
+		ptr++;
+	}
+	ee_version = eeprom_read_byte((uint8_t*)EE_VERSION_MINOR);
+	if(ee_version != version)
+	{
+		eeprom_write_byte((uint8_t*)EE_VERSION_MINOR, version);
+	}
+
 
 	update_decisecs = (uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L) | (((uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H)) << 8);
 	if(update_decisecs < UPDATE_DECISECS_MIN)
