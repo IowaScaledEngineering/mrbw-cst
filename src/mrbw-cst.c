@@ -1585,7 +1585,7 @@ int main(void)
 					case MENU_BUTTON:
 						if(ENGINE_NOT_IDLE == engineState)
 						{
-							// Clean Not Idle state if exiting the menu
+							// Clear Not Idle state if exiting the menu
 							engineState = ENGINE_RUNNING;
 						}
 					case NO_BUTTON:
@@ -1724,7 +1724,7 @@ int main(void)
 					switch(button)
 					{
 						case DOWN_BUTTON:
-							if(SELECT_BUTTON != previousButton)
+							if(DOWN_BUTTON != previousButton)
 							{
 								lcd_clrscr();
 								lcd_gotoxy(0,0);
