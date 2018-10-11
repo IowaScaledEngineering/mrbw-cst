@@ -927,6 +927,11 @@ void resetConfig(void)
 	eeprom_write_byte((uint8_t*)EE_BASE_ADDR, MRBUS_BASE_ADDR_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, TIME_SOURCE_ADDRESS_DEFAULT);
 
+	setBatteryLevels(0xFF, 0xFF, 0xFF);  // Set to unprogrammed value, will be reset to default by setBatteryLevels
+	eeprom_write_byte((uint8_t*)EE_BATTERY_OKAY, getBatteryOkay());
+	eeprom_write_byte((uint8_t*)EE_BATTERY_WARN, getBatteryWarn());
+	eeprom_write_byte((uint8_t*)EE_BATTERY_CRITICAL, getBatteryCritical());
+
 	// Skip the following, since these are specific to each physical device:
 	//    EE_HORN_THRESHOLD
 	//    EE_BRAKE_THRESHOLD
