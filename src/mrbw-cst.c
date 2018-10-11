@@ -113,6 +113,9 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_DEVICE_SLEEP_TIMEOUT       0x11
 #define EE_DEAD_RECKONING_TIME        0x12
 #define EE_CONFIGBITS                 0x13
+#define EE_BATTERY_OKAY               0x14
+#define EE_BATTERY_WARN               0x15
+#define EE_BATTERY_CRITICAL           0x16
 #define EE_TX_HOLDOFF                 0x1D
 #define EE_TIME_SOURCE_ADDRESS        0x1E
 #define EE_BASE_ADDR                  0x1F
@@ -677,10 +680,11 @@ void readConfig(void)
 {
 	uint8_t i;
 	
+	// Parse version string
 	char version_string[] = VERSION_STRING;
 	char *ptr = version_string;
 	uint8_t version = 0;
-		while(('.' != *ptr) && ('\0' != *ptr))
+	while(('.' != *ptr) && ('\0' != *ptr))
 	{
 		version *= 10;
 		version += *ptr - '0';
@@ -731,6 +735,18 @@ void readConfig(void)
 		txHoldoff_centisecs = TX_HOLDOFF_MIN;
 		eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
 	}
+
+	// Battery stuff
+	uint8_t decivoltsOkay = eeprom_read_byte((uint8_t*)EE_BATTERY_OKAY);
+	uint8_t decivoltsWarn = eeprom_read_byte((uint8_t*)EE_BATTERY_WARN);
+	uint8_t decivoltsCritical = eeprom_read_byte((uint8_t*)EE_BATTERY_CRITICAL);
+	setBatteryLevels(decivoltsOkay, decivoltsWarn, decivoltsCritical);
+	if(getBatteryOkay() != decivoltsOkay)
+		eeprom_write_byte((uint8_t*)EE_BATTERY_OKAY, getBatteryOkay());
+	if(getBatteryWarn() != decivoltsWarn)
+		eeprom_write_byte((uint8_t*)EE_BATTERY_WARN, getBatteryWarn());
+	if(getBatteryCritical() != decivoltsCritical)
+		eeprom_write_byte((uint8_t*)EE_BATTERY_CRITICAL, getBatteryCritical());
 
 	// Read the number of minutes before sleeping from EEP and store it.
 	// If it's not in range, clamp it.
@@ -2991,6 +3007,11 @@ int main(void)
 					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
+
+					uint8_t decivoltsOkay = getBatteryOkay();
+					uint8_t decivoltsWarn = getBatteryWarn();
+					uint8_t decivoltsCritical = getBatteryCritical();
+
 					if(1 == subscreenState)
 					{
 						lcd_gotoxy(0,0);
@@ -2998,7 +3019,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts("DOWN  -");
 						lcd_putc(0x7E);
-						bitPosition = 0xFF;  // Don't set any bits
+						bitPosition = 8;  // Don't display any value
 						prefsPtr = &systemBits;
 					}
 					else if(2 == subscreenState)
@@ -3012,6 +3033,30 @@ int main(void)
 						lcd_puts("ADV FUNC");
 						bitPosition = SYSTEMBITS_ADV_FUNC;
 						prefsPtr = &systemBits;
+					}
+					else if(4 == subscreenState)
+					{
+						lcd_puts("BAT OKAY");
+						lcd_gotoxy(7,1);
+						lcd_puts("V");
+						bitPosition = 0xFF;
+						prefsPtr = &decivoltsOkay;
+					}
+					else if(5 == subscreenState)
+					{
+						lcd_puts("BAT WARN");
+						lcd_gotoxy(7,1);
+						lcd_puts("V");
+						bitPosition = 0xFF;
+						prefsPtr = &decivoltsWarn;
+					}
+					else if(6 == subscreenState)
+					{
+						lcd_puts("BAT CRIT");
+						lcd_gotoxy(7,1);
+						lcd_puts("V");
+						bitPosition = 0xFF;
+						prefsPtr = &decivoltsCritical;
 					}
 					else
 					{
@@ -3028,31 +3073,64 @@ int main(void)
 						else
 							lcd_puts(" OFF");
 					}
+					else if(8 == bitPosition)
+					{
+						// Do nothing
+					}
+					else
+					{
+						lcd_gotoxy(4,1);
+						lcd_putc('0' + (*prefsPtr) / 10);
+						lcd_putc('.');
+						lcd_putc('0' + (*prefsPtr) % 10);
+					}
 
 
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(UP_BUTTON != previousButton)
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
 								if(bitPosition < 8)
 								{
 									*prefsPtr |= _BV(bitPosition);
 								}
+								else if( ((prefsPtr != &decivoltsOkay)&&(prefsPtr != &decivoltsWarn)&&(prefsPtr != &decivoltsCritical)) || (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) )
+								{
+									if(*prefsPtr < 0xFF)
+										(*prefsPtr)++;
+									setBatteryLevels(decivoltsOkay, decivoltsWarn, decivoltsCritical);
+									ticks_autoincrement = 0;
+								}
 							}
 							break;
 						case DOWN_BUTTON:
-							if(DOWN_BUTTON != previousButton)
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
 								if(bitPosition < 8)
 								{
 									*prefsPtr &= ~_BV(bitPosition);
+								}
+								else if( ((prefsPtr != &decivoltsOkay)&&(prefsPtr != &decivoltsWarn)&&(prefsPtr != &decivoltsCritical)) || (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) )
+								{
+									if(*prefsPtr > 0)
+										(*prefsPtr)--;
+									setBatteryLevels(decivoltsOkay, decivoltsWarn, decivoltsCritical);
+									ticks_autoincrement = 0;
 								}
 							}
 							break;
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
+								eeprom_write_byte((uint8_t*)EE_BATTERY_OKAY, getBatteryOkay());
+								eeprom_write_byte((uint8_t*)EE_BATTERY_WARN, getBatteryWarn());
+								eeprom_write_byte((uint8_t*)EE_BATTERY_CRITICAL, getBatteryCritical());
+								readConfig();
+								lcd_clrscr();
+								lcd_gotoxy(1,0);
+								lcd_puts("SAVED!");
+								wait100ms(7);
 								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}

@@ -25,14 +25,20 @@ LICENSE:
 #include "cst-common.h"
 #include "cst-battery.h"
 
-// VBATT_OKAY is the battery voltage (in centivolts) above which the batteries are considered "fine"
-#define VBATT_OKAY  220 
-// VBATT_WARN is the battery voltage (in centivolts) above which the batteries are considered a warning, but not
-//  in critical shape.  This should *always* be less than VBATT_OKAY
-#define VBATT_WARN  200
-// VBATT_CRITICAL is the battery voltage (in centivolts) below which the throttle should stop operating.
-//  This should *always* be less than VBATT_WARN
-#define VBATT_CRITICAL  180
+// VBATT_OKAY is the battery voltage (in decivolts) above which the batteries are considered "fine"
+#define VBATT_OKAY_MAX      30
+#define VBATT_OKAY_DEFAULT  22
+#define VBATT_OKAY_MIN      10
+// VBATT_WARN is the battery voltage (in decivolts) above which the batteries are considered a warning, but not
+//  in critical shape.  This should *always* be at least 100mV less than VBATT_OKAY
+#define VBATT_WARN_MAX      29
+#define VBATT_WARN_DEFAULT  20
+#define VBATT_WARN_MIN       9
+// VBATT_CRITICAL is the battery voltage (in decivolts) below which the throttle should stop operating.
+//  This should *always* be at least 100mV less than VBATT_WARN
+#define VBATT_CRITICAL_MAX      20
+#define VBATT_CRITICAL_DEFAULT  18
+#define VBATT_CRITICAL_MIN       0
 
 const uint8_t BatteryFull[8] =
 {
@@ -69,9 +75,13 @@ const uint8_t BatteryEmpty[8] =
 	0b00000000
 };
 
-BatteryState batteryState = FULL;
-BatteryState lastBatteryState = FULL;
-uint16_t batteryVoltage = 0;
+static BatteryState batteryState = FULL;
+static BatteryState lastBatteryState = FULL;
+static uint16_t batteryVoltage = 0;
+
+static uint8_t batteryOkay = VBATT_OKAY_DEFAULT;
+static uint8_t batteryWarn = VBATT_WARN_DEFAULT;
+static uint8_t batteryCritical = VBATT_CRITICAL_DEFAULT;
 
 void setupBatteryChar(void)
 {
@@ -113,14 +123,15 @@ void setBatteryVoltage(uint8_t voltage)
 		batteryVoltage += (voltage16 - batteryVoltage) / BATTERY_FILTER_COEF;
 	else if(voltage16 < batteryVoltage)
 		batteryVoltage -= (batteryVoltage - voltage16) / BATTERY_FILTER_COEF;
-	
-	if (getBatteryVoltage() >= (VBATT_OKAY/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+
+	// Multiply by 5 since batteryVoltage LSB = 20mV, threshold LSB = 100mV
+	if (batteryVoltage >= (batteryOkay*5))
 		batteryState = FULL;
-	else if (getBatteryVoltage() >= (VBATT_WARN/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+	else if (batteryVoltage >= (batteryWarn*5))
 		batteryState = HALF;
-	else if (getBatteryVoltage() >= (VBATT_CRITICAL/2))  // Divide by 2 since batteryVoltage LSB = 20mV
+	else if ((batteryVoltage >= (batteryCritical*5)) || (0 == batteryCritical))
 		batteryState = EMPTY;
-	else
+	else  // Only if critical level is non-zero
 		batteryState = CRITICAL;
 }
 
@@ -134,5 +145,60 @@ void printBattery(void)
 
 	lcd_gotoxy(0,0);
 	lcd_putc(BATTERY_CHAR);
+}
+
+uint8_t getBatteryOkay(void)
+{
+	return batteryOkay;
+}
+
+uint8_t getBatteryWarn(void)
+{
+	return batteryWarn;
+}
+
+uint8_t getBatteryCritical(void)
+{
+	return batteryCritical;
+}
+
+void setBatteryLevels(uint8_t decivoltsOkay, uint8_t decivoltsWarn, uint8_t decivoltsCritical)
+{
+	if(0xFF == decivoltsOkay)
+		batteryOkay = VBATT_OKAY_DEFAULT;
+	else
+		batteryOkay = decivoltsOkay;
+
+	if(0xFF == decivoltsWarn)
+		batteryWarn = VBATT_WARN_DEFAULT;
+	else
+		batteryWarn = decivoltsWarn;
+
+	if(0xFF == decivoltsCritical)
+		batteryCritical = VBATT_CRITICAL_DEFAULT;
+	else
+		batteryCritical = decivoltsCritical;
+	
+	// Do some basic range checking
+	if(batteryOkay > VBATT_OKAY_MAX)
+		batteryOkay = VBATT_OKAY_MAX;
+	else if(batteryOkay < VBATT_OKAY_MIN)
+		batteryOkay = VBATT_OKAY_MIN;
+
+	if(batteryWarn > VBATT_WARN_MAX)
+		batteryWarn = VBATT_WARN_MAX;
+	else if(batteryWarn < VBATT_WARN_MIN)
+		batteryWarn = VBATT_WARN_MIN;
+	
+	if(batteryCritical > VBATT_CRITICAL_MAX)
+		batteryCritical = VBATT_CRITICAL_MAX;
+	else if(batteryCritical < VBATT_CRITICAL_MIN)
+		batteryCritical = VBATT_CRITICAL_MIN;
+
+	// Check relative levels.  Can push the next lower one down, but cannot push the next higher one up
+	if((batteryOkay <= batteryWarn) && (batteryWarn > 0))
+		batteryWarn = batteryOkay - 1;
+	if((batteryWarn <= batteryCritical) && (batteryCritical > 0))
+		batteryCritical = batteryWarn - 1;
 }
 
