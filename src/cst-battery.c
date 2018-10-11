@@ -77,7 +77,7 @@ const uint8_t BatteryEmpty[8] =
 
 static BatteryState batteryState = FULL;
 static BatteryState lastBatteryState = FULL;
-static uint16_t batteryVoltage = 0;
+static uint16_t batteryVoltageFilter = 0;
 
 static uint8_t batteryOkay = VBATT_OKAY_DEFAULT;
 static uint8_t batteryWarn = VBATT_WARN_DEFAULT;
@@ -102,7 +102,7 @@ void setupBatteryChar(void)
 
 uint8_t getBatteryVoltage(void)
 {
-	return (batteryVoltage >> 8);
+	return (batteryVoltageFilter >> 8);
 }
 
 BatteryState getBatteryState(void)
@@ -117,19 +117,19 @@ void setBatteryVoltage(uint8_t voltage)
 	uint16_t voltage16 = (uint16_t)voltage << 8;
 
 	// Filter the voltage
-	if(0 == batteryVoltage)
-		batteryVoltage = voltage16;
-	else if(voltage16 > batteryVoltage)
-		batteryVoltage += (voltage16 - batteryVoltage) / BATTERY_FILTER_COEF;
-	else if(voltage16 < batteryVoltage)
-		batteryVoltage -= (batteryVoltage - voltage16) / BATTERY_FILTER_COEF;
+	if(0 == batteryVoltageFilter)
+		batteryVoltageFilter = voltage16;
+	else if(voltage16 > batteryVoltageFilter)
+		batteryVoltageFilter += (voltage16 - batteryVoltageFilter) / BATTERY_FILTER_COEF;
+	else if(voltage16 < batteryVoltageFilter)
+		batteryVoltageFilter -= (batteryVoltageFilter - voltage16) / BATTERY_FILTER_COEF;
 
-	// Multiply by 5 since batteryVoltage LSB = 20mV, threshold LSB = 100mV
-	if (batteryVoltage >= (batteryOkay*5))
+	// Multiply by 5 since getBatteryVoltage LSB = 20mV, threshold LSB = 100mV
+	if (getBatteryVoltage() >= (batteryOkay*5))
 		batteryState = FULL;
-	else if (batteryVoltage >= (batteryWarn*5))
+	else if (getBatteryVoltage() >= (batteryWarn*5))
 		batteryState = HALF;
-	else if ((batteryVoltage >= (batteryCritical*5)) || (0 == batteryCritical))
+	else if ((getBatteryVoltage() >= (batteryCritical*5)) || (0 == batteryCritical))
 		batteryState = EMPTY;
 	else  // Only if critical level is non-zero
 		batteryState = CRITICAL;
