@@ -125,11 +125,12 @@ void setBatteryVoltage(uint8_t voltage)
 		batteryVoltageFilter -= (batteryVoltageFilter - voltage16) / BATTERY_FILTER_COEF;
 
 	// Multiply by 5 since getBatteryVoltage LSB = 20mV, threshold LSB = 100mV
-	if (getBatteryVoltage() >= (batteryOkay*5))
+	// Ternary statement adds 100mV hysteresis if currently in next lower state - prevents jittering
+	if (getBatteryVoltage() >= (5*batteryOkay + ((HALF == batteryState)?5:0)))
 		batteryState = FULL;
-	else if (getBatteryVoltage() >= (batteryWarn*5))
+	else if (getBatteryVoltage() >= (5*batteryWarn + ((EMPTY == batteryState)?5:0)))
 		batteryState = HALF;
-	else if ((getBatteryVoltage() >= (batteryCritical*5)) || (0 == batteryCritical))
+	else if ((getBatteryVoltage() >= (5*batteryCritical + ((CRITICAL == batteryState)?5:0))) || (0 == batteryCritical))
 		batteryState = EMPTY;
 	else  // Only if critical level is non-zero
 		batteryState = CRITICAL;
