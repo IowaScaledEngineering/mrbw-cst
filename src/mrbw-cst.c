@@ -1566,6 +1566,7 @@ int main(void)
 						case MENU_BUTTON:
 							// Escape power down menu and return to main screen
 							screenState--;  // Back up one screen.  It will increment in the global MENU button handling code since we just pressed MENU.
+							                // Yes, this may underflow, but there's a corresponding ++ in the MENU code.
 							subscreenState = 0;
 							backlight = 0;
 							lcd_clrscr();
