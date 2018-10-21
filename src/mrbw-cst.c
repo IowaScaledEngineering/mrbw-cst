@@ -1434,102 +1434,148 @@ int main(void)
 		switch(screenState)
 		{
 			case MAIN_SCREEN:
-				lcd_gotoxy(2,0);
-				if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
+				if(!subscreenState)
 				{
-					lcd_puts("EMRG");
-					enableLCDBacklight();
-				}
-				else if(activeReverserSetting != reverserPosition_tmp)
-				{
-					lcd_puts("REV!");
-					enableLCDBacklight();
-				}
-				else
-				{
-					printLocomotiveAddress(locoAddress);
-					if(backlight)
+					lcd_gotoxy(2,0);
+					if(throttleStatus & THROTTLE_STATUS_EMERGENCY)
+					{
+						lcd_puts("EMRG");
 						enableLCDBacklight();
+					}
+					else if(activeReverserSetting != reverserPosition_tmp)
+					{
+						lcd_puts("REV!");
+						enableLCDBacklight();
+					}
 					else
-						disableLCDBacklight();
-				}
+					{
+						printLocomotiveAddress(locoAddress);
+						if(backlight)
+							enableLCDBacklight();
+						else
+							disableLCDBacklight();
+					}
 
-				lcd_gotoxy(1,1);
-				printTime();
-				printBattery();
+					lcd_gotoxy(1,1);
+					printTime();
+					printBattery();
 				
-//				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-				if(0)
-				{
-					printTonnage();
+	//				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+					if(0)
+					{
+						printTonnage();
+					}
+					else
+					{
+						lcd_gotoxy(7,0);
+						lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+						lcd_gotoxy(7,1);
+						lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+					}
+
+					lcd_gotoxy(0,1);
+					if(controls & AUX_CONTROL)
+						lcd_putc(AUX_CHAR);
+					else
+						lcd_putc(' ');
+					switch(button)
+					{
+						case UP_BUTTON:
+							if(UP_BUTTON != previousButton)
+							{
+	//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+								if(0)
+								{
+									incrementTonnage();
+								}
+								else
+								{
+									if(upButtonFunction & LATCH_FUNCTION)
+										optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
+									else
+										optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
+								}
+							}
+							break;
+						case DOWN_BUTTON:
+							if(DOWN_BUTTON != previousButton)
+							{
+	//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
+								if(0)
+								{
+									decrementTonnage();
+								}
+								else
+								{
+									if(downButtonFunction & LATCH_FUNCTION)
+										optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
+									else
+										optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
+								}
+							}
+							break;
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								if(backlight)
+									backlight = 0;
+								else
+									backlight = 1;
+								ticks_autoincrement = 0;  // Reset to zero so a long press can be detected
+							}
+							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							{
+								// Trigger power down menu on long press
+								subscreenState = 1;
+								lcd_clrscr();
+							}
+							break;
+						case NO_BUTTON:
+							// Release buttons if momentary
+							if(!(upButtonFunction & LATCH_FUNCTION))
+								optionButtonState &= ~UP_OPTION_BUTTON;
+							if(!(downButtonFunction & LATCH_FUNCTION))
+								optionButtonState &= ~DOWN_OPTION_BUTTON;
+						case MENU_BUTTON:
+							break;
+					}
 				}
 				else
 				{
-					lcd_gotoxy(7,0);
-					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-					lcd_gotoxy(7,1);
-					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-				}
-
-				lcd_gotoxy(0,1);
-				if(controls & AUX_CONTROL)
-					lcd_putc(AUX_CHAR);
-				else
-					lcd_putc(' ');
-
-				switch(button)
-				{
-					case UP_BUTTON:
-						if(UP_BUTTON != previousButton)
-						{
-//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-							if(0)
+					enableLCDBacklight();
+					lcd_gotoxy(0,0);
+					lcd_puts("POWER");
+					lcd_gotoxy(0,1);
+					lcd_puts("DOWN  -");
+					lcd_putc(0x7E);
+					switch(button)
+					{
+						case NO_BUTTON:
+							if(DOWN_BUTTON == previousButton)  // Power off
 							{
-								incrementTonnage();
+								// Force sleep.  Do this on the trailing edge so the release doesn't wake the throttle from sleep
+								ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+								{
+									throttleStatus |= THROTTLE_STATUS_SLEEP;
+								}
+								// Reset menu so things are clean when returning from sleep
+								subscreenState = 0;
+								screenState = LAST_SCREEN;
 							}
-							else
-							{
-								if(upButtonFunction & LATCH_FUNCTION)
-									optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
-								else
-									optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
-							}
-						}
-						break;
-					case DOWN_BUTTON:
-						if(DOWN_BUTTON != previousButton)
-						{
-//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-							if(0)
-							{
-								decrementTonnage();
-							}
-							else
-							{
-								if(downButtonFunction & LATCH_FUNCTION)
-									optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
-								else
-									optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
-							}
-						}
-						break;
-					case SELECT_BUTTON:
-						if(SELECT_BUTTON != previousButton)
-						{
-							if(backlight)
-								backlight = 0;
-							else
-								backlight = 1;
-						}
-						break;
-					case MENU_BUTTON:
-					case NO_BUTTON:
-						// Release buttons if momentary
-						if(!(upButtonFunction & LATCH_FUNCTION))
-							optionButtonState &= ~UP_OPTION_BUTTON;
-						if(!(downButtonFunction & LATCH_FUNCTION))
-							optionButtonState &= ~DOWN_OPTION_BUTTON;
-						break;
+							break;
+						case MENU_BUTTON:
+							// Escape power down menu and return to main screen
+							screenState--;  // Back up one screen.  It will increment in the global MENU button handling code since we just pressed MENU.
+							                // Yes, this may underflow, but there's a corresponding ++ in the MENU code.
+							subscreenState = 0;
+							backlight = 0;
+							lcd_clrscr();
+							break;
+						case SELECT_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+							break;
+					}
 				}
 				break;
 
@@ -1781,7 +1827,7 @@ int main(void)
 							}
 							break;
 						case MENU_BUTTON:
-							screenState--;  // Back up one screen.  It will increment in the global MENU button handling code since we just pressed MENU
+							screenState--;  // Back up one screen.  It will increment in the global MENU button handling code since we just pressed MENU.
 							subscreenState = 0;  // Escape submenu
 							lcd_clrscr();
 							break;
@@ -3019,27 +3065,17 @@ int main(void)
 
 					if(1 == subscreenState)
 					{
-						lcd_gotoxy(0,0);
-						lcd_puts("POWER");
-						lcd_gotoxy(0,1);
-						lcd_puts("DOWN  -");
-						lcd_putc(0x7E);
-						bitPosition = 8;  // Don't display any value
-						prefsPtr = &systemBits;
-					}
-					else if(2 == subscreenState)
-					{
 						lcd_puts("MENU LCK");
 						bitPosition = SYSTEMBITS_MENU_LOCK;
 						prefsPtr = &systemBits;
 					}
-					else if(3 == subscreenState)
+					else if(2 == subscreenState)
 					{
 						lcd_puts("ADV FUNC");
 						bitPosition = SYSTEMBITS_ADV_FUNC;
 						prefsPtr = &systemBits;
 					}
-					else if(4 == subscreenState)
+					else if(3 == subscreenState)
 					{
 						lcd_puts("BAT OKAY");
 						lcd_gotoxy(7,1);
@@ -3047,7 +3083,7 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &decivoltsOkay;
 					}
-					else if(5 == subscreenState)
+					else if(4 == subscreenState)
 					{
 						lcd_puts("BAT WARN");
 						lcd_gotoxy(7,1);
@@ -3055,7 +3091,7 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &decivoltsWarn;
 					}
-					else if(6 == subscreenState)
+					else if(5 == subscreenState)
 					{
 						lcd_puts("BAT CRIT");
 						lcd_gotoxy(7,1);
@@ -3149,17 +3185,6 @@ int main(void)
 							}
 							break;
 						case NO_BUTTON:
-							if((DOWN_BUTTON == previousButton) && (1 == subscreenState))  // Power off
-							{
-								// Force sleep.  Do this on the trailing edge so the release doesn't wake the throttle from sleep
-								ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-								{
-									throttleStatus |= THROTTLE_STATUS_SLEEP;
-								}
-								// Reset menu so things are clean when returning from sleep
-								subscreenState = 0;
-								screenState = LAST_SCREEN;
-							}
 							break;
 					}
 				}
