@@ -78,13 +78,14 @@ typedef struct
 {
 	const char *name;
 	Functions fn;
+	uint8_t eeAddr;
 	uint8_t latching;
 } ControlsData;
 
 static ControlsData controls[] = {
-	[HORN_FN]                = {.name = "HORN"},
-	[BELL_FN]                = {.name = "BELL"},
-	[BRAKE_FN]               = {.name = "BRAKE"},
+	[HORN_FN]                = {.name = "HORN", .eeAddr = EE_HORN_FUNCTION},
+	[BELL_FN]                = {.name = "BELL", .eeAddr = EE_BELL_FUNCTION},
+	[BRAKE_FN]               = {.name = "BRAKE", .eeAddr = EE_BRAKE_FUNCTION},
 	[BRAKE_OFF_FN]           = {.name = "BRK OFF"},
 	[AUX_FN]                 = {.name = "AUX"},
 	[ENGINE_ON_FN]           = {.name = "ENG ON"},
@@ -194,19 +195,6 @@ void incrementCurrentControlFunction(void)
 		// Take advantage of the bottom 5 bits being the function number
 		controls[currentControl].fn++;
 	}
-	
-/*	if((*functionPtr) & OFF_FUNCTION)*/
-/*	{*/
-/*		(*functionPtr) = 0;  // Turn on*/
-/*	}*/
-/*	else*/
-/*	{*/
-/*		if(((*functionPtr) & 0x1F) < 28)*/
-/*			(*functionPtr)++;       // Increment*/
-/*		else if(allowLatch && !((*functionPtr) & LATCH_FUNCTION))*/
-/*			(*functionPtr) = LATCH_FUNCTION;  // Set latch bit, reset function number to zero*/
-/*		else*/
-/*			(*functionPtr) = ((*functionPtr) & LATCH_FUNCTION) + 28;    // Saturate, preserving latch bit*/
 }
 
 void decrementCurrentControlFunction(void)
@@ -228,7 +216,7 @@ void decrementCurrentControlFunction(void)
 	}
 	else if(F00_LAT == controls[currentControl].fn)
 	{
-		controls[currentControl].fn = F03_MOM;
+		controls[currentControl].fn = F28_MOM;
 	}
 	else if(F00_MOM == controls[currentControl].fn)
 	{
@@ -239,16 +227,5 @@ void decrementCurrentControlFunction(void)
 		// Take advantage of the bottom 5 bits being the function number
 		controls[currentControl].fn--;
 	}
-
-/*	if(~((*functionPtr) & OFF_FUNCTION))*/
-/*	{*/
-/*		// Not OFF...*/
-/*		if(((*functionPtr) & 0x1F) > 0)*/
-/*			(*functionPtr)--;       // Decrement*/
-/*		else if(allowLatch && ((*functionPtr) & LATCH_FUNCTION))*/
-/*			(*functionPtr) = 28;    // Unset latch bit, reset function number to 28*/
-/*		else*/
-/*			(*functionPtr) = OFF_FUNCTION;  // Turn off*/
-/*	}*/
 }
 
