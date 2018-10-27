@@ -108,8 +108,6 @@ char baseString[9];
 
 uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 
-uint16_t configOffset;
-
 // Boolean config bits (EEPROM, global)
 #define CONFIGBITS_LED_BLINK         0
 #define CONFIGBITS_REVERSER_LOCK     4
@@ -693,17 +691,6 @@ void readConfig(void)
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
 
-	// FIXME: Is configOffset still needed to be stored in EEPROM?
-	// The following code used to calculate the active EEPROM memory space, based on the currently selected config #.
-	// Now we only have one config that is used during operation (WORKING_CONFIG), so make sure this is what we use.
-	configOffset = eeprom_read_byte((uint8_t*)EE_CURRENT_CONFIG);  // Abuse configOffset to read the config number
-	if(configOffset != WORKING_CONFIG)
-	{
-		configOffset = WORKING_CONFIG;
-		eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, configOffset);
-	}
-	configOffset = calculateConfigOffset(configOffset);
-	
 	// Locomotive Address
 	locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
 	if(locoAddress & LOCO_ADDRESS_SHORT)
@@ -783,18 +770,9 @@ void readConfig(void)
 
 void copyConfig(uint8_t srcConfig, uint8_t destConfig)
 {
-	uint8_t i;
-	uint16_t sourceAddr;
-	uint16_t destAddr;
-
-	sourceAddr = calculateConfigOffset(srcConfig);
-	destAddr = calculateConfigOffset(destConfig);
-
-	for(i=0; i<CONFIG_SIZE; i++)
-	{
-		uint8_t tmpEE = eeprom_read_byte((uint8_t*)(sourceAddr++));
-		eeprom_write_byte((uint8_t*)(destAddr++), tmpEE);
-	}
+	uint8_t configTemp[CONFIG_SIZE];
+	eeprom_read_block((void *)configTemp, (void *)CONFIG_OFFSET(srcConfig), CONFIG_SIZE);
+	eeprom_write_block((void *)configTemp, (void *)CONFIG_OFFSET(destConfig), CONFIG_SIZE);
 }
 
 void resetConfig(void)
@@ -826,48 +804,47 @@ void resetConfig(void)
 	//    EE_BRAKE_LOW_THRESHOLD
 	//    EE_BRAKE_HIGH_THRESHOLD
 
-	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, WORKING_CONFIG);
-	
+	// Write working config first, then copy to all the others
+	wdt_reset();
+	eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003 | LOCO_ADDRESS_SHORT);
+	eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, 2);
+	eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, 1);
+	eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, 0);
+	eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
+	eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
+	eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, 9);
+	eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, 8);
+	eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, 5);
+	eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, 6);
+	eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, OFF_FUNCTION);
+	eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, OFF_FUNCTION);
+	eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
+	eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
+	eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
+	notchSpeedStep[0] = 7;
+	notchSpeedStep[1] = 23;
+	notchSpeedStep[2] = 39;
+	notchSpeedStep[3] = 55;
+	notchSpeedStep[4] = 71;
+	notchSpeedStep[5] = 87;
+	notchSpeedStep[6] = 103;
+	notchSpeedStep[7] = 119;
+	eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
+
 	for (i=1; i<=MAX_CONFIGS; i++)
 	{
 		wdt_reset();
-		configOffset = calculateConfigOffset(i);
-		eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003 | LOCO_ADDRESS_SHORT);
-		eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, 2);
-		eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, 1);
-		eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, 0);
-		eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
-		eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
-		eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, 9);
-		eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, 8);
-		eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, 5);
-		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, 6);
-		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, OFF_FUNCTION);
-		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
-		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
-		eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
-		eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
-		notchSpeedStep[0] = 7;
-		notchSpeedStep[1] = 23;
-		notchSpeedStep[2] = 39;
-		notchSpeedStep[3] = 55;
-		notchSpeedStep[4] = 71;
-		notchSpeedStep[5] = 87;
-		notchSpeedStep[6] = 103;
-		notchSpeedStep[7] = 119;
-		eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
+		copyConfig(WORKING_CONFIG, i);
 	}
-
-	copyConfig(1, WORKING_CONFIG);  // Grab one of the configs for default
 	
 	wdt_reset();
 	
@@ -1614,9 +1591,8 @@ int main(void)
 					printDec2DigWZero(newConfigNumber);
 					lcd_puts(": ");
 					{
-						uint16_t tmpConfigOffset = configOffset;  // Save configOffset
-						configOffset = calculateConfigOffset(newConfigNumber);
-						uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);  // Read loco address of newConfigNumber
+						uint16_t eepromAddressDelta = CONFIG_OFFSET(WORKING_CONFIG) - CONFIG_OFFSET(newConfigNumber);
+						uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)(EE_LOCO_ADDRESS - eepromAddressDelta));  // Read loco address of newConfigNumber
 						if(tmpLocoAddress & LOCO_ADDRESS_SHORT)
 						{
 							if((tmpLocoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
@@ -1634,7 +1610,6 @@ int main(void)
 							}
 						}
 						printLocomotiveAddress(tmpLocoAddress);
-						configOffset = tmpConfigOffset;  // Restore old configOffset value
 					}
 					switch(button)
 					{

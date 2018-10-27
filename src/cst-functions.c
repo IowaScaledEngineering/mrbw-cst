@@ -79,14 +79,14 @@ typedef struct
 {
 	const char *name;
 	Functions fn;
-	uint8_t eeAddr;
+	uint16_t eeAddr;
 	uint8_t latching;
 } ControlsData;
 
 static ControlsData controls[] = {
-	[HORN_FN]                = {.name = "HORN"/*, .eeAddr = EE_HORN_FUNCTION*/},
-	[BELL_FN]                = {.name = "BELL"/*, .eeAddr = EE_BELL_FUNCTION*/},
-	[BRAKE_FN]               = {.name = "BRAKE"/*, .eeAddr = EE_BRAKE_FUNCTION*/},
+	[HORN_FN]                = {.name = "HORN", .eeAddr = EE_HORN_FUNCTION},
+	[BELL_FN]                = {.name = "BELL", .eeAddr = EE_BELL_FUNCTION},
+	[BRAKE_FN]               = {.name = "BRAKE", .eeAddr = EE_BRAKE_FUNCTION},
 	[BRAKE_OFF_FN]           = {.name = "BRK OFF"},
 	[AUX_FN]                 = {.name = "AUX"},
 	[ENGINE_ON_FN]           = {.name = "ENG ON"},
