@@ -2045,6 +2045,7 @@ int main(void)
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
+								resetCurrentControl();
 								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}

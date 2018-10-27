@@ -20,6 +20,7 @@ LICENSE:
 *************************************************************************/
 
 #include "lcd.h"
+#include "cst-eeprom.h"
 #include "cst-functions.h"
 
 // Define these values explicitly, for EEPROM backwards compatibility
@@ -83,9 +84,9 @@ typedef struct
 } ControlsData;
 
 static ControlsData controls[] = {
-	[HORN_FN]                = {.name = "HORN", .eeAddr = EE_HORN_FUNCTION},
-	[BELL_FN]                = {.name = "BELL", .eeAddr = EE_BELL_FUNCTION},
-	[BRAKE_FN]               = {.name = "BRAKE", .eeAddr = EE_BRAKE_FUNCTION},
+	[HORN_FN]                = {.name = "HORN"/*, .eeAddr = EE_HORN_FUNCTION*/},
+	[BELL_FN]                = {.name = "BELL"/*, .eeAddr = EE_BELL_FUNCTION*/},
+	[BRAKE_FN]               = {.name = "BRAKE"/*, .eeAddr = EE_BRAKE_FUNCTION*/},
 	[BRAKE_OFF_FN]           = {.name = "BRK OFF"},
 	[AUX_FN]                 = {.name = "AUX"},
 	[ENGINE_ON_FN]           = {.name = "ENG ON"},
@@ -163,6 +164,11 @@ void advanceCurrentControl(void)
 	currentControl++;
 	if(currentControl >= LAST_FN)
 		currentControl = 0;
+}
+
+void resetCurrentControl(void)
+{
+	currentControl = 0;
 }
 
 void incrementCurrentControlFunction(void)

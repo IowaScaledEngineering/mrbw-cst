@@ -4,6 +4,7 @@
 void printCurrentControlName(void);
 void printCurrentControlFunction(void);
 void advanceCurrentControl(void);
+void resetCurrentControl(void);
 void incrementCurrentControlFunction(void);
 void decrementCurrentControlFunction(void);
 
