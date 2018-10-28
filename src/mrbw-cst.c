@@ -145,6 +145,8 @@ uint8_t lastRSSI = 0xFF;
 
 uint16_t locoAddress = 0;
 
+// FIXME: delete these
+// Replace with calls to accessor functions
 uint8_t hornFunction = 2;
 uint8_t bellFunction = 7;
 uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
@@ -713,25 +715,7 @@ void readConfig(void)
 	}
 
 	// Function configs
-	hornFunction = eeprom_read_byte((uint8_t*)EE_HORN_FUNCTION);
-	bellFunction = eeprom_read_byte((uint8_t*)EE_BELL_FUNCTION);
-	frontDim1Function = eeprom_read_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION);
-	frontDim2Function = eeprom_read_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION);
-	frontHeadlightFunction = eeprom_read_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION);
-	frontDitchFunction = eeprom_read_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION);
-	rearDim1Function = eeprom_read_byte((uint8_t*)EE_REAR_DIM1_FUNCTION);
-	rearDim2Function = eeprom_read_byte((uint8_t*)EE_REAR_DIM2_FUNCTION);
-	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
-	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
-	brakeFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
-	brakeOffFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION);
-	auxFunction = eeprom_read_byte((uint8_t*)EE_AUX_FUNCTION);
-	engineOnFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_ON_FUNCTION);
-	engineStopFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION);
-	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
-	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
-	throttleUnlockFunction = eeprom_read_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION);
-	reverserSwapFunction = eeprom_read_byte((uint8_t*)EE_REV_SWAP_FUNCTION);
+	readFunctionConfiguration();
 	
 	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
 	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
@@ -807,25 +791,8 @@ void resetConfig(void)
 	// Write working config first, then copy to all the others
 	wdt_reset();
 	eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003 | LOCO_ADDRESS_SHORT);
-	eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, 2);
-	eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, 1);
-	eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, 0);
-	eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
-	eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
-	eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, 9);
-	eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, 8);
-	eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, 5);
-	eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, 6);
-	eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, OFF_FUNCTION);
-	eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, OFF_FUNCTION);
+	resetFunctionConfiguration();
+	writeFunctionConfiguration();
 	eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
 	eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
 	eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
@@ -1972,9 +1939,9 @@ int main(void)
 				{
 
 					lcd_gotoxy(0,0);
-					printCurrentControlName();
+					printCurrentFunctionName();
 					lcd_gotoxy(0,1);
-					printCurrentControlFunction();
+					printCurrentFunctionFunction();
 					
 					switch(button)
 					{
@@ -1982,45 +1949,27 @@ int main(void)
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								incrementCurrentControlFunction();
+								incrementCurrentFunctionFunction();
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								decrementCurrentControlFunction();
+								decrementCurrentFunctionFunction();
 								ticks_autoincrement = 0;
 							}
 							break;
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-/*								eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, hornFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, bellFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, frontDim1Function);*/
-/*								eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, frontDim2Function);*/
-/*								eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, frontHeadlightFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, frontDitchFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, rearDim1Function);*/
-/*								eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, rearDim2Function);*/
-/*								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, brakeFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, brakeOffFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, auxFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, engineOnFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, engineStopFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, throttleUnlockFunction);*/
-/*								eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, reverserSwapFunction);*/
-/*								readConfig();*/
+								writeFunctionConfiguration();
+								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
-								resetCurrentControl();
+								resetCurrentFunction();
 								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
@@ -2028,7 +1977,7 @@ int main(void)
 						case MENU_BUTTON:
 							if(MENU_BUTTON != previousButton)
 							{
-								advanceCurrentControl();
+								advanceCurrentFunction();
 								ticks_autoincrement = 0;
 								lcd_clrscr();
 							}

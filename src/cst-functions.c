@@ -19,6 +19,8 @@ LICENSE:
     GNU General Public License for more details.
 *************************************************************************/
 
+#include <avr/eeprom.h>
+
 #include "lcd.h"
 #include "cst-eeprom.h"
 #include "cst-functions.h"
@@ -49,41 +51,17 @@ typedef enum
 	F09_LAT = 0x49, F19_LAT = 0x53,
 	FN_OFF  = 0x80,
 	FN_EMRG = 0x81,
-} Functions;
-
-typedef enum
-{
-	HORN_FN = 0,
-	BELL_FN,
-	BRAKE_FN,
-	BRAKE_OFF_FN,
-	AUX_FN,
-	ENGINE_ON_FN,
-	ENGINE_OFF_FN,
-	THR_UNLOCK_FN,
-	REV_SWAP_FN,
-	FRONT_HEADLIGHT_FN,
-	FRONT_DITCH_FN,
-	FRONT_DIM1_FN,
-	FRONT_DIM2_FN,
-	REAR_HEADLIGHT_FN,
-	REAR_DITCH_FN,
-	REAR_DIM1_FN,
-	REAR_DIM2_FN,
-	UP_FN,
-	DOWN_FN,
-	LAST_FN,
-} Controls;
+} FunctionValues;
 
 typedef struct
 {
 	const char *name;
-	Functions fn;
+	FunctionValues fn;
 	uint16_t eeAddr;
 	uint8_t latching;
-} ControlsData;
+} FunctionData;
 
-static ControlsData controls[] = {
+static FunctionData functions[] = {
 	[HORN_FN]                = {.name = "HORN", .eeAddr = EE_HORN_FUNCTION},
 	[BELL_FN]                = {.name = "BELL", .eeAddr = EE_BELL_FUNCTION},
 	[BRAKE_FN]               = {.name = "BRAKE", .eeAddr = EE_BRAKE_FUNCTION},
@@ -105,16 +83,16 @@ static ControlsData controls[] = {
 	[DOWN_FN]                = {.name = "DOWN BTN", .latching = 1},
 };
 
-static Controls currentControl = 0;
+static Functions currentFunction = 0;
 
-void printCurrentControlName(void)
+void printCurrentFunctionName(void)
 {
-	lcd_puts(controls[currentControl].name);
+	lcd_puts(functions[currentFunction].name);
 }
 
-void printCurrentControlFunction(void)
+void printCurrentFunctionFunction(void)
 {
-	switch(controls[currentControl].fn)
+	switch(functions[currentFunction].fn)
 	{
 		case FN_OFF:
 			lcd_puts("F--     ");
@@ -133,8 +111,8 @@ void printCurrentControlFunction(void)
 		case F08_MOM: case F18_MOM: case F28_MOM:
 		case F09_MOM: case F19_MOM:
 			lcd_putc('F');
-			printDec2DigWZero((controls[currentControl].fn) & 0x1F);
-			if(controls[currentControl].latching)
+			printDec2DigWZero((functions[currentFunction].fn) & 0x1F);
+			if(functions[currentFunction].latching)
 				lcd_puts("  MOM");
 			else
 				lcd_puts("     ");
@@ -150,8 +128,8 @@ void printCurrentControlFunction(void)
 		case F08_LAT: case F18_LAT: case F28_LAT:
 		case F09_LAT: case F19_LAT:
 			lcd_putc('F');
-			printDec2DigWZero((controls[currentControl].fn) & 0x1F);
-			if(controls[currentControl].latching)
+			printDec2DigWZero((functions[currentFunction].fn) & 0x1F);
+			if(functions[currentFunction].latching)
 				lcd_puts("  LAT");
 			else
 				lcd_puts("     ");
@@ -159,79 +137,148 @@ void printCurrentControlFunction(void)
 	}
 }
 
-void advanceCurrentControl(void)
+void advanceCurrentFunction(void)
 {
-	currentControl++;
-	if(currentControl >= LAST_FN)
-		currentControl = 0;
+	currentFunction++;
+	if(currentFunction >= LAST_FN)
+		currentFunction = 0;
 }
 
-void resetCurrentControl(void)
+void resetCurrentFunction(void)
 {
-	currentControl = 0;
+	currentFunction = 0;
 }
 
-void incrementCurrentControlFunction(void)
+void incrementCurrentFunctionFunction(void)
 {
-	if(FN_OFF == controls[currentControl].fn)
+	if(FN_OFF == functions[currentFunction].fn)
 	{
-		controls[currentControl].fn = F00_MOM;
+		functions[currentFunction].fn = F00_MOM;
 	}
-	else if(FN_EMRG == controls[currentControl].fn)
+	else if(FN_EMRG == functions[currentFunction].fn)
 	{
 		// Do nothing
 	}
-	else if(F28_MOM == controls[currentControl].fn)
+	else if(F28_MOM == functions[currentFunction].fn)
 	{
-		if(controls[currentControl].latching)
+		if(functions[currentFunction].latching)
 		{
-			controls[currentControl].fn = F00_LAT;
+			functions[currentFunction].fn = F00_LAT;
 		}
 		else
 		{
-			controls[currentControl].fn = FN_EMRG;
+			functions[currentFunction].fn = FN_EMRG;
 		}
 	}
-	else if(F28_LAT == controls[currentControl].fn)
+	else if(F28_LAT == functions[currentFunction].fn)
 	{
-		controls[currentControl].fn = FN_EMRG;
+		functions[currentFunction].fn = FN_EMRG;
 	}
 	else
 	{
 		// Take advantage of the bottom 5 bits being the function number
-		controls[currentControl].fn++;
+		functions[currentFunction].fn++;
 	}
 }
 
-void decrementCurrentControlFunction(void)
+void decrementCurrentFunctionFunction(void)
 {
-	if(FN_OFF == controls[currentControl].fn)
+	if(FN_OFF == functions[currentFunction].fn)
 	{
 		// Do nothing
 	}
-	else if(FN_EMRG == controls[currentControl].fn)
+	else if(FN_EMRG == functions[currentFunction].fn)
 	{
-		if(controls[currentControl].latching)
+		if(functions[currentFunction].latching)
 		{
-			controls[currentControl].fn = F28_LAT;
+			functions[currentFunction].fn = F28_LAT;
 		}
 		else
 		{
-			controls[currentControl].fn = F28_MOM;
+			functions[currentFunction].fn = F28_MOM;
 		}
 	}
-	else if(F00_LAT == controls[currentControl].fn)
+	else if(F00_LAT == functions[currentFunction].fn)
 	{
-		controls[currentControl].fn = F28_MOM;
+		functions[currentFunction].fn = F28_MOM;
 	}
-	else if(F00_MOM == controls[currentControl].fn)
+	else if(F00_MOM == functions[currentFunction].fn)
 	{
-		controls[currentControl].fn = FN_OFF;
+		functions[currentFunction].fn = FN_OFF;
 	}
 	else
 	{
 		// Take advantage of the bottom 5 bits being the function number
-		controls[currentControl].fn--;
+		functions[currentFunction].fn--;
 	}
+}
+
+void readFunctionConfiguration(void)
+{
+	functions[HORN_FN].fn = eeprom_read_byte((uint8_t*)EE_HORN_FUNCTION);
+	functions[BELL_FN].fn = eeprom_read_byte((uint8_t*)EE_BELL_FUNCTION);
+	functions[FRONT_DIM1_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION);
+	functions[FRONT_DIM2_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION);
+	functions[FRONT_HEADLIGHT_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION);
+	functions[FRONT_DITCH_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION);
+	functions[REAR_DIM1_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_DIM1_FUNCTION);
+	functions[REAR_DIM2_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_DIM2_FUNCTION);
+	functions[REAR_HEADLIGHT_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
+	functions[REAR_DITCH_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
+	functions[BRAKE_FN].fn = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
+	functions[BRAKE_OFF_FN].fn = eeprom_read_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION);
+	functions[AUX_FN].fn = eeprom_read_byte((uint8_t*)EE_AUX_FUNCTION);
+	functions[ENGINE_ON_FN].fn = eeprom_read_byte((uint8_t*)EE_ENGINE_ON_FUNCTION);
+	functions[ENGINE_OFF_FN].fn = eeprom_read_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION);
+	functions[UP_FN].fn = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
+	functions[DOWN_FN].fn = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
+	functions[THR_UNLOCK_FN].fn = eeprom_read_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION);
+	functions[REV_SWAP_FN].fn = eeprom_read_byte((uint8_t*)EE_REV_SWAP_FUNCTION);
+}
+
+void writeFunctionConfiguration(void)
+{
+	eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, functions[HORN_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, functions[BELL_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, functions[FRONT_DIM1_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, functions[FRONT_DIM2_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, functions[FRONT_HEADLIGHT_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, functions[FRONT_DITCH_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, functions[REAR_DIM1_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, functions[REAR_DIM2_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, functions[REAR_HEADLIGHT_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, functions[REAR_DITCH_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, functions[BRAKE_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, functions[BRAKE_OFF_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, functions[AUX_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, functions[ENGINE_ON_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, functions[ENGINE_OFF_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, functions[UP_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, functions[DOWN_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, functions[THR_UNLOCK_FN].fn);
+	eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, functions[REV_SWAP_FN].fn);
+}
+
+void resetFunctionConfiguration(void)
+{
+	functions[HORN_FN].fn = F02_MOM;
+	functions[BELL_FN].fn = F01_MOM;
+	functions[FRONT_DIM1_FN].fn = FN_OFF;
+	functions[FRONT_DIM2_FN].fn = FN_OFF;
+	functions[FRONT_HEADLIGHT_FN].fn = F00_MOM;
+	functions[FRONT_DITCH_FN].fn = FN_OFF;
+	functions[REAR_DIM1_FN].fn = FN_OFF;
+	functions[REAR_DIM2_FN].fn = FN_OFF;
+	functions[REAR_HEADLIGHT_FN].fn = F00_MOM;
+	functions[REAR_DITCH_FN].fn = FN_OFF;
+	functions[BRAKE_FN].fn = F10_MOM;
+	functions[BRAKE_OFF_FN].fn = FN_OFF;
+	functions[AUX_FN].fn = F09_MOM;
+	functions[ENGINE_ON_FN].fn = F08_MOM;
+	functions[ENGINE_OFF_FN].fn = FN_OFF;
+	functions[UP_FN].fn = F05_MOM;
+	functions[DOWN_FN].fn = F06_MOM;
+	functions[THR_UNLOCK_FN].fn = FN_OFF;
+	functions[REV_SWAP_FN].fn = FN_OFF;
 }
 
