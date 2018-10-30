@@ -25,34 +25,37 @@ LICENSE:
 #include "cst-eeprom.h"
 #include "cst-functions.h"
 
+#define SOFTWARE_LATCH   0x01
+#define SPECIAL_FUNC     0x02
+
 typedef struct
 {
 	const char *name;
 	FunctionValues fn;
 	uint16_t eeAddr;
-	uint8_t latching;
+	uint8_t attributes;
 } FunctionData;
 
 static FunctionData functions[] = {
-	[HORN_FN]                = {.name = "HORN", .eeAddr = EE_HORN_FUNCTION},
-	[BELL_FN]                = {.name = "BELL", .eeAddr = EE_BELL_FUNCTION},
-	[BRAKE_FN]               = {.name = "BRAKE", .eeAddr = EE_BRAKE_FUNCTION},
-	[BRAKE_OFF_FN]           = {.name = "BRK OFF"},
-	[AUX_FN]                 = {.name = "AUX"},
-	[ENGINE_ON_FN]           = {.name = "ENG ON"},
-	[ENGINE_OFF_FN]          = {.name = "ENG STOP"},
-	[THR_UNLOCK_FN]          = {.name = "THR UNLK"},
-	[REV_SWAP_FN]            = {.name = "REV SWAP"},
-	[FRONT_DIM1_FN]          = {.name = "F.DIM #1"},
-	[FRONT_DIM2_FN]          = {.name = "F.DIM #2"},
-	[FRONT_HEADLIGHT_FN]     = {.name = "F.HEAD"},
-	[FRONT_DITCH_FN]         = {.name = "F.DITCH"},
-	[REAR_DIM1_FN]           = {.name = "R.DIM #1"},
-	[REAR_DIM2_FN]           = {.name = "R.DIM #2"},
-	[REAR_HEADLIGHT_FN]      = {.name = "R.HEAD"},
-	[REAR_DITCH_FN]          = {.name = "R.DITCH"},
-	[UP_FN]                  = {.name = "UP BTN", .latching = 1},
-	[DOWN_FN]                = {.name = "DOWN BTN", .latching = 1},
+	[HORN_FN]                = {.name = "HORN",     .eeAddr = EE_HORN_FUNCTION},
+	[BELL_FN]                = {.name = "BELL",     .eeAddr = EE_BELL_FUNCTION},
+	[BRAKE_FN]               = {.name = "BRAKE",    .eeAddr = EE_BRAKE_FUNCTION},
+	[BRAKE_OFF_FN]           = {.name = "BRK OFF",  .eeAddr = EE_BRAKE_OFF_FUNCTION},
+	[AUX_FN]                 = {.name = "AUX",      .eeAddr = EE_AUX_FUNCTION,              .attributes = SPECIAL_FUNC},
+	[ENGINE_ON_FN]           = {.name = "ENG ON",   .eeAddr = EE_ENGINE_ON_FUNCTION},
+	[ENGINE_OFF_FN]          = {.name = "ENG STOP", .eeAddr = EE_ENGINE_OFF_FUNCTION},
+	[THR_UNLOCK_FN]          = {.name = "THR UNLK", .eeAddr = EE_THR_UNLOCK_FUNCTION},
+	[REV_SWAP_FN]            = {.name = "REV SWAP", .eeAddr = EE_REV_SWAP_FUNCTION},
+	[FRONT_DIM1_FN]          = {.name = "F.DIM #1", .eeAddr = EE_FRONT_DIM1_FUNCTION},
+	[FRONT_DIM2_FN]          = {.name = "F.DIM #2", .eeAddr = EE_FRONT_DIM2_FUNCTION},
+	[FRONT_HEADLIGHT_FN]     = {.name = "F.HEAD",   .eeAddr = EE_FRONT_HEADLIGHT_FUNCTION},
+	[FRONT_DITCH_FN]         = {.name = "F.DITCH",  .eeAddr = EE_FRONT_DITCH_FUNCTION},
+	[REAR_DIM1_FN]           = {.name = "R.DIM #1", .eeAddr = EE_REAR_DIM1_FUNCTION},
+	[REAR_DIM2_FN]           = {.name = "R.DIM #2", .eeAddr = EE_REAR_DIM2_FUNCTION},
+	[REAR_HEADLIGHT_FN]      = {.name = "R.HEAD",   .eeAddr = EE_REAR_HEADLIGHT_FUNCTION},
+	[REAR_DITCH_FN]          = {.name = "R.DITCH",  .eeAddr = EE_REAR_DITCH_FUNCTION},
+	[UP_FN]                  = {.name = "UP BTN",   .eeAddr = EE_UP_BUTTON_FUNCTION,        .attributes = SOFTWARE_LATCH|SPECIAL_FUNC},
+	[DOWN_FN]                = {.name = "DOWN BTN", .eeAddr = EE_DOWN_BUTTON_FUNCTION,      .attributes = SOFTWARE_LATCH|SPECIAL_FUNC},
 };
 
 static Functions currentFunction = 0;
@@ -84,7 +87,7 @@ void printCurrentFunctionFunction(void)
 		case F09_MOM: case F19_MOM:
 			lcd_putc('F');
 			printDec2DigWZero((functions[currentFunction].fn) & 0x1F);
-			if(functions[currentFunction].latching)
+			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
 				lcd_puts("  MOM");
 			else
 				lcd_puts("     ");
@@ -101,10 +104,13 @@ void printCurrentFunctionFunction(void)
 		case F09_LAT: case F19_LAT:
 			lcd_putc('F');
 			printDec2DigWZero((functions[currentFunction].fn) & 0x1F);
-			if(functions[currentFunction].latching)
+			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
 				lcd_puts("  LAT");
 			else
 				lcd_puts("     ");
+			break;
+		default:
+			lcd_puts("UNKNOWN ");
 			break;
 	}
 }
@@ -123,112 +129,130 @@ void resetCurrentFunction(void)
 
 void incrementCurrentFunctionFunction(void)
 {
-	if(FN_OFF == functions[currentFunction].fn)
+	switch(functions[currentFunction].fn)
 	{
-		functions[currentFunction].fn = F00_MOM;
-	}
-	else if(FN_EMRG == functions[currentFunction].fn)
-	{
-		// Do nothing
-	}
-	else if(F28_MOM == functions[currentFunction].fn)
-	{
-		if(functions[currentFunction].latching)
-		{
-			functions[currentFunction].fn = F00_LAT;
-		}
-		else
-		{
+		case FN_OFF:
+			functions[currentFunction].fn = F00_MOM;
+			break;
+		case FN_EMRG:
+			// Do nothing
+			break;
+		case F28_MOM:
+			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
+			{
+				functions[currentFunction].fn = F00_LAT;
+			}
+			else if(functions[currentFunction].attributes & SPECIAL_FUNC)
+			{
+				functions[currentFunction].fn = FN_EMRG;
+			}
+			else
+			{
+				// Do nothing
+			}
+			break;
+		case F28_LAT:
 			functions[currentFunction].fn = FN_EMRG;
-		}
-	}
-	else if(F28_LAT == functions[currentFunction].fn)
-	{
-		functions[currentFunction].fn = FN_EMRG;
-	}
-	else
-	{
-		// Take advantage of the bottom 5 bits being the function number
-		functions[currentFunction].fn++;
+			break;
+		case F00_MOM: case F10_MOM: case F20_MOM:
+		case F01_MOM: case F11_MOM: case F21_MOM:
+		case F02_MOM: case F12_MOM: case F22_MOM:
+		case F03_MOM: case F13_MOM: case F23_MOM:  
+		case F04_MOM: case F14_MOM: case F24_MOM:
+		case F05_MOM: case F15_MOM: case F25_MOM:
+		case F06_MOM: case F16_MOM: case F26_MOM:
+		case F07_MOM: case F17_MOM: case F27_MOM:
+		case F08_MOM: case F18_MOM: /*case F28_MOM:*/
+		case F09_MOM: case F19_MOM:
+		case F00_LAT: case F10_LAT: case F20_LAT:
+		case F01_LAT: case F11_LAT: case F21_LAT:
+		case F02_LAT: case F12_LAT: case F22_LAT:
+		case F03_LAT: case F13_LAT: case F23_LAT:  
+		case F04_LAT: case F14_LAT: case F24_LAT:
+		case F05_LAT: case F15_LAT: case F25_LAT:
+		case F06_LAT: case F16_LAT: case F26_LAT:
+		case F07_LAT: case F17_LAT: case F27_LAT:
+		case F08_LAT: case F18_LAT: /*case F28_LAT:*/
+		case F09_LAT: case F19_LAT:
+			// Take advantage of the bottom 5 bits being the function number
+			functions[currentFunction].fn++;
+			break;
+		default:
+			// Handle undefined (or reset default) values from EEPROM
+			functions[currentFunction].fn = FN_OFF;
+			break;
 	}
 }
 
 void decrementCurrentFunctionFunction(void)
 {
-	if(FN_OFF == functions[currentFunction].fn)
+	switch(functions[currentFunction].fn)
 	{
-		// Do nothing
-	}
-	else if(FN_EMRG == functions[currentFunction].fn)
-	{
-		if(functions[currentFunction].latching)
-		{
-			functions[currentFunction].fn = F28_LAT;
-		}
-		else
-		{
+		case FN_OFF:
+			// Do nothing
+			break;
+		case FN_EMRG:
+			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
+			{
+				functions[currentFunction].fn = F28_LAT;
+			}
+			else
+			{
+				functions[currentFunction].fn = F28_MOM;
+			}
+			break;
+		case F00_LAT:
 			functions[currentFunction].fn = F28_MOM;
-		}
-	}
-	else if(F00_LAT == functions[currentFunction].fn)
-	{
-		functions[currentFunction].fn = F28_MOM;
-	}
-	else if(F00_MOM == functions[currentFunction].fn)
-	{
-		functions[currentFunction].fn = FN_OFF;
-	}
-	else
-	{
-		// Take advantage of the bottom 5 bits being the function number
-		functions[currentFunction].fn--;
+			break;
+		case F00_MOM:
+			functions[currentFunction].fn = FN_OFF;
+			break;
+		/*case F00_MOM:*/ case F10_MOM: case F20_MOM:
+		case F01_MOM: case F11_MOM: case F21_MOM:
+		case F02_MOM: case F12_MOM: case F22_MOM:
+		case F03_MOM: case F13_MOM: case F23_MOM:  
+		case F04_MOM: case F14_MOM: case F24_MOM:
+		case F05_MOM: case F15_MOM: case F25_MOM:
+		case F06_MOM: case F16_MOM: case F26_MOM:
+		case F07_MOM: case F17_MOM: case F27_MOM:
+		case F08_MOM: case F18_MOM: case F28_MOM:
+		case F09_MOM: case F19_MOM:
+		/*case F00_LAT:*/ case F10_LAT: case F20_LAT:
+		case F01_LAT: case F11_LAT: case F21_LAT:
+		case F02_LAT: case F12_LAT: case F22_LAT:
+		case F03_LAT: case F13_LAT: case F23_LAT:  
+		case F04_LAT: case F14_LAT: case F24_LAT:
+		case F05_LAT: case F15_LAT: case F25_LAT:
+		case F06_LAT: case F16_LAT: case F26_LAT:
+		case F07_LAT: case F17_LAT: case F27_LAT:
+		case F08_LAT: case F18_LAT: case F28_LAT:
+		case F09_LAT: case F19_LAT:
+			// Take advantage of the bottom 5 bits being the function number
+			functions[currentFunction].fn--;
+			break;
+		default:
+			// Handle undefined (or reset default) values from EEPROM
+			functions[currentFunction].fn = FN_OFF;
+			break;
 	}
 }
 
 void readFunctionConfiguration(void)
 {
-	functions[HORN_FN].fn = eeprom_read_byte((uint8_t*)EE_HORN_FUNCTION);
-	functions[BELL_FN].fn = eeprom_read_byte((uint8_t*)EE_BELL_FUNCTION);
-	functions[FRONT_DIM1_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION);
-	functions[FRONT_DIM2_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION);
-	functions[FRONT_HEADLIGHT_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION);
-	functions[FRONT_DITCH_FN].fn = eeprom_read_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION);
-	functions[REAR_DIM1_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_DIM1_FUNCTION);
-	functions[REAR_DIM2_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_DIM2_FUNCTION);
-	functions[REAR_HEADLIGHT_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
-	functions[REAR_DITCH_FN].fn = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
-	functions[BRAKE_FN].fn = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
-	functions[BRAKE_OFF_FN].fn = eeprom_read_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION);
-	functions[AUX_FN].fn = eeprom_read_byte((uint8_t*)EE_AUX_FUNCTION);
-	functions[ENGINE_ON_FN].fn = eeprom_read_byte((uint8_t*)EE_ENGINE_ON_FUNCTION);
-	functions[ENGINE_OFF_FN].fn = eeprom_read_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION);
-	functions[UP_FN].fn = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
-	functions[DOWN_FN].fn = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
-	functions[THR_UNLOCK_FN].fn = eeprom_read_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION);
-	functions[REV_SWAP_FN].fn = eeprom_read_byte((uint8_t*)EE_REV_SWAP_FUNCTION);
+	uint8_t i;
+	for(i=0; i<(sizeof(functions)/sizeof(FunctionData)); i++)
+	{
+		functions[i].fn = eeprom_read_byte((uint8_t*)(functions[i].eeAddr));
+	}
 }
 
 void writeFunctionConfiguration(void)
 {
-	eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, functions[HORN_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, functions[BELL_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, functions[FRONT_DIM1_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, functions[FRONT_DIM2_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, functions[FRONT_HEADLIGHT_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, functions[FRONT_DITCH_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, functions[REAR_DIM1_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, functions[REAR_DIM2_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, functions[REAR_HEADLIGHT_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, functions[REAR_DITCH_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, functions[BRAKE_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, functions[BRAKE_OFF_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, functions[AUX_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, functions[ENGINE_ON_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, functions[ENGINE_OFF_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, functions[UP_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, functions[DOWN_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, functions[THR_UNLOCK_FN].fn);
-	eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, functions[REV_SWAP_FN].fn);
+	uint8_t i;
+	for(i=0; i<(sizeof(functions)/sizeof(FunctionData)); i++)
+	{
+		eeprom_write_byte((uint8_t*)(functions[i].eeAddr), functions[i].fn);
+	}
 }
 
 void resetFunctionConfiguration(void)
