@@ -3,7 +3,6 @@
 
 void setupTonnageChars(void);
 void printTonnage(void);
-uint8_t getTonnage(void);
 void incrementTonnage(void);
 void decrementTonnage(void);
 
