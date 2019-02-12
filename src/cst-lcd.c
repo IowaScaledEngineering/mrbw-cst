@@ -29,6 +29,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "cst-battery.h"
 #include "cst-time.h"
+#include "cst-pressure.h"
 #include "cst-tonnage.h"
 
 const uint8_t Bell[8] =
