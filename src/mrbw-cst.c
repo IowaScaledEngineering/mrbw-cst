@@ -276,7 +276,7 @@ typedef enum
 {
 	MAIN_SCREEN = 0,
 	ENGINE_SCREEN,
-	TONNAGE_SCREEN,
+	OPS_SCREEN,
 	LOAD_CONFIG_SCREEN,
 	SAVE_CONFIG_SCREEN,
 	LOCO_SCREEN,
@@ -291,6 +291,12 @@ typedef enum
 	DIAG_SCREEN,
 	LAST_SCREEN  // Must be the last screen
 } Screens;
+
+typedef enum
+{
+	OPS_SUBSCREEN_PRESSURE = 1,
+	OPS_SUBSCREEN_TONNAGE
+} OpsSubscreen;
 
 typedef enum
 {
@@ -1636,60 +1642,132 @@ int main(void)
 				}
 				break;
 
-			case TONNAGE_SCREEN:
-				setupLCD(LCD_TONNAGE);
+
+
+
+			case OPS_SCREEN:
 				enableLCDBacklight();
-				lcd_gotoxy(0,0);
-				switch(getTonnage())
+				if(!subscreenState)
 				{
-					case 0:
-						lcd_puts("LIGHT ");
-						break;
-					case 1:
-						lcd_puts("LOW   ");
-						break;
-					case 2:
-						lcd_puts("MEDIUM");
-						break;
-					case 3:
-						lcd_puts("HEAVY ");
-						break;
-				}
-				lcd_gotoxy(0,1);
-				switch(getTonnage())
-				{
-					case 0:
-						lcd_puts("ENGINE");
-						break;
-					case 1:
-					case 2:
-					case 3:
-						lcd_puts("WEIGHT");
-						break;
-				}
-				printTonnage();
-				switch(button)
-				{
-					case UP_BUTTON:
-						if(UP_BUTTON != previousButton)
-						{
-							incrementTonnage();
-						}
-						break;
-					case DOWN_BUTTON:
-						if(DOWN_BUTTON != previousButton)
-						{
-							decrementTonnage();
-						}
-						break;
-					case SELECT_BUTTON:
-							screenState = LAST_SCREEN;
+					lcd_gotoxy(1,0);
+					lcd_puts("SPECIAL");
+					lcd_gotoxy(0,1);
+					lcd_putc(0x7F);
+					lcd_puts("-   OPS");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenState = 1;
+								lcd_clrscr();
+							}
 							break;
-					case MENU_BUTTON:
-					case NO_BUTTON:
-						break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					enableLCDBacklight();
+					lcd_gotoxy(0,0);
+					if(OPS_SUBSCREEN_PRESSURE == subscreenState)
+					{
+						setupLCD(LCD_PRESSURE);
+						enableLCDBacklight();
+						lcd_gotoxy(4,0);
+						lcd_puts("BRK");
+						lcd_putc(0x7E);
+						lcd_gotoxy(4,1);
+						lcd_puts("PIPE");
+					}
+					else if(OPS_SUBSCREEN_TONNAGE == subscreenState)
+					{
+						setupLCD(LCD_TONNAGE);
+						enableLCDBacklight();
+						lcd_gotoxy(0,0);
+						switch(getTonnage())
+						{
+							case 0:
+								lcd_puts("LIGHT ");
+								break;
+							case 1:
+								lcd_puts("LOW   ");
+								break;
+							case 2:
+								lcd_puts("MEDIUM");
+								break;
+							case 3:
+								lcd_puts("HEAVY ");
+								break;
+						}
+						lcd_gotoxy(0,1);
+						switch(getTonnage())
+						{
+							case 0:
+								lcd_puts("ENGINE");
+								break;
+							case 1:
+							case 2:
+							case 3:
+								lcd_puts("WEIGHT");
+								break;
+						}
+						printTonnage();
+						switch(button)
+						{
+							case UP_BUTTON:
+								if(UP_BUTTON != previousButton)
+								{
+									incrementTonnage();
+								}
+								break;
+							case DOWN_BUTTON:
+								if(DOWN_BUTTON != previousButton)
+								{
+									decrementTonnage();
+								}
+								break;
+							case SELECT_BUTTON:
+							case MENU_BUTTON:
+							case NO_BUTTON:
+								break;
+						}
+					}
+					else
+					{
+						subscreenState = 1;
+					}
+					
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								// Escape menu system
+								subscreenState = 0;
+								screenState = LAST_SCREEN;
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								subscreenState++;
+								lcd_clrscr();
+							}
+							break;
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
 				}
 				break;
+
 
 			case LOAD_CONFIG_SCREEN:
 			case SAVE_CONFIG_SCREEN:
@@ -3590,7 +3668,7 @@ int main(void)
 					{
 						// Menu lock active
 						while( 	(ENGINE_SCREEN != screenState) &&
-								(TONNAGE_SCREEN != screenState) &&
+								(OPS_SCREEN != screenState) &&
 								(LOAD_CONFIG_SCREEN != screenState) &&
 								(LOCO_SCREEN != screenState) &&
 								(FORCE_FUNC_SCREEN != screenState) &&
