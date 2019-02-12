@@ -605,7 +605,7 @@ void processButtons(uint8_t inputButtons)
 	{
 		// Reset the counters
 		button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
-		ticks_autoincrement = button_autoincrement_10ms_ticks;
+		ticks_autoincrement = 0;
 	}
 }
 
@@ -1878,7 +1878,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if( (0 == decimalNumberIndex) && (decimalNumber[decimalNumberIndex] > 9) )
 									decimalNumber[decimalNumberIndex] = 0;  // Short to Long
@@ -1900,7 +1900,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if( (0 == decimalNumberIndex) && (0 == decimalNumber[decimalNumberIndex]) )
 									decimalNumber[decimalNumberIndex] = 's' - '0';  // Long to Short
@@ -1995,7 +1995,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if(UP_BUTTON != previousButton) 
 							{
 								if( (functionForceOn & ((uint32_t)1 << functionNumber)) || (functionForceOff & ((uint32_t)1 << functionNumber)) )
 								{
@@ -2013,7 +2013,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if(DOWN_BUTTON != previousButton)
 							{
 								if(functionForceOff & ((uint32_t)1 << functionNumber))
 								{
@@ -2215,7 +2215,7 @@ int main(void)
 					{
 						//  |off|latch|0|Func[4:0]|
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if((*functionPtr) & OFF_FUNCTION)
 								{
@@ -2234,7 +2234,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(~((*functionPtr) & OFF_FUNCTION))
 								{
@@ -2333,7 +2333,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(notchSpeedStep[notch-1] < 126)
 									notchSpeedStep[notch-1]++;
@@ -2343,7 +2343,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(notchSpeedStep[notch-1] > 1)
 									notchSpeedStep[notch-1]--;
@@ -2490,7 +2490,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2507,7 +2507,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2755,7 +2755,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(*addrPtr < 0xFF)
 									(*addrPtr)++;
@@ -2768,7 +2768,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(*addrPtr > 0)
 									(*addrPtr)--;
@@ -2926,7 +2926,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2947,7 +2947,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -3107,7 +3107,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -3123,7 +3123,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
