@@ -166,14 +166,14 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 #define EE_BRAKE_PULSE_WIDTH          (0x16 + configOffset)
 #define EE_OPTIONBITS                 (0x17 + configOffset)
 
-#define EE_FUNC_FORCE_ON              (0x18 + configOffset)
-//      EE_FUNC_FORCE_ON               0x19
-//      EE_FUNC_FORCE_ON               0x1A
-//      EE_FUNC_FORCE_ON               0x1B
-#define EE_FUNC_FORCE_OFF             (0x1C + configOffset)
-//      EE_FUNC_FORCE_OFF              0x1D
-//      EE_FUNC_FORCE_OFF              0x1E
-//      EE_FUNC_FORCE_OFF              0x1F
+#define EE_FORCE_FUNC_ON              (0x18 + configOffset)
+//      EE_FORCE_FUNC_ON               0x19
+//      EE_FORCE_FUNC_ON               0x1A
+//      EE_FORCE_FUNC_ON               0x1B
+#define EE_FORCE_FUNC_OFF             (0x1C + configOffset)
+//      EE_FORCE_FUNC_OFF              0x1D
+//      EE_FORCE_FUNC_OFF              0x1E
+//      EE_FORCE_FUNC_OFF              0x1F
 
 #define EE_NOTCH_SPEEDSTEP                (0x20 + configOffset)
 //      EE_NOTCH_SPEEDSTEP                 0x21
@@ -280,8 +280,8 @@ typedef enum
 	LOAD_CONFIG_SCREEN,
 	SAVE_CONFIG_SCREEN,
 	LOCO_SCREEN,
-	FUNC_FORCE_SCREEN,
-	FUNC_CONFIG_SCREEN,
+	FORCE_FUNC_SCREEN,
+	CONFIG_FUNC_SCREEN,
 	NOTCH_CONFIG_SCREEN,
 	OPTION_SCREEN,
 	SYSTEM_SCREEN,
@@ -858,8 +858,8 @@ void readConfig(void)
 	throttleUnlockFunction = eeprom_read_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION);
 	reverserSwapFunction = eeprom_read_byte((uint8_t*)EE_REV_SWAP_FUNCTION);
 	
-	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
-	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
+	functionForceOn = eeprom_read_dword((uint32_t*)EE_FORCE_FUNC_ON);
+	functionForceOff = eeprom_read_dword((uint32_t*)EE_FORCE_FUNC_OFF);
 
 	// Thresholds
 	hornThreshold = eeprom_read_byte((uint8_t*)EE_HORN_THRESHOLD);
@@ -964,8 +964,8 @@ void resetConfig(void)
 		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, 6);
 		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, OFF_FUNCTION);
 		eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, OFF_FUNCTION);
-		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
-		eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
+		eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_ON, 0);
+		eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_OFF, 0);
 		eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
 		eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
 		notchSpeedStep[0] = 7;
@@ -1953,7 +1953,7 @@ int main(void)
 				}
 				break;
 
-			case FUNC_FORCE_SCREEN:
+			case FORCE_FUNC_SCREEN:
 				enableLCDBacklight();
 				if(!subscreenState)
 				{
@@ -2033,8 +2033,8 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, functionForceOn);
-								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, functionForceOff);
+								eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_ON, functionForceOn);
+								eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_OFF, functionForceOff);
 								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
@@ -2060,7 +2060,7 @@ int main(void)
 				}
 				break;
 
-			case FUNC_CONFIG_SCREEN:
+			case CONFIG_FUNC_SCREEN:
 				enableLCDBacklight();
 				if(!subscreenState)
 				{
@@ -3597,7 +3597,7 @@ int main(void)
 								(TONNAGE_SCREEN != screenState) &&
 								(LOAD_CONFIG_SCREEN != screenState) &&
 								(LOCO_SCREEN != screenState) &&
-								(FUNC_FORCE_SCREEN != screenState) &&
+								(FORCE_FUNC_SCREEN != screenState) &&
 								(SYSTEM_SCREEN != screenState) &&
 								(LAST_SCREEN != screenState)
 							)
