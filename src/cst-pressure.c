@@ -63,3 +63,12 @@ void setupPressureChars(void)
 	}
 }
 
+void printPressure(void)
+{
+	lcd_gotoxy(4,0);
+	lcd_puts("BRK");
+	lcd_putc(0x7E);
+	lcd_gotoxy(4,1);
+	lcd_puts("PIPE");
+}
+

@@ -1678,11 +1678,7 @@ int main(void)
 					{
 						setupLCD(LCD_PRESSURE);
 						enableLCDBacklight();
-						lcd_gotoxy(4,0);
-						lcd_puts("BRK");
-						lcd_putc(0x7E);
-						lcd_gotoxy(4,1);
-						lcd_puts("PIPE");
+						printPressure();
 					}
 					else if(OPS_SUBSCREEN_TONNAGE == subscreenState)
 					{
