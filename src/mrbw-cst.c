@@ -2009,7 +2009,6 @@ int main(void)
 									functionForceOff &= ~((uint32_t)1 << functionNumber);
 									functionForceOn |= ((uint32_t)1 << functionNumber);
 								}
-								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
@@ -2027,7 +2026,6 @@ int main(void)
 									functionForceOff &= ~((uint32_t)1 << functionNumber);
 									functionForceOn &= ~((uint32_t)1 << functionNumber);
 								}
-								ticks_autoincrement = 0;
 							}
 							break;
 						case SELECT_BUTTON:
@@ -2050,7 +2048,6 @@ int main(void)
 								// Advance through function settings
 								if(++functionNumber > 28)
 									functionNumber = 0;
-								ticks_autoincrement = 0;
 								lcd_clrscr();
 							}
 							break;
@@ -2286,7 +2283,6 @@ int main(void)
 								// Advance through function settings
 								if(++functionSetting >= LAST_FN)
 									functionSetting = 0;
-								ticks_autoincrement = 0;
 								lcd_clrscr();
 							}
 							break;
