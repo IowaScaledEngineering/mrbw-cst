@@ -350,7 +350,8 @@ void setupLCD(LcdMode mode)
 				setupTonnageChars();
 				break;
 			case LCD_PRESSURE:
-				// FIXME
+				setupSoftkeyChars();  // FIXME: Needed?
+				setupPressureChars();
 				break;
 		}
 		currentMode = mode;
