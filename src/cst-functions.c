@@ -65,7 +65,7 @@ void printCurrentFunctionName(void)
 	lcd_puts(functions[currentFunction].name);
 }
 
-void printCurrentFunctionFunction(void)
+void printCurrentFunctionValue(void)
 {
 	switch(functions[currentFunction].fn)
 	{
@@ -127,7 +127,7 @@ void resetCurrentFunction(void)
 	currentFunction = 0;
 }
 
-void incrementCurrentFunctionFunction(void)
+void incrementCurrentFunctionValue(void)
 {
 	switch(functions[currentFunction].fn)
 	{
@@ -184,7 +184,7 @@ void incrementCurrentFunctionFunction(void)
 	}
 }
 
-void decrementCurrentFunctionFunction(void)
+void decrementCurrentFunctionValue(void)
 {
 	switch(functions[currentFunction].fn)
 	{

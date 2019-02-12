@@ -55,11 +55,11 @@ typedef enum
 } FunctionValues;
 
 void printCurrentFunctionName(void);
-void printCurrentFunctionFunction(void);
+void printCurrentFunctionValue(void);
 void advanceCurrentFunction(void);
 void resetCurrentFunction(void);
-void incrementCurrentFunctionFunction(void);
-void decrementCurrentFunctionFunction(void);
+void incrementCurrentFunctionValue(void);
+void decrementCurrentFunctionValue(void);
 void readFunctionConfiguration(void);
 void writeFunctionConfiguration(void);
 void resetFunctionConfiguration(void);

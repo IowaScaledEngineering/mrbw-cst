@@ -1941,7 +1941,7 @@ int main(void)
 					lcd_gotoxy(0,0);
 					printCurrentFunctionName();
 					lcd_gotoxy(0,1);
-					printCurrentFunctionFunction();
+					printCurrentFunctionValue();
 					
 					switch(button)
 					{
@@ -1949,14 +1949,14 @@ int main(void)
 						case UP_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								incrementCurrentFunctionFunction();
+								incrementCurrentFunctionValue();
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
 							{
-								decrementCurrentFunctionFunction();
+								decrementCurrentFunctionValue();
 								ticks_autoincrement = 0;
 							}
 							break;
