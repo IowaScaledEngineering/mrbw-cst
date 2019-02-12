@@ -1460,18 +1460,10 @@ int main(void)
 					printTime();
 					printBattery();
 				
-	//				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-					if(0)
-					{
-						printTonnage();
-					}
-					else
-					{
-						lcd_gotoxy(7,0);
-						lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-						lcd_gotoxy(7,1);
-						lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-					}
+					lcd_gotoxy(7,0);
+					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+					lcd_gotoxy(7,1);
+					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 
 					lcd_gotoxy(0,1);
 					if(controls & AUX_CONTROL)
@@ -1483,35 +1475,19 @@ int main(void)
 						case UP_BUTTON:
 							if(UP_BUTTON != previousButton)
 							{
-	//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-								if(0)
-								{
-									incrementTonnage();
-								}
+								if(upButtonFunction & LATCH_FUNCTION)
+									optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
 								else
-								{
-									if(upButtonFunction & LATCH_FUNCTION)
-										optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
-									else
-										optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
-								}
+									optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
 							}
 							break;
 						case DOWN_BUTTON:
 							if(DOWN_BUTTON != previousButton)
 							{
-	//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-								if(0)
-								{
-									decrementTonnage();
-								}
+								if(downButtonFunction & LATCH_FUNCTION)
+									optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
 								else
-								{
-									if(downButtonFunction & LATCH_FUNCTION)
-										optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
-									else
-										optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
-								}
+									optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
 							}
 							break;
 						case SELECT_BUTTON:
@@ -1661,6 +1637,7 @@ int main(void)
 				break;
 
 			case TONNAGE_SCREEN:
+				setupLCD(LCD_TONNAGE);
 				enableLCDBacklight();
 				lcd_gotoxy(0,0);
 				switch(getTonnage())
@@ -3204,7 +3181,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								setupDiagChars();
+								setupLCD(LCD_DIAGS);
 								subscreenState = 1;
 								lcd_clrscr();
 							}
@@ -3527,7 +3504,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								setupClockChars();   // Restore clock characters
+								setupLCD(LCD_DEFAULT);   // Restore default characters
 								subscreenState = 0;  // Escape submenu
 								subscreenCount = 0;
 								lcd_clrscr();
@@ -3893,7 +3870,7 @@ int main(void)
 			if(DIAG_SCREEN == screenState)
 			{
 				// Change LCD chars if in the DIAG screen
-				setupDiagChars();
+				setupLCD(LCD_DIAGS);
 			}
 			initialize100HzTimer();
 			enableSwitches();
