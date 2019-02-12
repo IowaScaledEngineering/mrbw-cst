@@ -1688,34 +1688,6 @@ int main(void)
 					{
 						setupLCD(LCD_TONNAGE);
 						enableLCDBacklight();
-						lcd_gotoxy(0,0);
-						switch(getTonnage())
-						{
-							case 0:
-								lcd_puts("LIGHT ");
-								break;
-							case 1:
-								lcd_puts("LOW   ");
-								break;
-							case 2:
-								lcd_puts("MEDIUM");
-								break;
-							case 3:
-								lcd_puts("HEAVY ");
-								break;
-						}
-						lcd_gotoxy(0,1);
-						switch(getTonnage())
-						{
-							case 0:
-								lcd_puts("ENGINE");
-								break;
-							case 1:
-							case 2:
-							case 3:
-								lcd_puts("WEIGHT");
-								break;
-						}
 						printTonnage();
 						switch(button)
 						{

@@ -113,20 +113,44 @@ void setupTonnageChars(void)
 
 void printTonnage(void)
 {
+	lcd_gotoxy(0,0);
+	switch(currentTonnage)
+	{
+		case 0:
+			lcd_puts("LIGHT ");
+			break;
+		case 1:
+			lcd_puts("LOW   ");
+			break;
+		case 2:
+			lcd_puts("MEDIUM");
+			break;
+		case 3:
+			lcd_puts("HEAVY ");
+			break;
+	}
+	lcd_gotoxy(0,1);
+	switch(currentTonnage)
+	{
+		case 0:
+			lcd_puts("ENGINE");
+			break;
+		case 1:
+		case 2:
+		case 3:
+			lcd_puts("WEIGHT");
+			break;
+	}
+
 	if(lastDisplayedTonnage != currentTonnage)
 	{
-		setupTonnageChars();
+		setupTonnageChars();  // Draw new characters
 		lastDisplayedTonnage = currentTonnage;
 	}
 	lcd_gotoxy(7,0);
 	lcd_putc(TONNAGE_TOP);
 	lcd_gotoxy(7,1);
 	lcd_putc(TONNAGE_BOTTOM);
-}
-
-uint8_t getTonnage(void)
-{
-	return currentTonnage;
 }
 
 void incrementTonnage(void)
