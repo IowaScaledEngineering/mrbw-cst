@@ -1750,6 +1750,7 @@ int main(void)
 								// Escape menu system
 								subscreenState = 0;
 								screenState = LAST_SCREEN;
+								setupLCD(LCD_DEFAULT);
 							}
 							break;
 						case MENU_BUTTON:
