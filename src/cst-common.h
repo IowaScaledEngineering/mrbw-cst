@@ -12,14 +12,14 @@
 #define AUX_CHAR                5
 
 // Pressure
-#define PRESSURE_CHAR_00        0
-#define PRESSURE_CHAR_01        1
-#define PRESSURE_CHAR_02        2
-#define PRESSURE_CHAR_03        3
-#define PRESSURE_CHAR_10        4
-#define PRESSURE_CHAR_11        5
-#define PRESSURE_CHAR_12        6
-#define PRESSURE_CHAR_13        7
+#define PRESSURE_CHAR_A0        0
+#define PRESSURE_CHAR_A1        1
+#define PRESSURE_CHAR_A2        2
+#define PRESSURE_CHAR_A3        3
+#define PRESSURE_CHAR_B0        4
+#define PRESSURE_CHAR_B1        5
+#define PRESSURE_CHAR_B2        6
+#define PRESSURE_CHAR_B3        7
 
 // Tonnage
 #define TONNAGE_TOP             6

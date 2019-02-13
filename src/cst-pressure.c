@@ -25,7 +25,7 @@ LICENSE:
 #include "cst-common.h"
 #include "cst-pressure.h"
 
-const uint8_t Pressure00[8] =
+const uint8_t PressureA0[8] =
 {
 	0b00001110,
 	0b00011111,
@@ -58,17 +58,26 @@ void setupPressureChars(void)
 	switch(pressureState)
 	{
 		case PRESSURE_OFF:
-			lcd_setup_custom(PRESSURE_CHAR_00, Pressure00);
+			lcd_setup_custom(PRESSURE_CHAR_A0, PressureA0);
 			break;
 	}
 }
 
 void printPressure(void)
 {
-	lcd_gotoxy(4,0);
+	lcd_gotoxy(0,0);
+	lcd_putc(PRESSURE_CHAR_A0);
+	lcd_putc(PRESSURE_CHAR_A1);
+	lcd_putc(PRESSURE_CHAR_A2);
+	lcd_putc(PRESSURE_CHAR_A3);
 	lcd_puts("BRK");
 	lcd_putc(0x7E);
-	lcd_gotoxy(4,1);
+
+	lcd_gotoxy(0,1);
+	lcd_putc(PRESSURE_CHAR_B0);
+	lcd_putc(PRESSURE_CHAR_B1);
+	lcd_putc(PRESSURE_CHAR_B2);
+	lcd_putc(PRESSURE_CHAR_B3);
 	lcd_puts("PIPE");
 }
 
