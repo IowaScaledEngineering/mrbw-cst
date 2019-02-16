@@ -674,6 +674,7 @@ ISR(TIMER0_COMPA_vect)
 			brakeCounter = 0;
 		
 		updateTime10Hz();
+		updatePressure10Hz();
 	}
 
 	if(txHoldoff)
