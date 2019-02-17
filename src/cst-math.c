@@ -17,6 +17,9 @@ LICENSE:
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
+    
+    The cos32s, cos32, and sin32 functions are derived from those 
+    provided by The Ganssle Group: http://www.ganssle.com/approx.htm
 *************************************************************************/
 
 #include <stdlib.h>

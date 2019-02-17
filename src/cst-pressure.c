@@ -20,131 +20,335 @@ LICENSE:
 *************************************************************************/
 
 #include <stdlib.h>
+#include <string.h>
+
+#include <util/delay.h>
+#include <avr/wdt.h>
 
 #include "lcd.h"
 #include "cst-common.h"
 #include "cst-math.h"
 #include "cst-pressure.h"
 
-const uint8_t PressureA0[8] =
+#define CANVAS_ROWS       16
+#define CANVAS_COLS       20
+#define ROWS_PER_CHAR      8
+#define COLS_PER_CHAR      5
+
+#define MAX_PRESSURE      90
+
+const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
-	0b00000000,
-	0b00000000,
-	0b00000000,
-	0b00000001,
-	0b00000011,
-	0b00000010,
-	0b00000010,
-	0b00000010
+	{
+		{
+			0b00000000,
+			0b00000000,
+			0b00000000,
+			0b00000001,
+			0b00000011,
+			0b00000010,
+			0b00000010,
+			0b00000010
+		},
+		{
+			0b00000111,
+			0b00001000,
+			0b00011000,
+			0b00000100,
+			0b00000000,
+			0b00010000,
+			0b00000000,
+			0b00000000
+		},
+		{
+			0b00011110,
+			0b00010001,
+			0b00010001,
+			0b00000010,
+			0b00000000,
+			0b00000000,
+			0b00000000,
+			0b00000000
+		},
+		{
+			0b00000000,
+			0b00000000,
+			0b00010000,
+			0b00001000,
+			0b00001100,
+			0b00010100,
+			0b00000100,
+			0b00000100
+		}
+	},
+	{
+		{
+			0b00000011,
+			0b00000010,
+			0b00000010,
+			0b00000010,
+			0b00000001,
+			0b00000000,
+			0b00000000,
+			0b00000000
+		},
+		{
+			0b00010000,
+			0b00000000,
+			0b00000000,
+			0b00001000,
+			0b00010000,
+			0b00010010,
+			0b00001100,
+			0b00000111
+		},
+		{
+			0b00000000,
+			0b00000000,
+			0b00000000,
+			0b00000001,
+			0b00000000,
+			0b00000100,
+			0b00000011,
+			0b00011110
+		},
+		{
+			0b00011100,
+			0b00000100,
+			0b00000100,
+			0b00000100,
+			0b00011000,
+			0b00010000,
+			0b00000000,
+			0b00000000
+		}
+	}
 };
 
-const uint8_t PressureA1[8] =
-{
-	0b00000111,
-	0b00001000,
-	0b00011000,
-	0b00000100,
-	0b00000000,
-	0b00010000,
-	0b00000000,
-	0b00000000
-};
+/*const uint8_t PressureA0[8] =*/
+/*{*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00000001,*/
+/*	0b00000011,*/
+/*	0b00000010,*/
+/*	0b00000010,*/
+/*	0b00000010*/
+/*};*/
 
-const uint8_t PressureA2[8] =
-{
-	0b00011110,
-	0b00010001,
-	0b00010001,
-	0b00000010,
-	0b00000000,
-	0b00000000,
-	0b00000000,
-	0b00000000
-};
+/*const uint8_t PressureA1[8] =*/
+/*{*/
+/*	0b00000111,*/
+/*	0b00001000,*/
+/*	0b00011000,*/
+/*	0b00000100,*/
+/*	0b00000000,*/
+/*	0b00010000,*/
+/*	0b00000000,*/
+/*	0b00000000*/
+/*};*/
 
-const uint8_t PressureA3[8] =
-{
-	0b00000000,
-	0b00000000,
-	0b00010000,
-	0b00001000,
-	0b00001100,
-	0b00010100,
-	0b00000100,
-	0b00000100
-};
+/*const uint8_t PressureA2[8] =*/
+/*{*/
+/*	0b00011110,*/
+/*	0b00010001,*/
+/*	0b00010001,*/
+/*	0b00000010,*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00000000*/
+/*};*/
 
-const uint8_t PressureB0[8] =
-{
-	0b00000011,
-	0b00000010,
-	0b00000010,
-	0b00000010,
-	0b00000001,
-	0b00000000,
-	0b00000000,
-	0b00000000
-};
+/*const uint8_t PressureA3[8] =*/
+/*{*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00010000,*/
+/*	0b00001000,*/
+/*	0b00001100,*/
+/*	0b00010100,*/
+/*	0b00000100,*/
+/*	0b00000100*/
+/*};*/
 
-const uint8_t PressureB1[8] =
-{
-	0b00010000,
-	0b00000000,
-	0b00000000,
-	0b00001000,
-	0b00010000,
-	0b00010010,
-	0b00001100,
-	0b00000111
-};
+/*const uint8_t PressureB0[8] =*/
+/*{*/
+/*	0b00000011,*/
+/*	0b00000010,*/
+/*	0b00000010,*/
+/*	0b00000010,*/
+/*	0b00000001,*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00000000*/
+/*};*/
 
-const uint8_t PressureB2[8] =
-{
-	0b00000000,
-	0b00000000,
-	0b00000000,
-	0b00000001,
-	0b00000000,
-	0b00000100,
-	0b00000011,
-	0b00011110
-};
+/*const uint8_t PressureB1[8] =*/
+/*{*/
+/*	0b00010000,*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00001000,*/
+/*	0b00010000,*/
+/*	0b00010010,*/
+/*	0b00001100,*/
+/*	0b00000111*/
+/*};*/
 
-const uint8_t PressureB3[8] =
-{
-	0b00011100,
-	0b00000100,
-	0b00000100,
-	0b00000100,
-	0b00011000,
-	0b00010000,
-	0b00000000,
-	0b00000000
-};
+/*const uint8_t PressureB2[8] =*/
+/*{*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00000000,*/
+/*	0b00000001,*/
+/*	0b00000000,*/
+/*	0b00000100,*/
+/*	0b00000011,*/
+/*	0b00011110*/
+/*};*/
+
+/*const uint8_t PressureB3[8] =*/
+/*{*/
+/*	0b00011100,*/
+/*	0b00000100,*/
+/*	0b00000100,*/
+/*	0b00000100,*/
+/*	0b00011000,*/
+/*	0b00010000,*/
+/*	0b00000000,*/
+/*	0b00000000*/
+/*};*/
+
+uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
 
 uint32_t milliPressure = 0;
 
 void updatePressure10Hz(void)
 {
-	milliPressure += 1000;
-	if(milliPressure > 360000)
+	milliPressure += 2000;
+	if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
 		milliPressure = 0;
 }
 
+void plot(uint8_t x, uint8_t y)
+{
+	uint8_t row = y / ROWS_PER_CHAR;
+	if(row >= (CANVAS_ROWS / ROWS_PER_CHAR))
+		return;
+	uint8_t col = x / COLS_PER_CHAR;
+	if(col >= (CANVAS_COLS / COLS_PER_CHAR))
+		return;
+	canvas[row][col][y % ROWS_PER_CHAR] |= 1 << ((COLS_PER_CHAR - 1) - (x % COLS_PER_CHAR));
+}
+
+/* https://en.wikipedia.org/wiki/Bresenham's_line_algorithm */
+void plotLineLow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
+{
+	int8_t dx = x1 - x0;
+	int8_t dy = y1 - y0;
+	int8_t yi = 1;
+	if(dy < 0)
+	{
+		yi = -1;
+		dy = -dy;
+	}
+	int8_t D = 2*dy - dx;
+	int8_t y = y0;
+	int8_t x;
+
+	for(x=x0; x<=x1; x++)
+	{
+		plot(x,y);
+		if(D > 0)
+		{
+			y = y + yi;
+			D = D - 2*dx;
+		}
+		D = D + 2*dy;
+	}
+}
+
+/* https://en.wikipedia.org/wiki/Bresenham's_line_algorithm */
+void plotLineHigh(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
+{
+	int8_t dx = x1 - x0;
+	int8_t dy = y1 - y0;
+	int8_t xi = 1;
+	if(dx < 0)
+	{
+		xi = -1;
+		dx = -dx;
+	}
+	int8_t D = 2*dx - dy;
+	int8_t x = x0;
+	int8_t y;
+	
+	for(y=y0; y<=y1; y++)
+	{
+		plot(x,y);
+		if(D > 0)
+		{
+			x = x + xi;
+			D = D - 2*dy;
+		}
+		D = D + 2*dx;
+	}
+}
+
+/* https://en.wikipedia.org/wiki/Bresenham's_line_algorithm */
+void plotLine(int8_t x0, int8_t y0, int8_t x1, int8_t y1)
+{
+	//FIXME: do the comparison below differently to handle unsigned int?
+	if(abs(y1 - y0) < abs(x1 - x0))
+	{
+		if(x0 > x1)
+			plotLineLow(x1, y1, x0, y0);
+		else
+			plotLineLow(x0, y0, x1, y1);
+	}
+	else
+	{
+		if(y0 > y1)
+			plotLineHigh(x1, y1, x0, y0);
+		else
+			plotLineHigh(x0, y0, x1, y1);
+	}
+}
+
+#define ORIGIN_X  10
+#define ORIGIN_Y   8
+#define LENGTH     7
+
 void setupPressureChars(void)
 {
-	lcd_setup_custom(PRESSURE_CHAR_A0, PressureA0);
-	lcd_setup_custom(PRESSURE_CHAR_A1, PressureA1);
-	lcd_setup_custom(PRESSURE_CHAR_A2, PressureA2);
-	lcd_setup_custom(PRESSURE_CHAR_A3, PressureA3);
-	lcd_setup_custom(PRESSURE_CHAR_B0, PressureB0);
-	lcd_setup_custom(PRESSURE_CHAR_B1, PressureB1);
-	lcd_setup_custom(PRESSURE_CHAR_B2, PressureB2);
-	lcd_setup_custom(PRESSURE_CHAR_B3, PressureB3);
+	// East = 0deg, South = 90deg, West = 180deg, North = 270deg
+	// Start at 120deg, end at 300deg
+	float degrees = (180.0 / MAX_PRESSURE) * (milliPressure / 1000.0) + 120.0;
+	float radians = degrees * PI / 180.0;
+
+	int8_t x = round(cos_32(radians)*LENGTH);
+	int8_t y = round(sin_32(radians)*LENGTH);
+
+	memcpy(canvas, Gauge, sizeof(canvas));
+
+	plotLine(ORIGIN_X, ORIGIN_Y, ORIGIN_X + x, ORIGIN_Y + y);
+
+	lcd_setup_custom(PRESSURE_CHAR_A0, canvas[0][0]);
+	lcd_setup_custom(PRESSURE_CHAR_A1, canvas[0][1]);
+	lcd_setup_custom(PRESSURE_CHAR_A2, canvas[0][2]);
+	lcd_setup_custom(PRESSURE_CHAR_A3, canvas[0][3]);
+	lcd_setup_custom(PRESSURE_CHAR_B0, canvas[1][0]);
+	lcd_setup_custom(PRESSURE_CHAR_B1, canvas[1][1]);
+	lcd_setup_custom(PRESSURE_CHAR_B2, canvas[1][2]);
+	lcd_setup_custom(PRESSURE_CHAR_B3, canvas[1][3]);
 }
 
 void printPressure(void)
 {
+	setupPressureChars();
+
 	lcd_gotoxy(0,0);
 	lcd_putc(PRESSURE_CHAR_A0);
 	lcd_putc(PRESSURE_CHAR_A1);
@@ -159,35 +363,48 @@ void printPressure(void)
 	lcd_putc(PRESSURE_CHAR_B3);
 //	lcd_puts("PIPE");
 
-	const uint8_t length = 8;
-	float radians = (milliPressure / 1000.0) * PI / 180.0;
-
-	int8_t x = round(cos_32(radians)*length);
-	int8_t y = round(sin_32(radians)*length);
-
-	lcd_gotoxy(5,0);
-	if(x > 0)
-	{
-		lcd_putc(' ');
-		printDec2DigWZero(x);
-	}
-	else
-	{
-		lcd_putc('-');
-		printDec2DigWZero(-1*x);
-	}
-
+	lcd_gotoxy(4,0);
+	printDec3Dig(milliPressure/1000);
 	lcd_gotoxy(5,1);
-	if(y > 0)
-	{
-		lcd_putc(' ');
-		printDec2DigWZero(y);
-	}
-	else
-	{
-		lcd_putc('-');
-		printDec2DigWZero(-1*y);
-	}
+	lcd_puts("PSI");
+
+
+/*	uint8_t x,y;*/
+/*	memset(canvas, 0, sizeof(canvas));*/
+/*	for(y=0; y<16; y++)*/
+/*	{*/
+/*		for(x=0; x<20; x++)*/
+/*		{*/
+/*			plot(x,y);*/
+/*			setupPressureChars();*/
+
+/*			lcd_gotoxy(5,0);*/
+/*			if(x >= 0)*/
+/*			{*/
+/*				lcd_putc(' ');*/
+/*				printDec2DigWZero(x);*/
+/*			}*/
+/*			else*/
+/*			{*/
+/*				lcd_putc('-');*/
+/*				printDec2DigWZero(-1*x);*/
+/*			}*/
+
+/*			lcd_gotoxy(5,1);*/
+/*			if(y >= 0)*/
+/*			{*/
+/*				lcd_putc(' ');*/
+/*				printDec2DigWZero(y);*/
+/*			}*/
+/*			else*/
+/*			{*/
+/*				lcd_putc('-');*/
+/*				printDec2DigWZero(-1*y);*/
+/*			}*/
+/*			wdt_reset();*/
+/*			_delay_ms(100);*/
+/*		}*/
+/*	}*/
 
 }
 
