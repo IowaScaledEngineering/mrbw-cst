@@ -293,11 +293,11 @@ typedef enum
 	LAST_SCREEN  // Must be the last screen
 } Screens;
 
-typedef enum
+enum
 {
 	OPS_SUBSCREEN_PRESSURE = 1,
 	OPS_SUBSCREEN_TONNAGE
-} OpsSubscreen;
+};
 
 typedef enum
 {
@@ -1680,6 +1680,10 @@ int main(void)
 					{
 						setupLCD(LCD_PRESSURE);
 						enableLCDBacklight();
+						if(3 == activeThrottleSetting)
+							runPressure();
+						else
+							stopPressure();
 						printPressure();
 					}
 					else if(OPS_SUBSCREEN_TONNAGE == subscreenState)
@@ -1718,6 +1722,7 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								// Escape menu system
+								resetPressure();
 								subscreenState = 0;
 								screenState = LAST_SCREEN;
 								setupLCD(LCD_DEFAULT);
@@ -1727,6 +1732,7 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
+								resetPressure();
 								subscreenState++;
 								lcd_clrscr();
 							}

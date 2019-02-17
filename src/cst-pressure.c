@@ -37,6 +37,16 @@ LICENSE:
 
 #define MAX_PRESSURE      90
 
+typedef enum
+{
+	IDLE,
+	PUMPING,
+	PAUSED,
+	DONE
+} PressureState;
+
+static PressureState pressureState = IDLE;
+
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
 	{
@@ -125,111 +135,19 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 	}
 };
 
-/*const uint8_t PressureA0[8] =*/
-/*{*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00000001,*/
-/*	0b00000011,*/
-/*	0b00000010,*/
-/*	0b00000010,*/
-/*	0b00000010*/
-/*};*/
-
-/*const uint8_t PressureA1[8] =*/
-/*{*/
-/*	0b00000111,*/
-/*	0b00001000,*/
-/*	0b00011000,*/
-/*	0b00000100,*/
-/*	0b00000000,*/
-/*	0b00010000,*/
-/*	0b00000000,*/
-/*	0b00000000*/
-/*};*/
-
-/*const uint8_t PressureA2[8] =*/
-/*{*/
-/*	0b00011110,*/
-/*	0b00010001,*/
-/*	0b00010001,*/
-/*	0b00000010,*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00000000*/
-/*};*/
-
-/*const uint8_t PressureA3[8] =*/
-/*{*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00010000,*/
-/*	0b00001000,*/
-/*	0b00001100,*/
-/*	0b00010100,*/
-/*	0b00000100,*/
-/*	0b00000100*/
-/*};*/
-
-/*const uint8_t PressureB0[8] =*/
-/*{*/
-/*	0b00000011,*/
-/*	0b00000010,*/
-/*	0b00000010,*/
-/*	0b00000010,*/
-/*	0b00000001,*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00000000*/
-/*};*/
-
-/*const uint8_t PressureB1[8] =*/
-/*{*/
-/*	0b00010000,*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00001000,*/
-/*	0b00010000,*/
-/*	0b00010010,*/
-/*	0b00001100,*/
-/*	0b00000111*/
-/*};*/
-
-/*const uint8_t PressureB2[8] =*/
-/*{*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00000000,*/
-/*	0b00000001,*/
-/*	0b00000000,*/
-/*	0b00000100,*/
-/*	0b00000011,*/
-/*	0b00011110*/
-/*};*/
-
-/*const uint8_t PressureB3[8] =*/
-/*{*/
-/*	0b00011100,*/
-/*	0b00000100,*/
-/*	0b00000100,*/
-/*	0b00000100,*/
-/*	0b00011000,*/
-/*	0b00010000,*/
-/*	0b00000000,*/
-/*	0b00000000*/
-/*};*/
-
 uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
 
 uint32_t milliPressure = 0;
 
 void updatePressure10Hz(void)
 {
-	milliPressure += 2000;
+	if(PUMPING == pressureState)
+		milliPressure += 1000;
 	if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
-		milliPressure = 0;
+	{
+		milliPressure = (uint32_t)MAX_PRESSURE * 1000;
+		pressureState = DONE;
+	}
 }
 
 void plot(uint8_t x, uint8_t y)
@@ -324,8 +242,8 @@ void plotLine(int8_t x0, int8_t y0, int8_t x1, int8_t y1)
 void setupPressureChars(void)
 {
 	// East = 0deg, South = 90deg, West = 180deg, North = 270deg
-	// Start at 120deg, end at 300deg
-	float degrees = (180.0 / MAX_PRESSURE) * (milliPressure / 1000.0) + 120.0;
+	// Start at 110deg, end at 300deg
+	float degrees = (188.0 / MAX_PRESSURE) * (milliPressure / 1000.0) + 112.0;
 	float radians = degrees * PI / 180.0;
 
 	int8_t x = round(cos_32(radians)*LENGTH);
@@ -354,57 +272,49 @@ void printPressure(void)
 	lcd_putc(PRESSURE_CHAR_A1);
 	lcd_putc(PRESSURE_CHAR_A2);
 	lcd_putc(PRESSURE_CHAR_A3);
-//	lcd_puts("BRK");
 
 	lcd_gotoxy(0,1);
 	lcd_putc(PRESSURE_CHAR_B0);
 	lcd_putc(PRESSURE_CHAR_B1);
 	lcd_putc(PRESSURE_CHAR_B2);
 	lcd_putc(PRESSURE_CHAR_B3);
-//	lcd_puts("PIPE");
 
-	lcd_gotoxy(4,0);
-	printDec3Dig(milliPressure/1000);
-	lcd_gotoxy(5,1);
-	lcd_puts("PSI");
+	if(IDLE == pressureState)
+	{
+		lcd_gotoxy(4,0);
+		lcd_puts("BRK");
+		lcd_gotoxy(4,1);
+		lcd_puts("PIPE");
+	}
+	else if((PAUSED == pressureState) || (PUMPING == pressureState))
+	{
+		lcd_gotoxy(4,0);
+		lcd_putc(' ');
+		printDec3Dig(milliPressure/1000);
+		lcd_gotoxy(4,1);
+		lcd_puts(" PSI");
+	}
+}
 
+void runPressure(void)
+{
+	pressureState = PUMPING;
+}
 
-/*	uint8_t x,y;*/
-/*	memset(canvas, 0, sizeof(canvas));*/
-/*	for(y=0; y<16; y++)*/
-/*	{*/
-/*		for(x=0; x<20; x++)*/
-/*		{*/
-/*			plot(x,y);*/
-/*			setupPressureChars();*/
+void stopPressure(void)
+{
+	if(IDLE != pressureState)
+		pressureState = PAUSED;
+}
 
-/*			lcd_gotoxy(5,0);*/
-/*			if(x >= 0)*/
-/*			{*/
-/*				lcd_putc(' ');*/
-/*				printDec2DigWZero(x);*/
-/*			}*/
-/*			else*/
-/*			{*/
-/*				lcd_putc('-');*/
-/*				printDec2DigWZero(-1*x);*/
-/*			}*/
+void resetPressure(void)
+{
+	milliPressure = 0;
+	pressureState = IDLE;
+}
 
-/*			lcd_gotoxy(5,1);*/
-/*			if(y >= 0)*/
-/*			{*/
-/*				lcd_putc(' ');*/
-/*				printDec2DigWZero(y);*/
-/*			}*/
-/*			else*/
-/*			{*/
-/*				lcd_putc('-');*/
-/*				printDec2DigWZero(-1*y);*/
-/*			}*/
-/*			wdt_reset();*/
-/*			_delay_ms(100);*/
-/*		}*/
-/*	}*/
-
+uint8_t isPressurePumping(void)
+{
+	return (PUMPING == pressureState);
 }
 
