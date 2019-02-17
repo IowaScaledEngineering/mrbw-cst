@@ -36,6 +36,9 @@ LICENSE:
 #define COLS_PER_CHAR      5
 
 #define MAX_PRESSURE      90
+// East = 0deg, South = 90deg, West = 180deg, North = 270deg
+#define MIN_ANGLE        112
+#define MAX_ANGLE        300
 
 typedef enum
 {
@@ -46,6 +49,10 @@ typedef enum
 } PressureState;
 
 static PressureState pressureState = IDLE;
+
+static uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
+
+static uint32_t milliPressure = 0;
 
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
@@ -116,9 +123,9 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 			0b00000000,
 			0b00000000,
 			0b00000000,
-			0b00000001,
 			0b00000000,
-			0b00000100,
+			0b00000000,
+			0b00000000,
 			0b00000011,
 			0b00011110
 		},
@@ -134,10 +141,6 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 		}
 	}
 };
-
-uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
-
-uint32_t milliPressure = 0;
 
 void updatePressure10Hz(void)
 {
@@ -241,9 +244,7 @@ void plotLine(int8_t x0, int8_t y0, int8_t x1, int8_t y1)
 
 void setupPressureChars(void)
 {
-	// East = 0deg, South = 90deg, West = 180deg, North = 270deg
-	// Start at 110deg, end at 300deg
-	float degrees = (188.0 / MAX_PRESSURE) * (milliPressure / 1000.0) + 112.0;
+	float degrees = ((MAX_ANGLE - MIN_ANGLE) * ((milliPressure / 1000.0) / MAX_PRESSURE)) + MIN_ANGLE;
 	float radians = degrees * PI / 180.0;
 
 	int8_t x = round(cos_32(radians)*LENGTH);
