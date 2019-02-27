@@ -35,7 +35,10 @@ LICENSE:
 #define ROWS_PER_CHAR      8
 #define COLS_PER_CHAR      5
 
-#define MAX_PRESSURE      90
+#define MAX_PRESSURE         90
+#define RESET_PRESSURE       65
+#define BRAKE_TEST_DELTA     20
+
 // East = 0deg, South = 90deg, West = 180deg, North = 270deg
 #define MIN_ANGLE        112
 #define MAX_ANGLE        300
@@ -44,15 +47,17 @@ typedef enum
 {
 	IDLE,
 	PUMPING,
-	PAUSED,
+	PUMPING_HALF,
 	DONE
-} PressureState;
+} PumpState;
 
-static PressureState pressureState = IDLE;
+static PumpState pumpState = IDLE;
+
+static uint8_t brakeTest = 0;
 
 static uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
 
-static uint32_t milliPressure = 0;
+static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
 
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
@@ -134,7 +139,7 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 			0b00000100,
 			0b00000100,
 			0b00000100,
-			0b00011000,
+			0b00001000,
 			0b00010000,
 			0b00000000,
 			0b00000000
@@ -144,12 +149,17 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 
 void updatePressure10Hz(void)
 {
-	if(PUMPING == pressureState)
-		milliPressure += 1000;
-	if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
+	if(!brakeTest)
 	{
-		milliPressure = (uint32_t)MAX_PRESSURE * 1000;
-		pressureState = DONE;
+		if(PUMPING == pumpState)
+			milliPressure += 200;
+		else if(PUMPING_HALF == pumpState)
+			milliPressure += 100;
+		if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
+		{
+			milliPressure = (uint32_t)MAX_PRESSURE * 1000;
+			pumpState = DONE;
+		}
 	}
 }
 
@@ -264,6 +274,25 @@ void setupPressureChars(void)
 	lcd_setup_custom(PRESSURE_CHAR_B3, canvas[1][3]);
 }
 
+void processPressure(uint8_t notch)
+{
+	if(DONE != pumpState)
+	{
+		if(notch > 2)
+		{
+			pumpState = PUMPING;
+		}
+		else if(notch == 2)
+		{
+			pumpState = PUMPING_HALF;
+		}
+		else
+		{
+			pumpState = IDLE;
+		}
+	}
+}
+
 void printPressure(void)
 {
 	setupPressureChars();
@@ -280,14 +309,14 @@ void printPressure(void)
 	lcd_putc(PRESSURE_CHAR_B2);
 	lcd_putc(PRESSURE_CHAR_B3);
 
-	if(IDLE == pressureState)
+	if(brakeTest)
 	{
 		lcd_gotoxy(4,0);
-		lcd_puts("BRK");
+		lcd_puts(" BRK");
 		lcd_gotoxy(4,1);
-		lcd_puts("PIPE");
+		lcd_puts("TEST");
 	}
-	else if((PAUSED == pressureState) || (PUMPING == pressureState))
+	else
 	{
 		lcd_gotoxy(4,0);
 		lcd_putc(' ');
@@ -297,25 +326,34 @@ void printPressure(void)
 	}
 }
 
-void runPressure(void)
+void toggleBrakeTest(void)
 {
-	pressureState = PUMPING;
-}
-
-void stopPressure(void)
-{
-	if(IDLE != pressureState)
-		pressureState = PAUSED;
+	if(0 == brakeTest)
+	{
+		brakeTest = 1;
+		milliPressure -= ((uint32_t)BRAKE_TEST_DELTA * 1000);
+		pumpState = IDLE;
+	}
+	else
+	{
+		brakeTest = 0;
+	}
 }
 
 void resetPressure(void)
 {
-	milliPressure = 0;
-	pressureState = IDLE;
+	milliPressure = (uint32_t)RESET_PRESSURE * 1000;
+	pumpState = IDLE;
+	brakeTest = 0;
 }
 
 uint8_t isPressurePumping(void)
 {
-	return (PUMPING == pressureState);
+	return((PUMPING == pumpState) || (PUMPING_HALF == pumpState));
+}
+
+uint8_t isBrakeTestActive(void)
+{
+	return(brakeTest);
 }
 

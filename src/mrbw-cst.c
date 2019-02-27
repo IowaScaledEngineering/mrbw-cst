@@ -1023,6 +1023,8 @@ void init(void)
 	enableThrottle();
 	initialize100HzTimer();
 
+	resetPressure();
+
 	DDRB |= _BV(PB3);
 }
 
@@ -1655,7 +1657,7 @@ int main(void)
 					lcd_puts("SPECIAL");
 					lcd_gotoxy(0,1);
 					lcd_putc(0x7F);
-					lcd_puts("-   OPS");
+					lcd_puts("- FUNCS");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -1680,11 +1682,22 @@ int main(void)
 					{
 						setupLCD(LCD_PRESSURE);
 						enableLCDBacklight();
-						if(3 == activeThrottleSetting)
-							runPressure();
-						else
-							stopPressure();
+						processPressure(activeThrottleSetting);
 						printPressure();
+						switch(button)
+						{
+							case UP_BUTTON:
+								if(UP_BUTTON != previousButton)
+								{
+									toggleBrakeTest();
+								}
+								break;
+							case DOWN_BUTTON:
+							case SELECT_BUTTON:
+							case MENU_BUTTON:
+							case NO_BUTTON:
+								break;
+						}
 					}
 					else if(OPS_SUBSCREEN_TONNAGE == subscreenState)
 					{
