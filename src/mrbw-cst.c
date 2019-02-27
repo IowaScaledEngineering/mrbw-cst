@@ -231,6 +231,8 @@ uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightF
 uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
 uint8_t brakeFunction = OFF_FUNCTION;
 uint8_t brakeOffFunction = OFF_FUNCTION;
+uint8_t compressorFunction = OFF_FUNCTION;
+uint8_t brakeTestFunction = OFF_FUNCTION;
 uint8_t auxFunction = OFF_FUNCTION;
 uint8_t engineOnFunction = 8;
 uint8_t engineStopFunction = OFF_FUNCTION;
@@ -3730,6 +3732,11 @@ int main(void)
 			functionMask |= (uint32_t)1 << (upButtonFunction & 0x1F);
 		if((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION))
 			functionMask |= (uint32_t)1 << (downButtonFunction & 0x1F);
+
+		if((isPressurePumping()) && !(compressorFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (compressorFunction & 0x1F);
+		if((isBrakeTestActive()) && !(brakeTestFunction & OFF_FUNCTION))
+			functionMask |= (uint32_t)1 << (brakeTestFunction & 0x1F);
 
 		wdt_reset();
 

@@ -8,5 +8,7 @@ void processPressure(uint8_t notch);
 void printPressure(void);
 void resetPressure(void);
 void toggleBrakeTest(void);
+uint8_t isPressurePumping(void);
+uint8_t isBrakeTestActive(void);
 
 #endif
