@@ -331,7 +331,10 @@ void toggleBrakeTest(void)
 	if(0 == brakeTest)
 	{
 		brakeTest = 1;
-		milliPressure -= ((uint32_t)BRAKE_TEST_DELTA * 1000);
+		if(milliPressure > ((uint32_t)BRAKE_TEST_DELTA * 1000))
+			milliPressure -= ((uint32_t)BRAKE_TEST_DELTA * 1000);
+		else
+			milliPressure = 0;
 		pumpState = IDLE;
 	}
 	else
