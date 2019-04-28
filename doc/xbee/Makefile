@@ -23,7 +23,9 @@
 #    
 #*************************************************************************
 
-PROFILE = xbp24_10ef_cst
+FIRMWARE = /opt/Digi/XCTU-NG/radio_firmwares/XB3-24A/XB3-24A_2003-th.xml
+PROFILE_XBP24 = xbp24_10ef_cst.xml
+PROFILE_XB3 = xb3_2003_cst.xpro
 
 BAUD = 9600
 NEWBAUD = 115200
@@ -33,8 +35,14 @@ help:
 	@echo "make profile ..... upload profile"
 	@echo "make verify ...... verify profile"
 
-profile: $(PROFILE).xml
-	/opt/Digi/XCTU-NG/XCTUcmd load_profile -f $(PROFILE).xml -p $(PORT) -b $(BAUD) -F -v
+firmware:
+	/opt/Digi/XCTU-NG/XCTUcmd update_firmware -f $(FIRMWARE) -p $(PORT) -b $(BAUD) -v
+
+profileXB3: $(PROFILE)
+	/opt/Digi/XCTU-NG/XCTUcmd load_profile -f $(PROFILE_XB3) -p $(PORT) -b $(BAUD) -F -v
+
+profilePro: $(PROFILE)
+	/opt/Digi/XCTU-NG/XCTUcmd load_profile -f $(PROFILE_XBP24) -p $(PORT) -b $(BAUD) -F -v
 
 verify: 
 	/usr/bin/python verify.py $(PORT) $(NEWBAUD)
