@@ -93,10 +93,6 @@ char baseString[9];
 #define BRAKE_CONTROL     0x08
 #define BRAKE_OFF_CONTROL 0x10
 
-// FIXME: Remove
-#define OFF_FUNCTION      0x80
-#define LATCH_FUNCTION    0x40
-
 #define HORN_HYSTERESIS   5
 #define BRAKE_HYSTERESIS  5
 
@@ -145,21 +141,6 @@ uint8_t lastRSSI = 0xFF;
 
 uint16_t locoAddress = 0;
 
-// FIXME: delete these
-// Replace with calls to accessor functions
-uint8_t hornFunction = 2;
-uint8_t bellFunction = 7;
-uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
-uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
-uint8_t brakeFunction = OFF_FUNCTION;
-uint8_t brakeOffFunction = OFF_FUNCTION;
-uint8_t auxFunction = OFF_FUNCTION;
-uint8_t engineOnFunction = 8;
-uint8_t engineStopFunction = OFF_FUNCTION;
-uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
-uint8_t throttleUnlockFunction = 9;
-uint8_t reverserSwapFunction = OFF_FUNCTION;
-
 #define BRAKE_DEAD_ZONE 5
 
 uint8_t hornThreshold;
@@ -190,6 +171,11 @@ static uint8_t timeSourceAddress = 0xFF;
 #define THROTTLE_STATUS_EMERGENCY       0x01
 
 volatile uint8_t throttleStatus = 0;
+
+uint8_t estopStatus = 0;
+
+#define ESTOP_BRAKE    0x01
+#define ESTOP_BUTTON   0x02
 
 uint16_t sleep_tmr_reset_value;
 
@@ -1020,13 +1006,13 @@ int main(void)
 		if(optionBits & _BV(OPTIONBITS_ESTOP_ON_BRAKE))
 		{
 			if(brakePosition < brakeLowThreshold)
-				throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
+				estopStatus &= ~ESTOP_BRAKE;
 			if(brakePosition > brakeHighThreshold)
-				throttleStatus |= THROTTLE_STATUS_EMERGENCY;
+				estopStatus |= ESTOP_BRAKE;
 		}
 		else
 		{
-			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
+			estopStatus &= ~ESTOP_BRAKE;
 		}
 		
 		// Handle brake
@@ -1198,8 +1184,7 @@ int main(void)
 
 		// Swap reverser if configured to do so
 		ReverserPosition reverserPosition_tmp = reverserPosition;
-		if( (optionBits & _BV(OPTIONBITS_REVERSER_SWAP)) ||
-			((!(reverserSwapFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (reverserSwapFunction & 0x1F)))) )
+		if( (optionBits & _BV(OPTIONBITS_REVERSER_SWAP)) || (functionMask & getFunctionMask(REV_SWAP_FN)) )
 		{
 			switch(reverserPosition_tmp)
 			{
@@ -1226,7 +1211,7 @@ int main(void)
 		// Calculate active throttle setting
 		if(NEUTRAL == activeReverserSetting)
 		{
-			if( (!(throttleUnlockFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (throttleUnlockFunction & 0x1F))) )
+			if( (functionMask & getFunctionMask(THR_UNLOCK_FN)) )
 			{
 				// If a function is assigned to the throttle unlock (e.g. Drive Hold) and the function is active, allow the throttle to change
 				activeThrottleSetting = throttlePosition;
@@ -1297,9 +1282,9 @@ int main(void)
 					else
 					{
 						lcd_gotoxy(7,0);
-						lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+						lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(isFunctionOff(UP_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 						lcd_gotoxy(7,1);
-						lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+						lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(isFunctionOff(DOWN_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 					}
 
 					lcd_gotoxy(0,1);
@@ -1319,7 +1304,7 @@ int main(void)
 								}
 								else
 								{
-									if(upButtonFunction & LATCH_FUNCTION)
+									if(isFunctionLatching(UP_FN))
 										optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
 									else
 										optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
@@ -1336,7 +1321,7 @@ int main(void)
 								}
 								else
 								{
-									if(downButtonFunction & LATCH_FUNCTION)
+									if(isFunctionLatching(DOWN_FN))
 										optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
 									else
 										optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
@@ -1361,9 +1346,9 @@ int main(void)
 							break;
 						case NO_BUTTON:
 							// Release buttons if momentary
-							if(!(upButtonFunction & LATCH_FUNCTION))
+							if(!(isFunctionLatching(UP_FN)))
 								optionButtonState &= ~UP_OPTION_BUTTON;
-							if(!(downButtonFunction & LATCH_FUNCTION))
+							if(!(isFunctionLatching(DOWN_FN)))
 								optionButtonState &= ~DOWN_OPTION_BUTTON;
 						case MENU_BUTTON:
 							break;
@@ -1435,7 +1420,7 @@ int main(void)
 				switch(button)
 				{
 					case UP_BUTTON:
-						if(engineStopFunction & OFF_FUNCTION)
+						if(isFunctionOff(ENGINE_OFF_FN))
 						{
 							// Level based start/stop
 							engineState = ENGINE_ON;
@@ -1452,7 +1437,7 @@ int main(void)
 						}
 						break;
 					case DOWN_BUTTON:
-						if(engineStopFunction & OFF_FUNCTION)
+						if(isFunctionOff(ENGINE_OFF_FN))
 						{
 							// Level based start/stop
 							engineState = ENGINE_OFF;
@@ -3340,24 +3325,42 @@ int main(void)
 
 		// Figure out which functions should be on and which should be off
 		functionMask = 0;
-		if((controls & HORN_CONTROL) && !(hornFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (hornFunction & 0x1F);
-		if((controls & BELL_CONTROL) && !(bellFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (bellFunction & 0x1F);
-		if((controls & AUX_CONTROL) && !(auxFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (auxFunction & 0x1F);
-		if((controls & BRAKE_CONTROL) && !(brakeFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (brakeFunction & 0x1F);
-		if((controls & BRAKE_OFF_CONTROL) && !(brakeOffFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (brakeOffFunction & 0x1F);
-		if(((ENGINE_ON == engineState)||(ENGINE_START) == engineState) && !(engineOnFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (engineOnFunction & 0x1F);
-		if((ENGINE_STOP == engineState) && !(engineStopFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (engineStopFunction & 0x1F);
-		if((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (upButtonFunction & 0x1F);
-		if((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (downButtonFunction & 0x1F);
+		estopStatus &= ~ESTOP_BUTTON;
+		if(controls & HORN_CONTROL)
+			functionMask |= getFunctionMask(HORN_FN);
+		if(controls & BELL_CONTROL)
+			functionMask |= getFunctionMask(BELL_FN);
+		if(controls & AUX_CONTROL)
+		{
+			functionMask |= getFunctionMask(AUX_FN);
+			if(isFunctionEstop(AUX_FN))
+				estopStatus |= ESTOP_BUTTON;
+		}
+		if(controls & BRAKE_CONTROL)
+			functionMask |= getFunctionMask(BRAKE_FN);
+		if(controls & BRAKE_OFF_CONTROL)
+			functionMask |= getFunctionMask(BRAKE_OFF_FN);
+		if((ENGINE_ON == engineState)||(ENGINE_START == engineState))
+			functionMask |= getFunctionMask(ENGINE_ON_FN);
+		if(ENGINE_STOP == engineState)
+			functionMask |= getFunctionMask(ENGINE_OFF_FN);
+		if(optionButtonState & UP_OPTION_BUTTON)
+		{
+			functionMask |= getFunctionMask(UP_FN);
+			if(isFunctionEstop(UP_FN))
+				estopStatus |= ESTOP_BUTTON;
+		}
+		if(optionButtonState & DOWN_OPTION_BUTTON)
+		{
+			functionMask |= getFunctionMask(DOWN_FN);
+			if(isFunctionEstop(DOWN_FN))
+				estopStatus |= ESTOP_BUTTON;
+		}
+
+		if(estopStatus)
+			throttleStatus |= THROTTLE_STATUS_EMERGENCY;
+		else
+			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
 
 		wdt_reset();
 
@@ -3366,20 +3369,20 @@ int main(void)
 			case LIGHT_OFF:
 				break;
 			case LIGHT_DIM:
-				if(!(frontDim1Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontDim1Function & 0x1F);
-				if(!(frontDim2Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontDim2Function & 0x1F);
+				if(!(isFunctionOff(FRONT_DIM1_FN)))
+					functionMask |= getFunctionMask(FRONT_DIM1_FN);
+				if(!(isFunctionOff(FRONT_DIM2_FN)))
+					functionMask |= getFunctionMask(FRONT_DIM2_FN);
 				break;
 			case LIGHT_BRIGHT:
-				if(!(frontHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontHeadlightFunction & 0x1F);
+				if(!(isFunctionOff(FRONT_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
 				break;
 			case LIGHT_BRIGHT_DITCH:
-				if(!(frontHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontHeadlightFunction & 0x1F);
-				if(!(frontDitchFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontDitchFunction & 0x1F);
+				if(!(isFunctionOff(FRONT_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
+				if(!(isFunctionOff(FRONT_DITCH_FN)))
+					functionMask |= getFunctionMask(FRONT_DITCH_FN);
 				break;
 		}
 
@@ -3390,20 +3393,20 @@ int main(void)
 			case LIGHT_OFF:
 				break;
 			case LIGHT_DIM:
-				if(!(rearDim1Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearDim1Function & 0x1F);
-				if(!(rearDim2Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearDim2Function & 0x1F);
+				if(!(isFunctionOff(REAR_DIM1_FN)))
+					functionMask |= getFunctionMask(REAR_DIM1_FN);
+				if(!(isFunctionOff(REAR_DIM2_FN)))
+					functionMask |= getFunctionMask(REAR_DIM2_FN);
 				break;
 			case LIGHT_BRIGHT:
-				if(!(rearHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearHeadlightFunction & 0x1F);
+				if(!(isFunctionOff(REAR_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
 				break;
 			case LIGHT_BRIGHT_DITCH:
-				if(!(rearHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearHeadlightFunction & 0x1F);
-				if(!(rearDitchFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearDitchFunction & 0x1F);
+				if(!(isFunctionOff(REAR_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
+				if(!(isFunctionOff(REAR_DITCH_FN)))
+					functionMask |= getFunctionMask(REAR_DITCH_FN);
 				break;
 		}
 

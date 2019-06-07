@@ -62,6 +62,10 @@ void incrementCurrentFunctionValue(void);
 void decrementCurrentFunctionValue(void);
 void readFunctionConfiguration(void);
 void writeFunctionConfiguration(void);
+uint8_t isFunctionOff(Functions functionName);
+uint8_t isFunctionEstop(Functions functionName);
+uint8_t isFunctionLatching(Functions functionName);
+uint32_t getFunctionMask(Functions functionName);
 void resetFunctionConfiguration(void);
 
 #endif

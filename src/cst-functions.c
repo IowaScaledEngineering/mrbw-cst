@@ -255,6 +255,56 @@ void writeFunctionConfiguration(void)
 	}
 }
 
+uint8_t isFunctionOff(Functions functionName)
+{
+	if(FN_OFF == functions[functionName].fn)
+		return 1;
+	else
+		return 0;
+}
+
+uint8_t isFunctionEstop(Functions functionName)
+{
+	if(FN_EMRG == functions[functionName].fn)
+		return 1;
+	else
+		return 0;
+}
+
+uint8_t isFunctionLatching(Functions functionName)
+{
+	switch(functions[functionName].fn)
+	{
+		case F00_LAT: case F10_LAT: case F20_LAT:
+		case F01_LAT: case F11_LAT: case F21_LAT:
+		case F02_LAT: case F12_LAT: case F22_LAT:
+		case F03_LAT: case F13_LAT: case F23_LAT:  
+		case F04_LAT: case F14_LAT: case F24_LAT:
+		case F05_LAT: case F15_LAT: case F25_LAT:
+		case F06_LAT: case F16_LAT: case F26_LAT:
+		case F07_LAT: case F17_LAT: case F27_LAT:
+		case F08_LAT: case F18_LAT: case F28_LAT:
+		case F09_LAT: case F19_LAT:
+		case FN_EMRG:
+			return 1;
+			break;
+		default:
+			return 0;
+			break;
+	}
+}
+
+uint32_t getFunctionMask(Functions functionName)
+{
+	if(
+		((functions[functionName].fn >= F00_MOM) && (functions[functionName].fn <= F28_MOM)) ||
+		((functions[functionName].fn >= F00_LAT) && (functions[functionName].fn <= F28_LAT))
+	)
+		return ((uint32_t)1 << (functions[functionName].fn & 0x1F));
+	else
+		return 0x00000000;
+}
+
 void resetFunctionConfiguration(void)
 {
 	functions[HORN_FN].fn = F02_MOM;
