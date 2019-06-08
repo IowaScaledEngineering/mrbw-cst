@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Extract start commands, remove firmware commands
+cat $1 | sed '/^G80/q' | grep -v "^M115" > out.gcode
+
+# Remove start and end code
+# Modify purge lines
+#    9mm/60mm = 0.15
+#    12.5mm/40m = 0.3125
+cat $1 | sed '1,/^G80/d' | sed '/^M104 S0/,/^M107/d' | sed '/^G1 X0 Y200/,/^M84/d' |
+	sed '/go outside print area$/ c G1 X140.0 Y180.0 F1000.0\nG1 Z0.15' |
+	sed '/intro line$/{s/\(G1.*\)/G1 X180.0 E6.0 F1000.0/;:a;n;ba}' |
+	sed '/intro line$/{s/\(G1.*\)/G1 X220.0 E12.5 F1000.0/;:a;n;ba}' >> temp.gcode
+	
+
+echo -e "G1 Y0" >> out.gcode
+echo -e "G1 X0" >> out.gcode
+python shift-gcode.py -x -110 -y -90 -f temp.gcode >> out.gcode
+
+echo -e "G1 Y170" >> out.gcode
+echo -e "G1 X145" >> out.gcode
+python shift-gcode.py -x 10 -y 10 -f temp.gcode >> out.gcode
+
+
+# End
+echo "
+G1 Z150
+M104 S0 ; turn off temperature
+M140 S0 ; turn off heatbed
+M107 ; turn off fan
+M84
+" >> out.gcode
+
+echo "Adjusting time..."
+python adjust-time.py -f out.gcode > $2
+
+rm out.gcode
+rm temp.gcode
