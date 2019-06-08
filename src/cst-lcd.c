@@ -29,6 +29,7 @@ LICENSE:
 #include "cst-hardware.h"
 #include "cst-battery.h"
 #include "cst-time.h"
+#include "cst-pressure.h"
 #include "cst-tonnage.h"
 
 const uint8_t Bell[8] =
@@ -326,6 +327,38 @@ void printLocomotiveAddress(uint16_t addr)
 	}
 }
 
+LcdMode currentMode = LCD_RESET;
+
+void setupLCD(LcdMode mode)
+{
+	if(currentMode != mode)
+	{
+		switch(mode)
+		{
+			case LCD_RESET:
+				break;
+			case LCD_DEFAULT:
+				setupBatteryChar();
+				setupSoftkeyChars();
+				setupClockChars();
+				setupAuxChars();
+				break;
+			case LCD_DIAGS:
+				setupSoftkeyChars();
+				setupDiagChars();
+				break;
+			case LCD_TONNAGE:
+				setupTonnageChars();
+				break;
+			case LCD_PRESSURE:
+				setupSoftkeyChars();  // FIXME: Needed?
+				setupPressureChars();
+				break;
+		}
+		currentMode = mode;
+	}
+}
+
 void initLCD(void)
 {
 	lcd_init(LCD_DISP_ON);
@@ -334,13 +367,8 @@ void initLCD(void)
 	displaySplashScreen();
 
 	lcd_clrscr();
-
-	// Reload the LCD characters
-	setupBatteryChar();
-	setupSoftkeyChars();
-	setupTonnageChars();
-	setupClockChars();
-	setupAuxChars();
+	
+	currentMode = LCD_RESET;
+	setupLCD(LCD_DEFAULT);
 }
-
 

@@ -61,14 +61,14 @@
 #define EE_BRAKE_PULSE_WIDTH          (0x16 + CONFIG_OFFSET(WORKING_CONFIG))
 #define EE_OPTIONBITS                 (0x17 + CONFIG_OFFSET(WORKING_CONFIG))
 
-#define EE_FUNC_FORCE_ON              (0x18 + CONFIG_OFFSET(WORKING_CONFIG))
-//      EE_FUNC_FORCE_ON               0x19
-//      EE_FUNC_FORCE_ON               0x1A
-//      EE_FUNC_FORCE_ON               0x1B
-#define EE_FUNC_FORCE_OFF             (0x1C + CONFIG_OFFSET(WORKING_CONFIG))
-//      EE_FUNC_FORCE_OFF              0x1D
-//      EE_FUNC_FORCE_OFF              0x1E
-//      EE_FUNC_FORCE_OFF              0x1F
+#define EE_FORCE_FUNC_ON              (0x18 + CONFIG_OFFSET(WORKING_CONFIG))
+//      EE_FORCE_FUNC_ON               0x19
+//      EE_FORCE_FUNC_ON               0x1A
+//      EE_FORCE_FUNC_ON               0x1B
+#define EE_FORCE_FUNC_OFF             (0x1C + CONFIG_OFFSET(WORKING_CONFIG))
+//      EE_FORCE_FUNC_OFF              0x1D
+//      EE_FORCE_FUNC_OFF              0x1E
+//      EE_FORCE_FUNC_OFF              0x1F
 
 #define EE_NOTCH_SPEEDSTEP                (0x20 + CONFIG_OFFSET(WORKING_CONFIG))
 //      EE_NOTCH_SPEEDSTEP                 0x21

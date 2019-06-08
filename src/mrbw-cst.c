@@ -39,6 +39,7 @@ LICENSE:
 #include "cst-eeprom.h"
 #include "cst-functions.h"
 #include "cst-battery.h"
+#include "cst-pressure.h"
 #include "cst-tonnage.h"
 #include "cst-time.h"
 
@@ -185,12 +186,12 @@ typedef enum
 {
 	MAIN_SCREEN = 0,
 	ENGINE_SCREEN,
-	TONNAGE_SCREEN,
+	OPS_SCREEN,
 	LOAD_CONFIG_SCREEN,
 	SAVE_CONFIG_SCREEN,
 	LOCO_SCREEN,
-	FUNC_FORCE_SCREEN,
-	FUNC_CONFIG_SCREEN,
+	FORCE_FUNC_SCREEN,
+	CONFIG_FUNC_SCREEN,
 	NOTCH_CONFIG_SCREEN,
 	OPTION_SCREEN,
 	SYSTEM_SCREEN,
@@ -200,6 +201,12 @@ typedef enum
 	DIAG_SCREEN,
 	LAST_SCREEN  // Must be the last screen
 } Screens;
+
+enum
+{
+	OPS_SUBSCREEN_PRESSURE = 1,
+	OPS_SUBSCREEN_TONNAGE
+};
 
 typedef enum
 {
@@ -478,7 +485,7 @@ void processButtons(uint8_t inputButtons)
 	{
 		// Reset the counters
 		button_autoincrement_10ms_ticks = BUTTON_AUTOINCREMENT_10MS_TICKS;
-		ticks_autoincrement = button_autoincrement_10ms_ticks;
+		ticks_autoincrement = 0;
 	}
 }
 
@@ -540,6 +547,7 @@ ISR(TIMER0_COMPA_vect)
 			brakeCounter = 0;
 		
 		updateTime10Hz();
+		updatePressure10Hz();
 	}
 
 	if(txHoldoff)
@@ -703,8 +711,8 @@ void readConfig(void)
 	// Function configs
 	readFunctionConfiguration();
 	
-	functionForceOn = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_ON);
-	functionForceOff = eeprom_read_dword((uint32_t*)EE_FUNC_FORCE_OFF);
+	functionForceOn = eeprom_read_dword((uint32_t*)EE_FORCE_FUNC_ON);
+	functionForceOff = eeprom_read_dword((uint32_t*)EE_FORCE_FUNC_OFF);
 
 	// Thresholds
 	hornThreshold = eeprom_read_byte((uint8_t*)EE_HORN_THRESHOLD);
@@ -779,8 +787,8 @@ void resetConfig(void)
 	eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003 | LOCO_ADDRESS_SHORT);
 	resetFunctionConfiguration();
 	writeFunctionConfiguration();
-	eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, 0);
-	eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, 0);
+	eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_ON, 0);
+	eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_OFF, 0);
 	eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
 	notchSpeedStep[0] = 7;
@@ -832,6 +840,8 @@ void init(void)
 	initADC();
 	enableThrottle();
 	initialize100HzTimer();
+
+	resetPressure();
 
 	DDRB |= _BV(PB3);
 }
@@ -1274,18 +1284,10 @@ int main(void)
 					printTime();
 					printBattery();
 				
-	//				if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-					if(0)
-					{
-						printTonnage();
-					}
-					else
-					{
-						lcd_gotoxy(7,0);
-						lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(isFunctionOff(UP_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-						lcd_gotoxy(7,1);
-						lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(isFunctionOff(DOWN_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
-					}
+					lcd_gotoxy(7,0);
+					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(isFunctionOff(UP_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+					lcd_gotoxy(7,1);
+					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(isFunctionOff(DOWN_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 
 					lcd_gotoxy(0,1);
 					if(controls & AUX_CONTROL)
@@ -1297,35 +1299,19 @@ int main(void)
 						case UP_BUTTON:
 							if(UP_BUTTON != previousButton)
 							{
-	//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-								if(0)
-								{
-									incrementTonnage();
-								}
+								if(isFunctionLatching(UP_FN))
+									optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
 								else
-								{
-									if(isFunctionLatching(UP_FN))
-										optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
-									else
-										optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
-								}
-							}
+									optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
+						}
 							break;
 						case DOWN_BUTTON:
 							if(DOWN_BUTTON != previousButton)
 							{
-	//							if((OFF_FUNCTION & upButtonFunction) && (OFF_FUNCTION & downButtonFunction))
-								if(0)
-								{
-									decrementTonnage();
-								}
+								if(isFunctionLatching(DOWN_FN))
+									optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
 								else
-								{
-									if(isFunctionLatching(DOWN_FN))
-										optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
-									else
-										optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
-								}
+									optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
 							}
 							break;
 						case SELECT_BUTTON:
@@ -1474,59 +1460,118 @@ int main(void)
 				}
 				break;
 
-			case TONNAGE_SCREEN:
+
+
+
+			case OPS_SCREEN:
 				enableLCDBacklight();
-				lcd_gotoxy(0,0);
-				switch(getTonnage())
+				if(!subscreenState)
 				{
-					case 0:
-						lcd_puts("LIGHT ");
-						break;
-					case 1:
-						lcd_puts("LOW   ");
-						break;
-					case 2:
-						lcd_puts("MEDIUM");
-						break;
-					case 3:
-						lcd_puts("HEAVY ");
-						break;
-				}
-				lcd_gotoxy(0,1);
-				switch(getTonnage())
-				{
-					case 0:
-						lcd_puts("ENGINE");
-						break;
-					case 1:
-					case 2:
-					case 3:
-						lcd_puts("WEIGHT");
-						break;
-				}
-				printTonnage();
-				switch(button)
-				{
-					case UP_BUTTON:
-						if(UP_BUTTON != previousButton)
-						{
-							incrementTonnage();
-						}
-						break;
-					case DOWN_BUTTON:
-						if(DOWN_BUTTON != previousButton)
-						{
-							decrementTonnage();
-						}
-						break;
-					case SELECT_BUTTON:
-							screenState = LAST_SCREEN;
+					lcd_gotoxy(1,0);
+					lcd_puts("SPECIAL");
+					lcd_gotoxy(0,1);
+					lcd_putc(0x7F);
+					lcd_puts("- FUNCS");
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								subscreenState = 1;
+								lcd_clrscr();
+							}
 							break;
-					case MENU_BUTTON:
-					case NO_BUTTON:
-						break;
+						case MENU_BUTTON:
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
+				}
+				else
+				{
+					enableLCDBacklight();
+					lcd_gotoxy(0,0);
+					if(OPS_SUBSCREEN_PRESSURE == subscreenState)
+					{
+						setupLCD(LCD_PRESSURE);
+						enableLCDBacklight();
+						processPressure(activeThrottleSetting);
+						printPressure();
+						switch(button)
+						{
+							case UP_BUTTON:
+								if(UP_BUTTON != previousButton)
+								{
+									toggleBrakeTest();
+								}
+								break;
+							case DOWN_BUTTON:
+							case SELECT_BUTTON:
+							case MENU_BUTTON:
+							case NO_BUTTON:
+								break;
+						}
+					}
+					else if(OPS_SUBSCREEN_TONNAGE == subscreenState)
+					{
+						setupLCD(LCD_TONNAGE);
+						enableLCDBacklight();
+						printTonnage();
+						switch(button)
+						{
+							case UP_BUTTON:
+								if(UP_BUTTON != previousButton)
+								{
+									incrementTonnage();
+								}
+								break;
+							case DOWN_BUTTON:
+								if(DOWN_BUTTON != previousButton)
+								{
+									decrementTonnage();
+								}
+								break;
+							case SELECT_BUTTON:
+							case MENU_BUTTON:
+							case NO_BUTTON:
+								break;
+						}
+					}
+					else
+					{
+						subscreenState = 1;
+					}
+					
+					switch(button)
+					{
+						case SELECT_BUTTON:
+							if(SELECT_BUTTON != previousButton)
+							{
+								// Escape menu system
+								resetPressure();
+								subscreenState = 0;
+								screenState = LAST_SCREEN;
+								setupLCD(LCD_DEFAULT);
+							}
+							break;
+						case MENU_BUTTON:
+							if(MENU_BUTTON != previousButton)
+							{
+								// Menu pressed, advance menu
+								resetPressure();
+								subscreenState++;
+								lcd_clrscr();
+							}
+							break;
+						case UP_BUTTON:
+						case DOWN_BUTTON:
+						case NO_BUTTON:
+							break;
+					}
 				}
 				break;
+
 
 			case LOAD_CONFIG_SCREEN:
 			case SAVE_CONFIG_SCREEN:
@@ -1713,7 +1758,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if( (0 == decimalNumberIndex) && (decimalNumber[decimalNumberIndex] > 9) )
 									decimalNumber[decimalNumberIndex] = 0;  // Short to Long
@@ -1735,7 +1780,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if( (0 == decimalNumberIndex) && (0 == decimalNumber[decimalNumberIndex]) )
 									decimalNumber[decimalNumberIndex] = 's' - '0';  // Long to Short
@@ -1788,7 +1833,7 @@ int main(void)
 				}
 				break;
 
-			case FUNC_FORCE_SCREEN:
+			case FORCE_FUNC_SCREEN:
 				enableLCDBacklight();
 				if(!subscreenState)
 				{
@@ -1830,7 +1875,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if(UP_BUTTON != previousButton) 
 							{
 								if( (functionForceOn & ((uint32_t)1 << functionNumber)) || (functionForceOff & ((uint32_t)1 << functionNumber)) )
 								{
@@ -1844,11 +1889,10 @@ int main(void)
 									functionForceOff &= ~((uint32_t)1 << functionNumber);
 									functionForceOn |= ((uint32_t)1 << functionNumber);
 								}
-								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if(DOWN_BUTTON != previousButton)
 							{
 								if(functionForceOff & ((uint32_t)1 << functionNumber))
 								{
@@ -1862,14 +1906,13 @@ int main(void)
 									functionForceOff &= ~((uint32_t)1 << functionNumber);
 									functionForceOn &= ~((uint32_t)1 << functionNumber);
 								}
-								ticks_autoincrement = 0;
 							}
 							break;
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_ON, functionForceOn);
-								eeprom_write_dword((uint32_t*)EE_FUNC_FORCE_OFF, functionForceOff);
+								eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_ON, functionForceOn);
+								eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_OFF, functionForceOff);
 								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
@@ -1885,7 +1928,6 @@ int main(void)
 								// Advance through function settings
 								if(++functionNumber > 28)
 									functionNumber = 0;
-								ticks_autoincrement = 0;
 								lcd_clrscr();
 							}
 							break;
@@ -1895,7 +1937,7 @@ int main(void)
 				}
 				break;
 
-			case FUNC_CONFIG_SCREEN:
+			case CONFIG_FUNC_SCREEN:
 				enableLCDBacklight();
 				if(!subscreenState)
 				{
@@ -1932,14 +1974,14 @@ int main(void)
 					{
 						//  |off|latch|0|Func[4:0]|
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								incrementCurrentFunctionValue();
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								decrementCurrentFunctionValue();
 								ticks_autoincrement = 0;
@@ -1963,7 +2005,6 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								advanceCurrentFunction();
-								ticks_autoincrement = 0;
 								lcd_clrscr();
 							}
 							break;
@@ -2010,7 +2051,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(notchSpeedStep[notch-1] < 126)
 									notchSpeedStep[notch-1]++;
@@ -2020,7 +2061,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(notchSpeedStep[notch-1] > 1)
 									notchSpeedStep[notch-1]--;
@@ -2167,7 +2208,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2184,7 +2225,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2432,7 +2473,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(*addrPtr < 0xFF)
 									(*addrPtr)++;
@@ -2445,7 +2486,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(*addrPtr > 0)
 									(*addrPtr)--;
@@ -2603,7 +2644,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2624,7 +2665,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2784,7 +2825,7 @@ int main(void)
 					switch(button)
 					{
 						case UP_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2800,7 +2841,7 @@ int main(void)
 							}
 							break;
 						case DOWN_BUTTON:
-							if(ticks_autoincrement >= button_autoincrement_10ms_ticks)
+							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
 								if(bitPosition < 8)
 								{
@@ -2858,7 +2899,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								setupDiagChars();
+								setupLCD(LCD_DIAGS);
 								subscreenState = 1;
 								lcd_clrscr();
 							}
@@ -3181,7 +3222,7 @@ int main(void)
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								setupClockChars();   // Restore clock characters
+								setupLCD(LCD_DEFAULT);   // Restore default characters
 								subscreenState = 0;  // Escape submenu
 								subscreenCount = 0;
 								lcd_clrscr();
@@ -3271,10 +3312,10 @@ int main(void)
 					{
 						// Menu lock active
 						while( 	(ENGINE_SCREEN != screenState) &&
-								(TONNAGE_SCREEN != screenState) &&
+								(OPS_SCREEN != screenState) &&
 								(LOAD_CONFIG_SCREEN != screenState) &&
 								(LOCO_SCREEN != screenState) &&
-								(FUNC_FORCE_SCREEN != screenState) &&
+								(FORCE_FUNC_SCREEN != screenState) &&
 								(SYSTEM_SCREEN != screenState) &&
 								(LAST_SCREEN != screenState)
 							)
@@ -3565,7 +3606,7 @@ int main(void)
 			if(DIAG_SCREEN == screenState)
 			{
 				// Change LCD chars if in the DIAG screen
-				setupDiagChars();
+				setupLCD(LCD_DIAGS);
 			}
 			initialize100HzTimer();
 			enableSwitches();
