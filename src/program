@@ -1,0 +1,9 @@
+#!/bin/bash
+
+espeak "Programming"
+make fuse firmware HEX=hex/mrbw-cst_v1.1.0_a73ae5.hex
+
+if [ $? -eq 0 ]
+then espeak "Complete"
+else espeak "Failed"
+fi
