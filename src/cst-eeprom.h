@@ -57,7 +57,7 @@
 #define EE_THR_UNLOCK_FUNCTION        (0x12 + CONFIG_OFFSET(WORKING_CONFIG))
 #define EE_BRAKE_OFF_FUNCTION         (0x13 + CONFIG_OFFSET(WORKING_CONFIG))
 #define EE_REV_SWAP_FUNCTION          (0x14 + CONFIG_OFFSET(WORKING_CONFIG))
-
+//                                     0x15
 #define EE_BRAKE_PULSE_WIDTH          (0x16 + CONFIG_OFFSET(WORKING_CONFIG))
 #define EE_OPTIONBITS                 (0x17 + CONFIG_OFFSET(WORKING_CONFIG))
 
@@ -70,14 +70,17 @@
 //      EE_FORCE_FUNC_OFF              0x1E
 //      EE_FORCE_FUNC_OFF              0x1F
 
-#define EE_NOTCH_SPEEDSTEP                (0x20 + CONFIG_OFFSET(WORKING_CONFIG))
-//      EE_NOTCH_SPEEDSTEP                 0x21
-//      EE_NOTCH_SPEEDSTEP                 0x22
-//      EE_NOTCH_SPEEDSTEP                 0x23
-//      EE_NOTCH_SPEEDSTEP                 0x24
-//      EE_NOTCH_SPEEDSTEP                 0x25
-//      EE_NOTCH_SPEEDSTEP                 0x26
-//      EE_NOTCH_SPEEDSTEP                 0x27
+#define EE_NOTCH_SPEEDSTEP            (0x20 + CONFIG_OFFSET(WORKING_CONFIG))
+//      EE_NOTCH_SPEEDSTEP             0x21
+//      EE_NOTCH_SPEEDSTEP             0x22
+//      EE_NOTCH_SPEEDSTEP             0x23
+//      EE_NOTCH_SPEEDSTEP             0x24
+//      EE_NOTCH_SPEEDSTEP             0x25
+//      EE_NOTCH_SPEEDSTEP             0x26
+//      EE_NOTCH_SPEEDSTEP             0x27
+
+#define EE_COMPRESSOR_FUNCTION        (0x30 + CONFIG_OFFSET(WORKING_CONFIG))
+#define EE_BRAKE_TEST_FUNCTION        (0x31 + CONFIG_OFFSET(WORKING_CONFIG))
 
 #endif
 

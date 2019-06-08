@@ -3398,10 +3398,10 @@ int main(void)
 				estopStatus |= ESTOP_BUTTON;
 		}
 
-		if(estopStatus)
-			throttleStatus |= THROTTLE_STATUS_EMERGENCY;
-		else
-			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
+		if(isPressurePumping())
+			functionMask |= getFunctionMask(COMPRESSOR_FN);
+		if(isBrakeTestActive())
+			functionMask |= getFunctionMask(BRAKE_TEST_FN);
 
 		wdt_reset();
 
@@ -3410,20 +3410,15 @@ int main(void)
 			case LIGHT_OFF:
 				break;
 			case LIGHT_DIM:
-				if(!(isFunctionOff(FRONT_DIM1_FN)))
-					functionMask |= getFunctionMask(FRONT_DIM1_FN);
-				if(!(isFunctionOff(FRONT_DIM2_FN)))
-					functionMask |= getFunctionMask(FRONT_DIM2_FN);
+				functionMask |= getFunctionMask(FRONT_DIM1_FN);
+				functionMask |= getFunctionMask(FRONT_DIM2_FN);
 				break;
 			case LIGHT_BRIGHT:
-				if(!(isFunctionOff(FRONT_HEADLIGHT_FN)))
-					functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
+				functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
 				break;
 			case LIGHT_BRIGHT_DITCH:
-				if(!(isFunctionOff(FRONT_HEADLIGHT_FN)))
-					functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
-				if(!(isFunctionOff(FRONT_DITCH_FN)))
-					functionMask |= getFunctionMask(FRONT_DITCH_FN);
+				functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
+				functionMask |= getFunctionMask(FRONT_DITCH_FN);
 				break;
 		}
 
@@ -3434,26 +3429,29 @@ int main(void)
 			case LIGHT_OFF:
 				break;
 			case LIGHT_DIM:
-				if(!(isFunctionOff(REAR_DIM1_FN)))
-					functionMask |= getFunctionMask(REAR_DIM1_FN);
-				if(!(isFunctionOff(REAR_DIM2_FN)))
-					functionMask |= getFunctionMask(REAR_DIM2_FN);
+				functionMask |= getFunctionMask(REAR_DIM1_FN);
+				functionMask |= getFunctionMask(REAR_DIM2_FN);
 				break;
 			case LIGHT_BRIGHT:
-				if(!(isFunctionOff(REAR_HEADLIGHT_FN)))
-					functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
+				functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
 				break;
 			case LIGHT_BRIGHT_DITCH:
-				if(!(isFunctionOff(REAR_HEADLIGHT_FN)))
-					functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
-				if(!(isFunctionOff(REAR_DITCH_FN)))
-					functionMask |= getFunctionMask(REAR_DITCH_FN);
+				functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
+				functionMask |= getFunctionMask(REAR_DITCH_FN);
 				break;
 		}
 
 		// Force specific functions on or off
 		functionMask |= functionForceOn;
 		functionMask &= ~functionForceOff;
+
+		wdt_reset();
+
+		// Process various E-Stop inputs to create single status bit
+		if(estopStatus)
+			throttleStatus |= THROTTLE_STATUS_EMERGENCY;
+		else
+			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
 
 		uint8_t inputsChanged =	(activeReverserSetting != lastActiveReverserSetting) ||
 									(activeThrottleSetting != lastActiveThrottleSetting) ||
