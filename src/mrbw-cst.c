@@ -36,7 +36,10 @@ LICENSE:
 #include "cst-common.h"
 #include "cst-lcd.h"
 #include "cst-hardware.h"
+#include "cst-eeprom.h"
+#include "cst-functions.h"
 #include "cst-battery.h"
+#include "cst-pressure.h"
 #include "cst-tonnage.h"
 #include "cst-time.h"
 
@@ -91,9 +94,6 @@ char baseString[9];
 #define BRAKE_CONTROL     0x08
 #define BRAKE_OFF_CONTROL 0x10
 
-#define OFF_FUNCTION      0x80
-#define LATCH_FUNCTION    0x40
-
 #define HORN_HYSTERESIS   5
 #define BRAKE_HYSTERESIS  5
 
@@ -104,88 +104,6 @@ char baseString[9];
 #define BRAKE_PULSE_WIDTH_MAX      10
 
 uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
-
-// Set EEPROM locations
-#define EE_VERSION_MAJOR              0x0E
-#define EE_VERSION_MINOR              0x0F
-
-#define EE_CURRENT_CONFIG             0x10
-#define EE_DEVICE_SLEEP_TIMEOUT       0x11
-#define EE_DEAD_RECKONING_TIME        0x12
-#define EE_CONFIGBITS                 0x13
-#define EE_BATTERY_OKAY               0x14
-#define EE_BATTERY_WARN               0x15
-#define EE_BATTERY_CRITICAL           0x16
-#define EE_TX_HOLDOFF                 0x1D
-#define EE_TIME_SOURCE_ADDRESS        0x1E
-#define EE_BASE_ADDR                  0x1F
-#define EE_HORN_THRESHOLD             0x20
-#define EE_BRAKE_THRESHOLD            0x21
-#define EE_BRAKE_LOW_THRESHOLD        0x22
-#define EE_BRAKE_HIGH_THRESHOLD       0x23
-
-// 20 configs * 128 bytes = 2560 bytes
-//  +128 bytes for global = 2688 bytes
-
-//        Total available = 4096 bytes
-
-#define MAX_CONFIGS      20
-
-// Put working (scratchspace) config at the end of EEPROM space
-#define WORKING_CONFIG   31
-
-#define CONFIG_START                  0x80
-#define CONFIG_SIZE                   0x80
-
-
-// These are offsets from CONFIG_START
-#define EE_LOCO_ADDRESS               (0x00 + configOffset)
-//      EE_LOCO_ADDRESS                0x01
-#define EE_HORN_FUNCTION              (0x02 + configOffset)
-#define EE_BELL_FUNCTION              (0x03 + configOffset)
-#define EE_BRAKE_FUNCTION             (0x04 + configOffset)
-#define EE_AUX_FUNCTION               (0x05 + configOffset)
-#define EE_ENGINE_ON_FUNCTION         (0x06 + configOffset)
-#define EE_ENGINE_OFF_FUNCTION        (0x07 + configOffset)
-
-#define EE_FRONT_DIM1_FUNCTION        (0x08 + configOffset)
-#define EE_FRONT_DIM2_FUNCTION        (0x09 + configOffset)
-#define EE_FRONT_HEADLIGHT_FUNCTION   (0x0A + configOffset)
-#define EE_FRONT_DITCH_FUNCTION       (0x0B + configOffset)
-#define EE_REAR_DIM1_FUNCTION         (0x0C + configOffset)
-#define EE_REAR_DIM2_FUNCTION         (0x0D + configOffset)
-#define EE_REAR_HEADLIGHT_FUNCTION    (0x0E + configOffset)
-#define EE_REAR_DITCH_FUNCTION        (0x0F + configOffset)
-
-#define EE_UP_BUTTON_FUNCTION         (0x10 + configOffset)
-#define EE_DOWN_BUTTON_FUNCTION       (0x11 + configOffset)
-#define EE_THR_UNLOCK_FUNCTION        (0x12 + configOffset)
-#define EE_BRAKE_OFF_FUNCTION         (0x13 + configOffset)
-#define EE_REV_SWAP_FUNCTION          (0x14 + configOffset)
-
-#define EE_BRAKE_PULSE_WIDTH          (0x16 + configOffset)
-#define EE_OPTIONBITS                 (0x17 + configOffset)
-
-#define EE_FORCE_FUNC_ON              (0x18 + configOffset)
-//      EE_FORCE_FUNC_ON               0x19
-//      EE_FORCE_FUNC_ON               0x1A
-//      EE_FORCE_FUNC_ON               0x1B
-#define EE_FORCE_FUNC_OFF             (0x1C + configOffset)
-//      EE_FORCE_FUNC_OFF              0x1D
-//      EE_FORCE_FUNC_OFF              0x1E
-//      EE_FORCE_FUNC_OFF              0x1F
-
-#define EE_NOTCH_SPEEDSTEP                (0x20 + configOffset)
-//      EE_NOTCH_SPEEDSTEP                 0x21
-//      EE_NOTCH_SPEEDSTEP                 0x22
-//      EE_NOTCH_SPEEDSTEP                 0x23
-//      EE_NOTCH_SPEEDSTEP                 0x24
-//      EE_NOTCH_SPEEDSTEP                 0x25
-//      EE_NOTCH_SPEEDSTEP                 0x26
-//      EE_NOTCH_SPEEDSTEP                 0x27
-
-uint16_t configOffset;
-
 
 // Boolean config bits (EEPROM, global)
 #define CONFIGBITS_LED_BLINK         0
@@ -224,19 +142,6 @@ uint8_t lastRSSI = 0xFF;
 
 uint16_t locoAddress = 0;
 
-uint8_t hornFunction = 2;
-uint8_t bellFunction = 7;
-uint8_t frontDim1Function = 3, frontDim2Function = OFF_FUNCTION, frontHeadlightFunction = 0, frontDitchFunction = 3;
-uint8_t rearDim1Function = 6, rearDim2Function = OFF_FUNCTION, rearHeadlightFunction = 5, rearDitchFunction = 6;
-uint8_t brakeFunction = OFF_FUNCTION;
-uint8_t brakeOffFunction = OFF_FUNCTION;
-uint8_t auxFunction = OFF_FUNCTION;
-uint8_t engineOnFunction = 8;
-uint8_t engineStopFunction = OFF_FUNCTION;
-uint8_t upButtonFunction = OFF_FUNCTION, downButtonFunction = OFF_FUNCTION;
-uint8_t throttleUnlockFunction = 9;
-uint8_t reverserSwapFunction = OFF_FUNCTION;
-
 #define BRAKE_DEAD_ZONE 5
 
 uint8_t hornThreshold;
@@ -268,6 +173,11 @@ static uint8_t timeSourceAddress = 0xFF;
 
 volatile uint8_t throttleStatus = 0;
 
+uint8_t estopStatus = 0;
+
+#define ESTOP_BRAKE    0x01
+#define ESTOP_BUTTON   0x02
+
 uint16_t sleep_tmr_reset_value;
 
 // Define the menu screens and menu order
@@ -292,11 +202,11 @@ typedef enum
 	LAST_SCREEN  // Must be the last screen
 } Screens;
 
-typedef enum
+enum
 {
 	OPS_SUBSCREEN_PRESSURE = 1,
 	OPS_SUBSCREEN_TONNAGE
-} OpsSubscreen;
+};
 
 typedef enum
 {
@@ -327,32 +237,6 @@ typedef enum
 	BRAKE_FULL_WAIT,
 } BrakeStates;
 
-typedef enum
-{
-	HORN_FN = 0,
-	BELL_FN,
-	BRAKE_FN,
-	BRAKE_OFF_FN,
-	AUX_FN,
-	ENGINE_ON_FN,
-	ENGINE_OFF_FN,
-	THR_UNLOCK_FN,
-	REV_SWAP_FN,
-	FRONT_HEADLIGHT_FN,
-	FRONT_DITCH_FN,
-	FRONT_DIM1_FN,
-	FRONT_DIM2_FN,
-	REAR_HEADLIGHT_FN,
-	REAR_DITCH_FN,
-	REAR_DIM1_FN,
-	REAR_DIM2_FN,
-	UP_FN,
-	DOWN_FN,
-	LAST_FN,
-} Functions;
-
-Functions functionSetting = HORN_FN;
-
 uint32_t functionForceOn  = 0;
 uint32_t functionForceOff = 0;
 
@@ -373,16 +257,6 @@ typedef enum
 
 #define ENGINE_TIMER_DECISECS      50
 volatile uint8_t engineTimer = 0;
-
-inline uint16_t calculateConfigOffset(uint8_t cfgNum)
-{
-	return(((cfgNum - 1) * CONFIG_SIZE) + CONFIG_START);
-}
-
-inline uint8_t calculateConfigNumber(uint16_t cfgOffset)
-{
-	return(((configOffset - CONFIG_START) / CONFIG_SIZE) + 1);
-}
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
 {
@@ -673,6 +547,7 @@ ISR(TIMER0_COMPA_vect)
 			brakeCounter = 0;
 		
 		updateTime10Hz();
+		updatePressure10Hz();
 	}
 
 	if(txHoldoff)
@@ -812,16 +687,6 @@ void readConfig(void)
 		eeprom_write_byte((uint8_t*)EE_BASE_ADDR, mrbus_base_addr);
 	}
 
-	// The following code used to calculate the active EEPROM memory space, based on the currently selected config #.
-	// Now we only have one config that is used during operation (WORKING_CONFIG), so make sure this is what we use.
-	configOffset = eeprom_read_byte((uint8_t*)EE_CURRENT_CONFIG);  // Abuse configOffset to read the config number
-	if(configOffset != WORKING_CONFIG)
-	{
-		configOffset = WORKING_CONFIG;
-		eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, configOffset);
-	}
-	configOffset = calculateConfigOffset(configOffset);
-	
 	// Locomotive Address
 	locoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);
 	if(locoAddress & LOCO_ADDRESS_SHORT)
@@ -844,25 +709,7 @@ void readConfig(void)
 	}
 
 	// Function configs
-	hornFunction = eeprom_read_byte((uint8_t*)EE_HORN_FUNCTION);
-	bellFunction = eeprom_read_byte((uint8_t*)EE_BELL_FUNCTION);
-	frontDim1Function = eeprom_read_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION);
-	frontDim2Function = eeprom_read_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION);
-	frontHeadlightFunction = eeprom_read_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION);
-	frontDitchFunction = eeprom_read_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION);
-	rearDim1Function = eeprom_read_byte((uint8_t*)EE_REAR_DIM1_FUNCTION);
-	rearDim2Function = eeprom_read_byte((uint8_t*)EE_REAR_DIM2_FUNCTION);
-	rearHeadlightFunction = eeprom_read_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION);
-	rearDitchFunction = eeprom_read_byte((uint8_t*)EE_REAR_DITCH_FUNCTION);
-	brakeFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_FUNCTION);
-	brakeOffFunction = eeprom_read_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION);
-	auxFunction = eeprom_read_byte((uint8_t*)EE_AUX_FUNCTION);
-	engineOnFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_ON_FUNCTION);
-	engineStopFunction = eeprom_read_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION);
-	upButtonFunction = eeprom_read_byte((uint8_t*)EE_UP_BUTTON_FUNCTION);
-	downButtonFunction = eeprom_read_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION);
-	throttleUnlockFunction = eeprom_read_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION);
-	reverserSwapFunction = eeprom_read_byte((uint8_t*)EE_REV_SWAP_FUNCTION);
+	readFunctionConfiguration();
 	
 	functionForceOn = eeprom_read_dword((uint32_t*)EE_FORCE_FUNC_ON);
 	functionForceOff = eeprom_read_dword((uint32_t*)EE_FORCE_FUNC_OFF);
@@ -901,18 +748,9 @@ void readConfig(void)
 
 void copyConfig(uint8_t srcConfig, uint8_t destConfig)
 {
-	uint8_t i;
-	uint16_t sourceAddr;
-	uint16_t destAddr;
-
-	sourceAddr = calculateConfigOffset(srcConfig);
-	destAddr = calculateConfigOffset(destConfig);
-
-	for(i=0; i<CONFIG_SIZE; i++)
-	{
-		uint8_t tmpEE = eeprom_read_byte((uint8_t*)(sourceAddr++));
-		eeprom_write_byte((uint8_t*)(destAddr++), tmpEE);
-	}
+	uint8_t configTemp[CONFIG_SIZE];
+	eeprom_read_block((void *)configTemp, (void *)CONFIG_OFFSET(srcConfig), CONFIG_SIZE);
+	eeprom_write_block((void *)configTemp, (void *)CONFIG_OFFSET(destConfig), CONFIG_SIZE);
 }
 
 void resetConfig(void)
@@ -944,48 +782,30 @@ void resetConfig(void)
 	//    EE_BRAKE_LOW_THRESHOLD
 	//    EE_BRAKE_HIGH_THRESHOLD
 
-	eeprom_write_byte((uint8_t*)EE_CURRENT_CONFIG, WORKING_CONFIG);
-	
+	// Write working config first, then copy to all the others
+	wdt_reset();
+	eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003 | LOCO_ADDRESS_SHORT);
+	resetFunctionConfiguration();
+	writeFunctionConfiguration();
+	eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_ON, 0);
+	eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_OFF, 0);
+	eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
+	notchSpeedStep[0] = 7;
+	notchSpeedStep[1] = 23;
+	notchSpeedStep[2] = 39;
+	notchSpeedStep[3] = 55;
+	notchSpeedStep[4] = 71;
+	notchSpeedStep[5] = 87;
+	notchSpeedStep[6] = 103;
+	notchSpeedStep[7] = 119;
+	eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
+
 	for (i=1; i<=MAX_CONFIGS; i++)
 	{
 		wdt_reset();
-		configOffset = calculateConfigOffset(i);
-		eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, 0x0003 | LOCO_ADDRESS_SHORT);
-		eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, 2);
-		eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, 1);
-		eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, 0);
-		eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, 0);
-		eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, 10);
-		eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, 9);
-		eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, 8);
-		eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, 5);
-		eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, 6);
-		eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, OFF_FUNCTION);
-		eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, OFF_FUNCTION);
-		eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_ON, 0);
-		eeprom_write_dword((uint32_t*)EE_FORCE_FUNC_OFF, 0);
-		eeprom_write_byte((uint8_t*)EE_BRAKE_PULSE_WIDTH, BRAKE_PULSE_WIDTH_DEFAULT);
-		eeprom_write_byte((uint8_t*)EE_OPTIONBITS, OPTIONBITS_DEFAULT);
-		notchSpeedStep[0] = 7;
-		notchSpeedStep[1] = 23;
-		notchSpeedStep[2] = 39;
-		notchSpeedStep[3] = 55;
-		notchSpeedStep[4] = 71;
-		notchSpeedStep[5] = 87;
-		notchSpeedStep[6] = 103;
-		notchSpeedStep[7] = 119;
-		eeprom_write_block((void *)notchSpeedStep, (void *)EE_NOTCH_SPEEDSTEP, 8);
+		copyConfig(WORKING_CONFIG, i);
 	}
-
-	copyConfig(1, WORKING_CONFIG);  // Grab one of the configs for default
 	
 	wdt_reset();
 	
@@ -1021,6 +841,8 @@ void init(void)
 	enableThrottle();
 	initialize100HzTimer();
 
+	resetPressure();
+
 	DDRB |= _BV(PB3);
 }
 
@@ -1052,12 +874,9 @@ int main(void)
 
 	BrakeStates brakeState = BRAKE_LOW_BEGIN;
 
-	uint8_t allowLatch;
-	
 	uint8_t decimalNumberIndex = 0;
 	uint8_t decimalNumber[4];
 
-	uint8_t *functionPtr = &hornFunction;
 	uint8_t functionNumber = 0;
 
 	EngineState engineState = ENGINE_OFF;
@@ -1197,13 +1016,13 @@ int main(void)
 		if(optionBits & _BV(OPTIONBITS_ESTOP_ON_BRAKE))
 		{
 			if(brakePosition < brakeLowThreshold)
-				throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
+				estopStatus &= ~ESTOP_BRAKE;
 			if(brakePosition > brakeHighThreshold)
-				throttleStatus |= THROTTLE_STATUS_EMERGENCY;
+				estopStatus |= ESTOP_BRAKE;
 		}
 		else
 		{
-			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
+			estopStatus &= ~ESTOP_BRAKE;
 		}
 		
 		// Handle brake
@@ -1375,8 +1194,7 @@ int main(void)
 
 		// Swap reverser if configured to do so
 		ReverserPosition reverserPosition_tmp = reverserPosition;
-		if( (optionBits & _BV(OPTIONBITS_REVERSER_SWAP)) ||
-			((!(reverserSwapFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (reverserSwapFunction & 0x1F)))) )
+		if( (optionBits & _BV(OPTIONBITS_REVERSER_SWAP)) || (functionMask & getFunctionMask(REV_SWAP_FN)) )
 		{
 			switch(reverserPosition_tmp)
 			{
@@ -1403,7 +1221,7 @@ int main(void)
 		// Calculate active throttle setting
 		if(NEUTRAL == activeReverserSetting)
 		{
-			if( (!(throttleUnlockFunction & OFF_FUNCTION)) && (functionMask & ((uint32_t)1 << (throttleUnlockFunction & 0x1F))) )
+			if( (functionMask & getFunctionMask(THR_UNLOCK_FN)) )
 			{
 				// If a function is assigned to the throttle unlock (e.g. Drive Hold) and the function is active, allow the throttle to change
 				activeThrottleSetting = throttlePosition;
@@ -1467,9 +1285,9 @@ int main(void)
 					printBattery();
 				
 					lcd_gotoxy(7,0);
-					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+					lcd_putc((optionButtonState & UP_OPTION_BUTTON) && !(isFunctionOff(UP_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 					lcd_gotoxy(7,1);
-					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
+					lcd_putc((optionButtonState & DOWN_OPTION_BUTTON) && !(isFunctionOff(DOWN_FN)) ? FUNCTION_ACTIVE_CHAR : FUNCTION_INACTIVE_CHAR);
 
 					lcd_gotoxy(0,1);
 					if(controls & AUX_CONTROL)
@@ -1481,16 +1299,16 @@ int main(void)
 						case UP_BUTTON:
 							if(UP_BUTTON != previousButton)
 							{
-								if(upButtonFunction & LATCH_FUNCTION)
+								if(isFunctionLatching(UP_FN))
 									optionButtonState ^= UP_OPTION_BUTTON;  // Toggle
 								else
 									optionButtonState |= UP_OPTION_BUTTON;  // Momentary on
-							}
+						}
 							break;
 						case DOWN_BUTTON:
 							if(DOWN_BUTTON != previousButton)
 							{
-								if(downButtonFunction & LATCH_FUNCTION)
+								if(isFunctionLatching(DOWN_FN))
 									optionButtonState ^= DOWN_OPTION_BUTTON;  // Toggle
 								else
 									optionButtonState |= DOWN_OPTION_BUTTON;  // Momentary on
@@ -1514,9 +1332,9 @@ int main(void)
 							break;
 						case NO_BUTTON:
 							// Release buttons if momentary
-							if(!(upButtonFunction & LATCH_FUNCTION))
+							if(!(isFunctionLatching(UP_FN)))
 								optionButtonState &= ~UP_OPTION_BUTTON;
-							if(!(downButtonFunction & LATCH_FUNCTION))
+							if(!(isFunctionLatching(DOWN_FN)))
 								optionButtonState &= ~DOWN_OPTION_BUTTON;
 						case MENU_BUTTON:
 							break;
@@ -1588,7 +1406,7 @@ int main(void)
 				switch(button)
 				{
 					case UP_BUTTON:
-						if(engineStopFunction & OFF_FUNCTION)
+						if(isFunctionOff(ENGINE_OFF_FN))
 						{
 							// Level based start/stop
 							engineState = ENGINE_ON;
@@ -1605,7 +1423,7 @@ int main(void)
 						}
 						break;
 					case DOWN_BUTTON:
-						if(engineStopFunction & OFF_FUNCTION)
+						if(isFunctionOff(ENGINE_OFF_FN))
 						{
 							// Level based start/stop
 							engineState = ENGINE_OFF;
@@ -1653,7 +1471,7 @@ int main(void)
 					lcd_puts("SPECIAL");
 					lcd_gotoxy(0,1);
 					lcd_putc(0x7F);
-					lcd_puts("-   OPS");
+					lcd_puts("- FUNCS");
 					switch(button)
 					{
 						case SELECT_BUTTON:
@@ -1678,11 +1496,22 @@ int main(void)
 					{
 						setupLCD(LCD_PRESSURE);
 						enableLCDBacklight();
-						lcd_gotoxy(4,0);
-						lcd_puts("BRK");
-						lcd_putc(0x7E);
-						lcd_gotoxy(4,1);
-						lcd_puts("PIPE");
+						processPressure(activeThrottleSetting);
+						printPressure();
+						switch(button)
+						{
+							case UP_BUTTON:
+								if(UP_BUTTON != previousButton)
+								{
+									toggleBrakeTest();
+								}
+								break;
+							case DOWN_BUTTON:
+							case SELECT_BUTTON:
+							case MENU_BUTTON:
+							case NO_BUTTON:
+								break;
+						}
 					}
 					else if(OPS_SUBSCREEN_TONNAGE == subscreenState)
 					{
@@ -1720,14 +1549,17 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								// Escape menu system
+								resetPressure();
 								subscreenState = 0;
 								screenState = LAST_SCREEN;
+								setupLCD(LCD_DEFAULT);
 							}
 							break;
 						case MENU_BUTTON:
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
+								resetPressure();
 								subscreenState++;
 								lcd_clrscr();
 							}
@@ -1756,9 +1588,8 @@ int main(void)
 					printDec2DigWZero(newConfigNumber);
 					lcd_puts(": ");
 					{
-						uint16_t tmpConfigOffset = configOffset;  // Save configOffset
-						configOffset = calculateConfigOffset(newConfigNumber);
-						uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)EE_LOCO_ADDRESS);  // Read loco address of newConfigNumber
+						uint16_t eepromAddressDelta = CONFIG_OFFSET(WORKING_CONFIG) - CONFIG_OFFSET(newConfigNumber);
+						uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)(EE_LOCO_ADDRESS - eepromAddressDelta));  // Read loco address of newConfigNumber
 						if(tmpLocoAddress & LOCO_ADDRESS_SHORT)
 						{
 							if((tmpLocoAddress & ~(LOCO_ADDRESS_SHORT)) > 127)
@@ -1776,7 +1607,6 @@ int main(void)
 							}
 						}
 						printLocomotiveAddress(tmpLocoAddress);
-						configOffset = tmpConfigOffset;  // Restore old configOffset value
 					}
 					switch(button)
 					{
@@ -2122,7 +1952,6 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								subscreenState = 1;
-								functionSetting = 0;
 								lcd_clrscr();
 							}
 							break;
@@ -2135,194 +1964,39 @@ int main(void)
 				}
 				else
 				{
-					allowLatch = 0;
-					switch(functionSetting)
-					{
-						case HORN_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("HORN");
-							functionPtr = &hornFunction;
-							break;
-						case BELL_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("BELL");
-							functionPtr = &bellFunction;
-							break;
-						case BRAKE_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("BRAKE");
-							functionPtr = &brakeFunction;
-							break;
-						case BRAKE_OFF_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("BRK OFF");
-							functionPtr = &brakeOffFunction;
-							break;
-						case AUX_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("AUX");
-							functionPtr = &auxFunction;
-							break;
-						case ENGINE_ON_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("ENG ON");
-							functionPtr = &engineOnFunction;
-							break;
-						case ENGINE_OFF_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("ENG STOP");
-							functionPtr = &engineStopFunction;
-							break;
-						case THR_UNLOCK_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("THR UNLK");
-							functionPtr = &throttleUnlockFunction;
-							break;
-						case REV_SWAP_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("REV SWAP");
-							functionPtr = &reverserSwapFunction;
-							break;
-						case FRONT_DIM1_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("F.DIM #1");
-							functionPtr = &frontDim1Function;
-							break;
-						case FRONT_DIM2_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("F.DIM #2");
-							functionPtr = &frontDim2Function;
-							break;
-						case FRONT_HEADLIGHT_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("F.HEAD");
-							functionPtr = &frontHeadlightFunction;
-							break;
-						case FRONT_DITCH_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("F.DITCH");
-							functionPtr = &frontDitchFunction;
-							break;
-						case REAR_DIM1_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("R.DIM #1");
-							functionPtr = &rearDim1Function;
-							break;
-						case REAR_DIM2_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("R.DIM #2");
-							functionPtr = &rearDim2Function;
-							break;
-						case REAR_HEADLIGHT_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("R.HEAD");
-							functionPtr = &rearHeadlightFunction;
-							break;
-						case REAR_DITCH_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("R.DITCH");
-							functionPtr = &rearDitchFunction;
-							break;
-						case UP_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("UP BTN");
-							functionPtr = &upButtonFunction;
-							allowLatch = 1;
-							break;
-						case DOWN_FN:
-							lcd_gotoxy(0,0);
-							lcd_puts("DOWN BTN");
-							functionPtr = &downButtonFunction;
-							allowLatch = 1;
-							break;
-						case LAST_FN:
-							// Should never get here...
-							break;
-					}
 
+					lcd_gotoxy(0,0);
+					printCurrentFunctionName();
 					lcd_gotoxy(0,1);
-					lcd_puts("F");
-					lcd_gotoxy(1,1);
-					if((*functionPtr) & OFF_FUNCTION)
-						lcd_puts("--     ");
-					else
-					{
-						printDec2DigWZero((*functionPtr) & 0x1F);
-						if(allowLatch)
-						{
-							lcd_gotoxy(5,1);
-							if((*functionPtr) & LATCH_FUNCTION)
-								lcd_puts("LAT");
-							else
-								lcd_puts("MOM");
-						}
-					}
-
+					printCurrentFunctionValue();
+					
 					switch(button)
 					{
 						//  |off|latch|0|Func[4:0]|
 						case UP_BUTTON:
 							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
-								if((*functionPtr) & OFF_FUNCTION)
-								{
-									(*functionPtr) = 0;  // Turn on
-								}
-								else
-								{
-									if(((*functionPtr) & 0x1F) < 28)
-										(*functionPtr)++;       // Increment
-									else if(allowLatch && !((*functionPtr) & LATCH_FUNCTION))
-										(*functionPtr) = LATCH_FUNCTION;  // Set latch bit, reset function number to zero
-									else
-										(*functionPtr) = ((*functionPtr) & LATCH_FUNCTION) + 28;    // Saturate, preserving latch bit
-								}
+								incrementCurrentFunctionValue();
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
-								if(~((*functionPtr) & OFF_FUNCTION))
-								{
-									// Not OFF...
-									if(((*functionPtr) & 0x1F) > 0)
-										(*functionPtr)--;       // Decrement
-									else if(allowLatch && ((*functionPtr) & LATCH_FUNCTION))
-										(*functionPtr) = 28;    // Unset latch bit, reset function number to 28
-									else
-										(*functionPtr) = OFF_FUNCTION;  // Turn off
-								}
+								decrementCurrentFunctionValue();
 								ticks_autoincrement = 0;
 							}
 							break;
 						case SELECT_BUTTON:
 							if(SELECT_BUTTON != previousButton)
 							{
-								eeprom_write_byte((uint8_t*)EE_HORN_FUNCTION, hornFunction);
-								eeprom_write_byte((uint8_t*)EE_BELL_FUNCTION, bellFunction);
-								eeprom_write_byte((uint8_t*)EE_FRONT_DIM1_FUNCTION, frontDim1Function);
-								eeprom_write_byte((uint8_t*)EE_FRONT_DIM2_FUNCTION, frontDim2Function);
-								eeprom_write_byte((uint8_t*)EE_FRONT_HEADLIGHT_FUNCTION, frontHeadlightFunction);
-								eeprom_write_byte((uint8_t*)EE_FRONT_DITCH_FUNCTION, frontDitchFunction);
-								eeprom_write_byte((uint8_t*)EE_REAR_DIM1_FUNCTION, rearDim1Function);
-								eeprom_write_byte((uint8_t*)EE_REAR_DIM2_FUNCTION, rearDim2Function);
-								eeprom_write_byte((uint8_t*)EE_REAR_HEADLIGHT_FUNCTION, rearHeadlightFunction);
-								eeprom_write_byte((uint8_t*)EE_REAR_DITCH_FUNCTION, rearDitchFunction);
-								eeprom_write_byte((uint8_t*)EE_BRAKE_FUNCTION, brakeFunction);
-								eeprom_write_byte((uint8_t*)EE_BRAKE_OFF_FUNCTION, brakeOffFunction);
-								eeprom_write_byte((uint8_t*)EE_AUX_FUNCTION, auxFunction);
-								eeprom_write_byte((uint8_t*)EE_ENGINE_ON_FUNCTION, engineOnFunction);
-								eeprom_write_byte((uint8_t*)EE_ENGINE_OFF_FUNCTION, engineStopFunction);
-								eeprom_write_byte((uint8_t*)EE_UP_BUTTON_FUNCTION, upButtonFunction);
-								eeprom_write_byte((uint8_t*)EE_DOWN_BUTTON_FUNCTION, downButtonFunction);
-								eeprom_write_byte((uint8_t*)EE_THR_UNLOCK_FUNCTION, throttleUnlockFunction);
-								eeprom_write_byte((uint8_t*)EE_REV_SWAP_FUNCTION, reverserSwapFunction);
+								writeFunctionConfiguration();
 								readConfig();
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
 								wait100ms(7);
+								resetCurrentFunction();
 								subscreenState = 0;  // Escape submenu
 								lcd_clrscr();
 							}
@@ -2330,9 +2004,7 @@ int main(void)
 						case MENU_BUTTON:
 							if(MENU_BUTTON != previousButton)
 							{
-								// Advance through function settings
-								if(++functionSetting >= LAST_FN)
-									functionSetting = 0;
+								advanceCurrentFunction();
 								lcd_clrscr();
 							}
 							break;
@@ -3694,24 +3366,42 @@ int main(void)
 
 		// Figure out which functions should be on and which should be off
 		functionMask = 0;
-		if((controls & HORN_CONTROL) && !(hornFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (hornFunction & 0x1F);
-		if((controls & BELL_CONTROL) && !(bellFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (bellFunction & 0x1F);
-		if((controls & AUX_CONTROL) && !(auxFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (auxFunction & 0x1F);
-		if((controls & BRAKE_CONTROL) && !(brakeFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (brakeFunction & 0x1F);
-		if((controls & BRAKE_OFF_CONTROL) && !(brakeOffFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (brakeOffFunction & 0x1F);
-		if(((ENGINE_ON == engineState)||(ENGINE_START) == engineState) && !(engineOnFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (engineOnFunction & 0x1F);
-		if((ENGINE_STOP == engineState) && !(engineStopFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (engineStopFunction & 0x1F);
-		if((optionButtonState & UP_OPTION_BUTTON) && !(upButtonFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (upButtonFunction & 0x1F);
-		if((optionButtonState & DOWN_OPTION_BUTTON) && !(downButtonFunction & OFF_FUNCTION))
-			functionMask |= (uint32_t)1 << (downButtonFunction & 0x1F);
+		estopStatus &= ~ESTOP_BUTTON;
+		if(controls & HORN_CONTROL)
+			functionMask |= getFunctionMask(HORN_FN);
+		if(controls & BELL_CONTROL)
+			functionMask |= getFunctionMask(BELL_FN);
+		if(controls & AUX_CONTROL)
+		{
+			functionMask |= getFunctionMask(AUX_FN);
+			if(isFunctionEstop(AUX_FN))
+				estopStatus |= ESTOP_BUTTON;
+		}
+		if(controls & BRAKE_CONTROL)
+			functionMask |= getFunctionMask(BRAKE_FN);
+		if(controls & BRAKE_OFF_CONTROL)
+			functionMask |= getFunctionMask(BRAKE_OFF_FN);
+		if((ENGINE_ON == engineState)||(ENGINE_START == engineState))
+			functionMask |= getFunctionMask(ENGINE_ON_FN);
+		if(ENGINE_STOP == engineState)
+			functionMask |= getFunctionMask(ENGINE_OFF_FN);
+		if(optionButtonState & UP_OPTION_BUTTON)
+		{
+			functionMask |= getFunctionMask(UP_FN);
+			if(isFunctionEstop(UP_FN))
+				estopStatus |= ESTOP_BUTTON;
+		}
+		if(optionButtonState & DOWN_OPTION_BUTTON)
+		{
+			functionMask |= getFunctionMask(DOWN_FN);
+			if(isFunctionEstop(DOWN_FN))
+				estopStatus |= ESTOP_BUTTON;
+		}
+
+		if(estopStatus)
+			throttleStatus |= THROTTLE_STATUS_EMERGENCY;
+		else
+			throttleStatus &= ~THROTTLE_STATUS_EMERGENCY;
 
 		wdt_reset();
 
@@ -3720,20 +3410,20 @@ int main(void)
 			case LIGHT_OFF:
 				break;
 			case LIGHT_DIM:
-				if(!(frontDim1Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontDim1Function & 0x1F);
-				if(!(frontDim2Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontDim2Function & 0x1F);
+				if(!(isFunctionOff(FRONT_DIM1_FN)))
+					functionMask |= getFunctionMask(FRONT_DIM1_FN);
+				if(!(isFunctionOff(FRONT_DIM2_FN)))
+					functionMask |= getFunctionMask(FRONT_DIM2_FN);
 				break;
 			case LIGHT_BRIGHT:
-				if(!(frontHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontHeadlightFunction & 0x1F);
+				if(!(isFunctionOff(FRONT_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
 				break;
 			case LIGHT_BRIGHT_DITCH:
-				if(!(frontHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontHeadlightFunction & 0x1F);
-				if(!(frontDitchFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (frontDitchFunction & 0x1F);
+				if(!(isFunctionOff(FRONT_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(FRONT_HEADLIGHT_FN);
+				if(!(isFunctionOff(FRONT_DITCH_FN)))
+					functionMask |= getFunctionMask(FRONT_DITCH_FN);
 				break;
 		}
 
@@ -3744,20 +3434,20 @@ int main(void)
 			case LIGHT_OFF:
 				break;
 			case LIGHT_DIM:
-				if(!(rearDim1Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearDim1Function & 0x1F);
-				if(!(rearDim2Function & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearDim2Function & 0x1F);
+				if(!(isFunctionOff(REAR_DIM1_FN)))
+					functionMask |= getFunctionMask(REAR_DIM1_FN);
+				if(!(isFunctionOff(REAR_DIM2_FN)))
+					functionMask |= getFunctionMask(REAR_DIM2_FN);
 				break;
 			case LIGHT_BRIGHT:
-				if(!(rearHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearHeadlightFunction & 0x1F);
+				if(!(isFunctionOff(REAR_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
 				break;
 			case LIGHT_BRIGHT_DITCH:
-				if(!(rearHeadlightFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearHeadlightFunction & 0x1F);
-				if(!(rearDitchFunction & OFF_FUNCTION))
-					functionMask |= (uint32_t)1 << (rearDitchFunction & 0x1F);
+				if(!(isFunctionOff(REAR_HEADLIGHT_FN)))
+					functionMask |= getFunctionMask(REAR_HEADLIGHT_FN);
+				if(!(isFunctionOff(REAR_DITCH_FN)))
+					functionMask |= getFunctionMask(REAR_DITCH_FN);
 				break;
 		}
 
