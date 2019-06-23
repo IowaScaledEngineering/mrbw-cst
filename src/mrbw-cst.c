@@ -400,7 +400,7 @@ void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 {
 	buf[MRBUS_PKT_DEST] = destAddr;
 	buf[MRBUS_PKT_SRC] = mrbus_dev_addr;
-	buf[MRBUS_PKT_LEN] = 15;
+	buf[MRBUS_PKT_LEN] = 20;
 	buf[MRBUS_PKT_TYPE] = 'v';
 	buf[6]  = MRBUS_VERSION_WIRELESS;
 	// Software Revision
@@ -412,6 +412,11 @@ void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 	buf[12] = 'C';
 	buf[13] = 'S';
 	buf[14] = 'T';
+	buf[15] = '*';
+	buf[16] = 'E';
+	buf[17] = 'M';
+	buf[18] = 'C';
+	buf[19] = '2';
 }
 
 void PktHandler(void)
@@ -1117,6 +1122,13 @@ int main(void)
 	
 	while(1)
 	{
+		// Keep buffer filled with version packets
+		if(!(mrbusPktQueueFull(&mrbeeTxQueue)))
+		{
+			createVersionPacket(0xFF, txBuffer);
+			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+		}
+
 		wdt_reset();
 
 		// Heartbeat (or loop timer)
