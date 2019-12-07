@@ -13,13 +13,19 @@ cat $1 | sed '1,/^G80/d' | sed '/^M104 S0/,/^M107/d' | sed '/^G1 X0 Y200/,/^M84/
 	sed '/intro line$/{s/\(G1.*\)/G1 X220.0 E12.5 F1000.0/;:a;n;ba}' >> temp.gcode
 	
 
-echo -e "G1 Y0" >> out.gcode
-echo -e "G1 X0" >> out.gcode
-python shift-gcode.py -x -110 -y -90 -f temp.gcode >> out.gcode
+#echo -e "G1 Y0" >> out.gcode
+#echo -e "G1 X0" >> out.gcode
+#python shift-gcode.py -x -110 -y -90 -f temp.gcode >> out.gcode
+#echo -e "G1 Y170" >> out.gcode
+#echo -e "G1 X145" >> out.gcode
+#python shift-gcode.py -x 10 -y 10 -f temp.gcode >> out.gcode
 
-echo -e "G1 Y170" >> out.gcode
+echo -e "G1 Y0" >> out.gcode
 echo -e "G1 X145" >> out.gcode
-python shift-gcode.py -x 10 -y 10 -f temp.gcode >> out.gcode
+python shift-gcode.py -x 25 -y -90 -f temp.gcode >> out.gcode
+echo -e "G1 Y170" >> out.gcode
+echo -e "G1 X0" >> out.gcode
+python shift-gcode.py -x -115 -y 10 -f temp.gcode >> out.gcode
 
 
 # End
