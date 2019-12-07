@@ -25,7 +25,7 @@
 
 FIRMWARE = /opt/Digi/XCTU-NG/radio_firmwares/XB3-24A/XB3-24A_2003-th.xml
 PROFILE_XBP24 = xbp24_10ef_cst.xpro
-PROFILE_XB3 = xb3_2003_cst_pl2.xpro
+PROFILE_XB3 = xb3_2003_cst.xpro
 
 BAUD = 9600
 NEWBAUD = 115200
@@ -40,6 +40,9 @@ firmware:
 
 profileXB3: $(PROFILE)
 	/opt/Digi/XCTU-NG/XCTUcmd load_profile -f $(PROFILE_XB3) -p $(PORT) -b $(BAUD) -F -v
+
+profileXB3_115k: $(PROFILE)
+	/opt/Digi/XCTU-NG/XCTUcmd load_profile -f $(PROFILE_XB3) -p $(PORT) -b $(NEWBAUD) -F -v
 
 profilePro: $(PROFILE)
 	/opt/Digi/XCTU-NG/XCTUcmd load_profile -f $(PROFILE_XBP24) -p $(PORT) -b $(BAUD) -F -v
