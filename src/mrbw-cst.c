@@ -898,7 +898,6 @@ int main(void)
 	uint8_t newMaxDeadReckoningTime_seconds = getMaxDeadReckoningTime() / 10;
 	uint8_t newUpdate_seconds = update_decisecs / 10;
 
-	uint8_t *addrPtr = &newDevAddr;
 	uint8_t *prefsPtr = &newSleepTimeout;
 	uint8_t *optionsPtr = &optionBits;
 
@@ -2433,21 +2432,21 @@ int main(void)
 					if(1 == subscreenState)
 					{
 						lcd_puts("THRTL ID");
-						addrPtr = &newDevAddr;
+						prefsPtr = &newDevAddr;
 						lcd_gotoxy(4,1);
 						lcd_putc('A' + (newDevAddr - MRBUS_DEV_ADDR_MIN));
 					}
 					else if(2 == subscreenState)
 					{
 						lcd_puts("BASE ADR");
-						addrPtr = &newBaseAddr;
+						prefsPtr = &newBaseAddr;
 						lcd_gotoxy(3,1);
 						printDec2DigWZero(newBaseAddr - MRBUS_BASE_ADDR_MIN);
 					}
 					else if(3 == subscreenState)
 					{
 						lcd_puts("TIME ADR");
-						addrPtr = &newTimeAddr;
+						prefsPtr = &newTimeAddr;
 						if(0x00 == newTimeAddr)
 						{
 							lcd_gotoxy(2,1);
@@ -2465,6 +2464,27 @@ int main(void)
 							printHex(newTimeAddr);
 						}
 					}
+					else if(4 == subscreenState)
+					{
+						lcd_puts("TX INTVL");
+						prefsPtr = &newUpdate_seconds;
+						lcd_gotoxy(4,1);
+						printDec3Dig(*prefsPtr);
+						lcd_gotoxy(7,1);
+						lcd_puts("s");
+					}
+					else if(5 == subscreenState)
+					{
+						lcd_puts("TX HLDOF");
+						prefsPtr = &txHoldoff_centisecs;
+						lcd_gotoxy(3,1);
+						lcd_putc('0' + (*prefsPtr) / 100);
+						lcd_putc('.');
+						lcd_putc('0' + ((*prefsPtr)/10) % 10);
+						lcd_putc('0' + (*prefsPtr) % 10);
+						lcd_gotoxy(7,1);
+						lcd_puts("s");
+					}
 					else
 					{
 						subscreenState = 1;
@@ -2475,26 +2495,42 @@ int main(void)
 						case UP_BUTTON:
 							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
-								if(*addrPtr < 0xFF)
-									(*addrPtr)++;
-								// Check bounds
-								if(newDevAddr > MRBUS_DEV_ADDR_MAX)
-									newDevAddr = MRBUS_DEV_ADDR_MAX;
-								if(newBaseAddr > MRBUS_BASE_ADDR_MAX)
-									newBaseAddr = MRBUS_BASE_ADDR_MAX;
+								if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) )
+								{
+									if(*prefsPtr < 0xFF)
+										(*prefsPtr)++;
+									// Check bounds
+									if(newDevAddr > MRBUS_DEV_ADDR_MAX)
+										newDevAddr = MRBUS_DEV_ADDR_MAX;
+									if(newBaseAddr > MRBUS_BASE_ADDR_MAX)
+										newBaseAddr = MRBUS_BASE_ADDR_MAX;
+									if(newUpdate_seconds > UPDATE_DECISECS_MAX / 10)
+										newUpdate_seconds = UPDATE_DECISECS_MAX / 10;
+								}
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
-								if(*addrPtr > 0)
-									(*addrPtr)--;
-								// Check bounds
-								if(newDevAddr < MRBUS_DEV_ADDR_MIN)
-									newDevAddr = MRBUS_DEV_ADDR_MIN;
-								if(newBaseAddr < MRBUS_BASE_ADDR_MIN)
-									newBaseAddr = MRBUS_BASE_ADDR_MIN;
+								if((prefsPtr == &newUpdate_seconds)||(prefsPtr == &txHoldoff_centisecs))
+								{
+									if( (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) && (*prefsPtr > 1) )
+										(*prefsPtr)--;
+									// Check bounds
+									if(txHoldoff_centisecs < TX_HOLDOFF_MIN)
+										txHoldoff_centisecs = TX_HOLDOFF_MIN;
+								}
+								else
+								{
+									if(*prefsPtr > 0)
+										(*prefsPtr)--;
+									// Check bounds
+									if(newDevAddr < MRBUS_DEV_ADDR_MIN)
+										newDevAddr = MRBUS_DEV_ADDR_MIN;
+									if(newBaseAddr < MRBUS_BASE_ADDR_MIN)
+										newBaseAddr = MRBUS_BASE_ADDR_MIN;
+								}
 								ticks_autoincrement = 0;
 							}
 							break;
@@ -2504,10 +2540,15 @@ int main(void)
 								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, newDevAddr);
 								eeprom_write_byte((uint8_t*)EE_BASE_ADDR, newBaseAddr);
 								eeprom_write_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS, newTimeAddr);
+								eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
+								update_decisecs = (uint16_t)newUpdate_seconds * 10;
+								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H, update_decisecs >> 8);
+								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L, update_decisecs & 0xFF);
 								readConfig();
 								newDevAddr = mrbus_dev_addr;
 								newBaseAddr = mrbus_base_addr;
 								newTimeAddr = timeSourceAddress;
+								newUpdate_seconds = update_decisecs / 10;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -2582,27 +2623,11 @@ int main(void)
 					}
 					else if(3 == subscreenState)
 					{
-						lcd_puts("TX INTVL");
-						lcd_gotoxy(7,1);
-						lcd_puts("s");
-						bitPosition = 0xFF;
-						prefsPtr = &newUpdate_seconds;
-					}
-					else if(4 == subscreenState)
-					{
-						lcd_puts("TX HLDOF");
-						lcd_gotoxy(7,1);
-						lcd_puts("s");
-						bitPosition = 0xFF;
-						prefsPtr = &txHoldoff_centisecs;
-					}
-					else if(5 == subscreenState)
-					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(6 == subscreenState)
+					else if(4 == subscreenState)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
@@ -2626,14 +2651,6 @@ int main(void)
 					{
 						// Do nothing
 					}
-					else if(prefsPtr == &txHoldoff_centisecs)
-					{
-						lcd_gotoxy(3,1);
-						lcd_putc('0' + (*prefsPtr) / 100);
-						lcd_putc('.');
-						lcd_putc('0' + ((*prefsPtr)/10) % 10);
-						lcd_putc('0' + (*prefsPtr) % 10);
-					}
 					else
 					{
 						lcd_gotoxy(4,1);
@@ -2650,12 +2667,10 @@ int main(void)
 								{
 									*prefsPtr |= _BV(bitPosition);
 								}
-								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) )
+								else
 								{
 									if(*prefsPtr < 0xFF)
 										(*prefsPtr)++;
-									if(newUpdate_seconds > UPDATE_DECISECS_MAX / 10)
-										newUpdate_seconds = UPDATE_DECISECS_MAX / 10;
 									if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
 									if(newMaxDeadReckoningTime_seconds > DEAD_RECKONING_TIME_MAX / 10)
@@ -2671,12 +2686,10 @@ int main(void)
 								{
 									*prefsPtr &= ~_BV(bitPosition);
 								}
-								else if( ((prefsPtr != &newUpdate_seconds)&&(prefsPtr != &txHoldoff_centisecs)) || (systemBits & _BV(SYSTEMBITS_ADV_FUNC)) )
+								else
 								{
 									if(*prefsPtr > 1)
 										(*prefsPtr)--;
-									if(txHoldoff_centisecs < TX_HOLDOFF_MIN)
-										txHoldoff_centisecs = TX_HOLDOFF_MIN;
 									if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
 										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
 									if(newMaxDeadReckoningTime_seconds < DEAD_RECKONING_TIME_MIN / 10)
@@ -2691,16 +2704,11 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime_seconds * 10);
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
-								eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, txHoldoff_centisecs);
-								update_decisecs = (uint16_t)newUpdate_seconds * 10;
-								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H, update_decisecs >> 8);
-								eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L, update_decisecs & 0xFF);
 								readConfig();
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
 								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
 								newMaxDeadReckoningTime_seconds = getMaxDeadReckoningTime() / 10;
-								newUpdate_seconds = update_decisecs / 10;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
