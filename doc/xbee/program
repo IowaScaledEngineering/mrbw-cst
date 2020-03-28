@@ -1,0 +1,10 @@
+#!/bin/bash
+
+espeak "Programming"
+
+make profileXB3 verify
+
+if [ $? -eq 0 ]
+then espeak "Complete"
+else espeak "Failed"
+fi
