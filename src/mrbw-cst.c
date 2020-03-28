@@ -652,9 +652,9 @@ void readConfig(void)
 
 	// Fast clock
 	uint8_t maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_DEAD_RECKONING_TIME);
-	uint8_t newMaxDeadReckoningTime = setMaxDeadReckoningTime(maxDeadReckoningTime);
-	if(newMaxDeadReckoningTime != maxDeadReckoningTime)
-		eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime);
+	setMaxDeadReckoningTime(maxDeadReckoningTime);
+	if(getMaxDeadReckoningTime() != maxDeadReckoningTime)
+		eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, getMaxDeadReckoningTime());
 
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 
@@ -895,7 +895,6 @@ int main(void)
 	uint8_t newBaseAddr = mrbus_base_addr;
 	uint8_t newTimeAddr = timeSourceAddress;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
-	uint8_t newMaxDeadReckoningTime_seconds = getMaxDeadReckoningTime() / 10;
 	uint8_t newUpdate_seconds = update_decisecs / 10;
 
 	uint8_t *prefsPtr = &newSleepTimeout;
@@ -2601,6 +2600,9 @@ int main(void)
 					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
+					
+					uint8_t maxDeadReckoningTime = getMaxDeadReckoningTime();
+					
 					if(1 == subscreenState)
 					{
 						lcd_puts("SLEEP");
@@ -2619,7 +2621,7 @@ int main(void)
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
 						bitPosition = 0xFF;
-						prefsPtr = &newMaxDeadReckoningTime_seconds;
+						prefsPtr = &maxDeadReckoningTime;
 					}
 					else if(3 == subscreenState)
 					{
@@ -2651,6 +2653,11 @@ int main(void)
 					{
 						// Do nothing
 					}
+					else if(prefsPtr == &maxDeadReckoningTime)
+					{
+						lcd_gotoxy(4,1);
+						printDec3Dig(convertMaxDeadReckoningToDecisecs() / 10);
+					}
 					else
 					{
 						lcd_gotoxy(4,1);
@@ -2669,12 +2676,17 @@ int main(void)
 								}
 								else
 								{
-									if(*prefsPtr < 0xFF)
-										(*prefsPtr)++;
-									if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
-										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
-									if(newMaxDeadReckoningTime_seconds > DEAD_RECKONING_TIME_MAX / 10)
-										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MAX / 10;
+									if(prefsPtr == &maxDeadReckoningTime)
+									{
+										incrementMaxDeadReckoningTime();
+									}
+									else
+									{
+										if(*prefsPtr < 0xFF)
+											(*prefsPtr)++;
+										if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
+											newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
+									}
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2688,12 +2700,17 @@ int main(void)
 								}
 								else
 								{
-									if(*prefsPtr > 1)
-										(*prefsPtr)--;
-									if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
-										newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
-									if(newMaxDeadReckoningTime_seconds < DEAD_RECKONING_TIME_MIN / 10)
-										newMaxDeadReckoningTime_seconds = DEAD_RECKONING_TIME_MIN / 10;
+									if(prefsPtr == &maxDeadReckoningTime)
+									{
+										decrementMaxDeadReckoningTime();
+									}
+									else
+									{
+										if(*prefsPtr > 1)
+											(*prefsPtr)--;
+										if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
+											newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
+									}
 									ticks_autoincrement = 0;
 								}
 							}
@@ -2702,13 +2719,12 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
-								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, newMaxDeadReckoningTime_seconds * 10);
+								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, getMaxDeadReckoningTime());
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								readConfig();
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
 								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
-								newMaxDeadReckoningTime_seconds = getMaxDeadReckoningTime() / 10;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");

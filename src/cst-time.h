@@ -3,7 +3,6 @@
 
 #define DEAD_RECKONING_TIME_MIN             10
 #define DEAD_RECKONING_TIME_DEFAULT        100
-#define DEAD_RECKONING_TIME_MAX            250
 
 #define TIME_FLAGS_DISP_FAST       0x01
 #define TIME_FLAGS_DISP_FAST_HOLD  0x02
@@ -28,6 +27,9 @@ void printTime(void);
 void processTimePacket(uint8_t* pkt);
 void updateTime10Hz(void);
 void updateTime(void);
+uint16_t convertMaxDeadReckoningToDecisecs(void);
+uint8_t incrementMaxDeadReckoningTime();
+uint8_t decrementMaxDeadReckoningTime();
 uint8_t setMaxDeadReckoningTime(uint8_t t);
 uint8_t getMaxDeadReckoningTime(void);
 uint16_t getTimeScaleFactor(void);

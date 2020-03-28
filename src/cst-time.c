@@ -38,7 +38,7 @@ static TimeData fastTime;
 static volatile uint16_t fastDecisecs = 0;
 static volatile uint8_t scaleTenthsAccum = 0;
 static uint8_t maxDeadReckoningTime = 150;
-static uint8_t deadReckoningTime = 0;
+static uint16_t deadReckoningTime = 0;
 
 const uint8_t ClockAM[8] =
 {
@@ -156,6 +156,33 @@ void printTime(void)
 		displayTime(&realTime, timeFlags & TIME_FLAGS_DISP_REAL_AMPM);
 }
 
+uint16_t convertMaxDeadReckoningToDecisecs(void)
+{
+	if(maxDeadReckoningTime <= 250)
+		return maxDeadReckoningTime;
+	else
+	{
+		switch(maxDeadReckoningTime)
+		{
+			case 251:
+				return 300;
+				break;
+			case 252:
+				return 600;
+				break;
+			case 253:
+				return 900;
+				break;
+			case 254:
+				return 1200;
+				break;
+			default:  // Never should happen
+				return 0;
+				break;
+		}
+	}
+}
+
 void updateTime10Hz(void)
 {
 	// Called from a 10Hz timer ISR
@@ -206,11 +233,42 @@ void processTimePacket(uint8_t* pkt)
 	// If we got a packet, there's no dead reckoning time anymore
 	fastDecisecs = 0;
 	scaleTenthsAccum = 0;
-	deadReckoningTime = maxDeadReckoningTime;
+	deadReckoningTime = convertMaxDeadReckoningToDecisecs();
+}
+
+uint8_t incrementMaxDeadReckoningTime()
+{
+	if(maxDeadReckoningTime < 250)
+	{
+		uint16_t tmpMaxDeadReckoningTime = maxDeadReckoningTime + 10;
+		maxDeadReckoningTime = (tmpMaxDeadReckoningTime / 10) * 10;  // Make sure it is a multiple of 10
+	}
+	else if(maxDeadReckoningTime < 254)
+	{
+		maxDeadReckoningTime++;
+	}
+	return maxDeadReckoningTime;
+}
+
+uint8_t decrementMaxDeadReckoningTime()
+{
+	if(maxDeadReckoningTime > 250)
+	{
+		maxDeadReckoningTime--;
+	}
+	else if(maxDeadReckoningTime > 19)
+	{
+		maxDeadReckoningTime -= 10;
+		maxDeadReckoningTime = (maxDeadReckoningTime / 10) * 10;  // Make sure it is a multiple of 10
+	}
+	return maxDeadReckoningTime;
 }
 
 uint8_t setMaxDeadReckoningTime(uint8_t decisecs)
 {
+	if(decisecs <= 250)
+		decisecs = (decisecs / 10) * 10;  // Make sure it is a multiple of 10
+
 	if(decisecs < DEAD_RECKONING_TIME_MIN)
 	{
 		maxDeadReckoningTime = DEAD_RECKONING_TIME_MIN;
@@ -218,10 +276,6 @@ uint8_t setMaxDeadReckoningTime(uint8_t decisecs)
 	else if(decisecs == 0xFF)
 	{
 		maxDeadReckoningTime = DEAD_RECKONING_TIME_DEFAULT;  // Default for unprogrammed EEPROM
-	}
-	else if(decisecs > DEAD_RECKONING_TIME_MAX)
-	{
-		maxDeadReckoningTime = DEAD_RECKONING_TIME_MAX;
 	}
 	else
 	{
