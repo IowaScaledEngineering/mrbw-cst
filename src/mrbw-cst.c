@@ -1497,14 +1497,13 @@ int main(void)
 						enableLCDBacklight();
 						processPressure(activeThrottleSetting);
 						printPressure();
+						if(brakePcnt > 50)
+							enableBrakeTest();
+						else
+							disableBrakeTest();
 						switch(button)
 						{
 							case UP_BUTTON:
-								if(UP_BUTTON != previousButton)
-								{
-									toggleBrakeTest();
-								}
-								break;
 							case DOWN_BUTTON:
 							case SELECT_BUTTON:
 							case MENU_BUTTON:

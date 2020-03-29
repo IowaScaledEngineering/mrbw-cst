@@ -333,9 +333,9 @@ void printPressure(void)
 	}
 }
 
-void toggleBrakeTest(void)
+void enableBrakeTest(void)
 {
-	if(0 == brakeTest)
+	if(!isBrakeTestActive())
 	{
 		brakeTest = 1;
 		if(milliPressure > ((uint32_t)BRAKE_TEST_DELTA * 1000))
@@ -344,10 +344,11 @@ void toggleBrakeTest(void)
 			milliPressure = 0;
 		pumpState = IDLE;
 	}
-	else
-	{
-		brakeTest = 0;
-	}
+}
+
+void disableBrakeTest(void)
+{
+	brakeTest = 0;
 }
 
 void resetPressure(void)
