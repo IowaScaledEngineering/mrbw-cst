@@ -48,6 +48,7 @@ typedef enum
 	IDLE,
 	PUMPING,
 	PUMPING_HALF,
+	PUMPING_QUARTER,
 	DONE
 } PumpState;
 
@@ -155,6 +156,8 @@ void updatePressure10Hz(void)
 			milliPressure += 200;
 		else if(PUMPING_HALF == pumpState)
 			milliPressure += 100;
+		else if(PUMPING_QUARTER == pumpState)
+			milliPressure += 50;
 		if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
 		{
 			milliPressure = (uint32_t)MAX_PRESSURE * 1000;
@@ -286,6 +289,10 @@ void processPressure(uint8_t notch)
 		{
 			pumpState = PUMPING_HALF;
 		}
+		else if(notch == 1)
+		{
+			pumpState = PUMPING_QUARTER;
+		}
 		else
 		{
 			pumpState = IDLE;
@@ -352,7 +359,7 @@ void resetPressure(void)
 
 uint8_t isPressurePumping(void)
 {
-	return((PUMPING == pumpState) || (PUMPING_HALF == pumpState));
+	return((PUMPING == pumpState) || (PUMPING_HALF == pumpState) || (PUMPING_QUARTER == pumpState));
 }
 
 uint8_t isBrakeTestActive(void)
