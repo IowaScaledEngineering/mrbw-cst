@@ -255,7 +255,7 @@ typedef enum
 	ENGINE_STOP,
 } EngineState;
 
-#define ENGINE_TIMER_DECISECS      50
+#define ENGINE_TIMER_DECISECS      20
 volatile uint8_t engineTimer = 0;
 
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
@@ -1380,7 +1380,7 @@ int main(void)
 			case ENGINE_SCREEN:
 				enableLCDBacklight();
 				lcd_gotoxy(0,0);
-				lcd_puts(" ENGINE");
+				lcd_puts("PR.MOVER");
 				lcd_gotoxy(0,1);
 				switch(engineState)
 				{
@@ -1413,7 +1413,7 @@ int main(void)
 						{
 							// Edge triggered start/stop
 							// Only send start pulse if in the off state
-							if(ENGINE_OFF == engineState)
+							if((ENGINE_OFF == engineState) || (ENGINE_RUNNING == engineState))
 							{
 								engineState = ENGINE_START;
 								engineTimer = ENGINE_TIMER_DECISECS;
