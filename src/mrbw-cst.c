@@ -186,7 +186,7 @@ typedef enum
 {
 	MAIN_SCREEN = 0,
 	ENGINE_SCREEN,
-	OPS_SCREEN,
+	SPECFN_SCREEN,
 	LOAD_CONFIG_SCREEN,
 	SAVE_CONFIG_SCREEN,
 	LOCO_SCREEN,
@@ -204,8 +204,8 @@ typedef enum
 
 enum
 {
-	OPS_SUBSCREEN_PRESSURE = 1,
-	OPS_SUBSCREEN_TONNAGE
+	SPECFN_SUBSCREEN_PRESSURE = 1,
+	SPECFN_SUBSCREEN_TONNAGE
 };
 
 typedef enum
@@ -1461,7 +1461,7 @@ int main(void)
 
 
 
-			case OPS_SCREEN:
+			case SPECFN_SCREEN:
 				enableLCDBacklight();
 				if(!subscreenState)
 				{
@@ -1490,7 +1490,7 @@ int main(void)
 				{
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					if(OPS_SUBSCREEN_PRESSURE == subscreenState)
+					if(SPECFN_SUBSCREEN_PRESSURE == subscreenState)
 					{
 						setupLCD(LCD_PRESSURE);
 						enableLCDBacklight();
@@ -1511,7 +1511,7 @@ int main(void)
 								break;
 						}
 					}
-					else if(OPS_SUBSCREEN_TONNAGE == subscreenState)
+					else if(SPECFN_SUBSCREEN_TONNAGE == subscreenState)
 					{
 						setupLCD(LCD_TONNAGE);
 						enableLCDBacklight();
@@ -3336,7 +3336,7 @@ int main(void)
 					{
 						// Menu lock active
 						while( 	(ENGINE_SCREEN != screenState) &&
-								(OPS_SCREEN != screenState) &&
+								(SPECFN_SCREEN != screenState) &&
 								(LOAD_CONFIG_SCREEN != screenState) &&
 								(LOCO_SCREEN != screenState) &&
 								(FORCE_FUNC_SCREEN != screenState) &&
