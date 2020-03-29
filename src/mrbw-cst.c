@@ -1501,6 +1501,9 @@ int main(void)
 							enableBrakeTest();
 						else
 							disableBrakeTest();
+						// Disable normal brake functions to they don't interfere with the brake test sounds
+						controls |= BRAKE_OFF_CONTROL;  // Force on BRAKE OFF function
+						controls &= ~(BRAKE_CONTROL);   // Force off BRAKE function
 						switch(button)
 						{
 							case UP_BUTTON:
