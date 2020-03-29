@@ -108,8 +108,9 @@ uint8_t brakePulseWidth = BRAKE_PULSE_WIDTH_DEFAULT;
 // Boolean config bits (EEPROM, global)
 #define CONFIGBITS_LED_BLINK         0
 #define CONFIGBITS_REVERSER_LOCK     4
+#define CONFIGBITS_STRICT_SLEEP      5
 
-#define CONFIGBITS_DEFAULT                 (_BV(CONFIGBITS_LED_BLINK) | _BV(CONFIGBITS_REVERSER_LOCK))
+#define CONFIGBITS_DEFAULT                 (_BV(CONFIGBITS_LED_BLINK) | _BV(CONFIGBITS_REVERSER_LOCK) | _BV(CONFIGBITS_STRICT_SLEEP))
 uint8_t configBits = CONFIGBITS_DEFAULT;
 
 // Boolean option bits (EEPROM, per config)
@@ -2635,6 +2636,14 @@ int main(void)
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
 						prefsPtr = &configBits;
 					}
+					else if(5 == subscreenState)
+					{
+						lcd_puts("STRICT");
+						lcd_gotoxy(0,1);
+						lcd_puts("SLP");
+						bitPosition = CONFIGBITS_STRICT_SLEEP;
+						prefsPtr = &configBits;
+					}
 					else
 					{
 						bitPosition = 8;
@@ -3491,9 +3500,8 @@ int main(void)
 		// Using activeReverserSetting also guarantees the throttle (activeThrottleSetting) was in idle when entering sleep, so it will unsleep in the idle position.
 		if( 
 			(NO_BUTTON != button) || 
-			(FORWARD == activeReverserSetting) || 
-			(REVERSE == activeReverserSetting) ||
-			inputsChanged
+			inputsChanged ||
+			((configBits & _BV(CONFIGBITS_STRICT_SLEEP)) && ((FORWARD == activeReverserSetting) || (REVERSE == activeReverserSetting)))
 			)
 		{
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
