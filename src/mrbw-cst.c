@@ -3427,6 +3427,11 @@ int main(void)
 		if(isBrakeTestActive())
 			functionMask |= getFunctionMask(BRAKE_TEST_FN);
 
+		if(NEUTRAL == activeReverserSetting)
+		{
+			functionMask |= getFunctionMask(NEUTRAL_FN);
+		}
+
 		wdt_reset();
 
 		switch(frontLight)

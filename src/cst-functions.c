@@ -46,6 +46,7 @@ static FunctionData functions[] = {
 	[ENGINE_OFF_FN]          = {.name = "ENG STOP", .eeAddr = EE_ENGINE_OFF_FUNCTION},
 	[THR_UNLOCK_FN]          = {.name = "THR UNLK", .eeAddr = EE_THR_UNLOCK_FUNCTION},
 	[REV_SWAP_FN]            = {.name = "REV SWAP", .eeAddr = EE_REV_SWAP_FUNCTION},
+	[NEUTRAL_FN]             = {.name = "CENTERED", .eeAddr = EE_NEUTRAL_FUNCTION},
 	[COMPRESSOR_FN]          = {.name = "COMPRSR",  .eeAddr = EE_COMPRESSOR_FUNCTION},
 	[BRAKE_TEST_FN]          = {.name = "BRK TEST", .eeAddr = EE_BRAKE_TEST_FUNCTION},
 	[FRONT_DIM1_FN]          = {.name = "F.DIM #1", .eeAddr = EE_FRONT_DIM1_FUNCTION},
@@ -328,6 +329,7 @@ void resetFunctionConfiguration(void)
 	functions[DOWN_FN].fn = F06_MOM;
 	functions[THR_UNLOCK_FN].fn = FN_OFF;
 	functions[REV_SWAP_FN].fn = FN_OFF;
+	functions[NEUTRAL_FN].fn = FN_OFF;
 	functions[COMPRESSOR_FN].fn = FN_OFF;
 	functions[BRAKE_TEST_FN].fn = FN_OFF;
 }
