@@ -1492,30 +1492,17 @@ int main(void)
 				{
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					if(SPECFN_SUBSCREEN_PRESSURE == (subscreenState & 0x7F))
+					if(SPECFN_SUBSCREEN_PRESSURE == subscreenState)
 					{
 						if(!isPressurePumping())
 						{
-							lcd_puts("   BRAKE");
+							lcd_puts("BRAKE");
 							lcd_gotoxy(0,1);
-							lcd_putc(0x7F);
-							lcd_puts("-  TEST");
-							switch(button)
-							{
-								case SELECT_BUTTON:
-									if(SELECT_BUTTON != previousButton)
-										processPressure();  // Start pumping
-									break;
-								case UP_BUTTON:
-								case DOWN_BUTTON:
-								case MENU_BUTTON:
-								case NO_BUTTON:
-									break;
-							}
+							lcd_puts("TEST  -");
+							lcd_putc(0x7E);
 						}
 						else
 						{
-							subscreenState |= 0x80;  //  Indicate we're in a special function
 							setupLCD(LCD_PRESSURE);
 							enableLCDBacklight();
 							processPressure();
@@ -1528,10 +1515,21 @@ int main(void)
 							controls &= ~(BRAKE_OFF_CONTROL);
 							controls &= ~(BRAKE_CONTROL);
 						}
+						switch(button)
+						{
+							case DOWN_BUTTON:
+								if(DOWN_BUTTON != previousButton)
+									processPressure();  // Start pumping
+								break;
+							case UP_BUTTON:
+							case SELECT_BUTTON:
+							case MENU_BUTTON:
+							case NO_BUTTON:
+								break;
+						}
 					}
-					else if(SPECFN_SUBSCREEN_TONNAGE == (subscreenState & 0x7F))
+					else if(SPECFN_SUBSCREEN_TONNAGE == subscreenState)
 					{
-						subscreenState |= 0x80;  //  Indicate we're in a special function
 						setupLCD(LCD_TONNAGE);
 						enableLCDBacklight();
 						printTonnage();
@@ -1563,9 +1561,9 @@ int main(void)
 					switch(button)
 					{
 						case SELECT_BUTTON:
-							if((SELECT_BUTTON != previousButton) && (subscreenState & 0x80))
+							if(SELECT_BUTTON != previousButton)
 							{
-								// Escape menu system, but only if in a special function (subscreenState & 0x80)
+								// Escape menu system
 								subscreenState = 0;
 								screenState = LAST_SCREEN;
 								setupLCD(LCD_DEFAULT);
