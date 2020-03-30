@@ -58,6 +58,7 @@ static uint8_t brakeTest = 0;
 static uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
 
 static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
+static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
 
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
@@ -149,15 +150,13 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 
 void updatePressure10Hz(void)
 {
-	if(!brakeTest)
+	if(PUMPING == pumpState)
+		milliPressure += ((maxMilliPressure - milliPressure) / 150) + 25;
+
+	if(milliPressure > maxMilliPressure)
 	{
-		if(PUMPING == pumpState)
-			milliPressure += 100;
-		if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
-		{
-			milliPressure = (uint32_t)MAX_PRESSURE * 1000;
-			pumpState = DONE;
-		}
+		milliPressure = maxMilliPressure;
+		pumpState = DONE;
 	}
 }
 
@@ -307,7 +306,6 @@ void enableBrakeTest(void)
 {
 	if(!isBrakeTestActive())
 	{
-		brakeTest = 1;
 		if(milliPressure > ((uint32_t)BRAKE_TEST_DELTA * 1000))
 			milliPressure -= ((uint32_t)BRAKE_TEST_DELTA * 1000);
 		else
@@ -318,24 +316,28 @@ void enableBrakeTest(void)
 
 void disableBrakeTest(void)
 {
-	brakeTest = 0;
 	pumpState = IDLE;
 }
 
 void resetPressure(void)
 {
-	milliPressure = (uint32_t)RESET_PRESSURE * 1000;
+	uint8_t randNum;
+	randNum = (uint8_t)rand();  // Get random number between 0 to 255
+
+	milliPressure = (uint32_t)(RESET_PRESSURE + (randNum&0x0F) - 7) * 1000;  // Randomize the starting pressure, -7 to +8
+	maxMilliPressure = (uint32_t)(MAX_PRESSURE + (randNum&0x03) - 1) * 1000;  // Randomize the max pressure, -1 to +2
+
 	pumpState = IDLE;
 	brakeTest = 0;
 }
 
 uint8_t isPressurePumping(void)
 {
-	return(PUMPING == pumpState);
+	return(IDLE != pumpState);
 }
 
 uint8_t isBrakeTestActive(void)
 {
-	return(brakeTest);
+	return(BRAKE_TEST == pumpState);
 }
 
