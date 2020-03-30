@@ -316,21 +316,11 @@ void printPressure(void)
 	lcd_putc(PRESSURE_CHAR_B2);
 	lcd_putc(PRESSURE_CHAR_B3);
 
-	if(brakeTest)
-	{
-		lcd_gotoxy(4,0);
-		lcd_puts(" BRK");
-		lcd_gotoxy(4,1);
-		lcd_puts("TEST");
-	}
-	else
-	{
-		lcd_gotoxy(4,0);
-		lcd_putc(' ');
-		printDec3Dig(milliPressure/1000);
-		lcd_gotoxy(4,1);
-		lcd_puts(" PSI");
-	}
+	lcd_gotoxy(4,0);
+	lcd_putc(' ');
+	printDec3Dig(milliPressure/1000);
+	lcd_gotoxy(4,1);
+	lcd_puts(" PSI");
 }
 
 void enableBrakeTest(void)
