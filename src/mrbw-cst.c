@@ -1492,34 +1492,46 @@ int main(void)
 				{
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					if(SPECFN_SUBSCREEN_PRESSURE == subscreenState)
+					if(SPECFN_SUBSCREEN_PRESSURE == (subscreenState & 0x7F))
 					{
-						setupLCD(LCD_PRESSURE);
-						enableLCDBacklight();
-						processPressure();
-						printPressure();
-						if(brakePcnt > 50)
-							enableBrakeTest();
-						else
-							disableBrakeTest();
-						// Disable normal brake functions to they don't interfere with the brake test sounds as we move the brake lever
-						controls &= ~(BRAKE_OFF_CONTROL);
-						controls &= ~(BRAKE_CONTROL);
-						switch(button)
+						if(!isPressurePumping())
 						{
-							case UP_BUTTON:
-							case DOWN_BUTTON:
-								break;
-							case SELECT_BUTTON:
-							case MENU_BUTTON:
-								resetPressure();
-								break;
-							case NO_BUTTON:
-								break;
+							lcd_puts("   BRAKE");
+							lcd_gotoxy(0,1);
+							lcd_putc(0x7F);
+							lcd_puts("-  TEST");
+							switch(button)
+							{
+								case SELECT_BUTTON:
+									if(SELECT_BUTTON != previousButton)
+										processPressure();  // Start pumping
+									break;
+								case UP_BUTTON:
+								case DOWN_BUTTON:
+								case MENU_BUTTON:
+								case NO_BUTTON:
+									break;
+							}
+						}
+						else
+						{
+							subscreenState |= 0x80;  //  Indicate we're in a special function
+							setupLCD(LCD_PRESSURE);
+							enableLCDBacklight();
+							processPressure();
+							printPressure();
+							if(brakePcnt > 50)
+								enableBrakeTest();
+							else
+								disableBrakeTest();
+							// Disable normal brake functions to they don't interfere with the brake test sounds as we move the brake lever
+							controls &= ~(BRAKE_OFF_CONTROL);
+							controls &= ~(BRAKE_CONTROL);
 						}
 					}
-					else if(SPECFN_SUBSCREEN_TONNAGE == subscreenState)
+					else if(SPECFN_SUBSCREEN_TONNAGE == (subscreenState & 0x7F))
 					{
+						subscreenState |= 0x80;  //  Indicate we're in a special function
 						setupLCD(LCD_TONNAGE);
 						enableLCDBacklight();
 						printTonnage();
@@ -1551,20 +1563,22 @@ int main(void)
 					switch(button)
 					{
 						case SELECT_BUTTON:
-							if(SELECT_BUTTON != previousButton)
+							if((SELECT_BUTTON != previousButton) && (subscreenState & 0x80))
 							{
-								// Escape menu system
+								// Escape menu system, but only if in a special function (subscreenState & 0x80)
 								subscreenState = 0;
 								screenState = LAST_SCREEN;
 								setupLCD(LCD_DEFAULT);
+								resetPressure();
 							}
 							break;
 						case MENU_BUTTON:
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								subscreenState++;
+								subscreenState = (subscreenState & 0x7F) + 1;
 								lcd_clrscr();
+								resetPressure();
 							}
 							break;
 						case UP_BUTTON:
