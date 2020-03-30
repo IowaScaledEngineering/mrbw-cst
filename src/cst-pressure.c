@@ -46,9 +46,8 @@ LICENSE:
 typedef enum
 {
 	IDLE,
+	BRAKE_TEST,
 	PUMPING,
-	PUMPING_HALF,
-	PUMPING_QUARTER,
 	DONE
 } PumpState;
 
@@ -153,11 +152,7 @@ void updatePressure10Hz(void)
 	if(!brakeTest)
 	{
 		if(PUMPING == pumpState)
-			milliPressure += 200;
-		else if(PUMPING_HALF == pumpState)
 			milliPressure += 100;
-		else if(PUMPING_QUARTER == pumpState)
-			milliPressure += 50;
 		if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
 		{
 			milliPressure = (uint32_t)MAX_PRESSURE * 1000;
@@ -279,24 +274,9 @@ void setupPressureChars(void)
 
 void processPressure(uint8_t notch)
 {
-	if(DONE != pumpState)
+	if((DONE != pumpState) && (BRAKE_TEST != pumpState))
 	{
-		if(notch > 2)
-		{
-			pumpState = PUMPING;
-		}
-		else if(notch == 2)
-		{
-			pumpState = PUMPING_HALF;
-		}
-		else if(notch == 1)
-		{
-			pumpState = PUMPING_QUARTER;
-		}
-		else
-		{
-			pumpState = IDLE;
-		}
+		pumpState = PUMPING;
 	}
 }
 
@@ -332,13 +312,14 @@ void enableBrakeTest(void)
 			milliPressure -= ((uint32_t)BRAKE_TEST_DELTA * 1000);
 		else
 			milliPressure = 0;
-		pumpState = IDLE;
 	}
+	pumpState = BRAKE_TEST;
 }
 
 void disableBrakeTest(void)
 {
 	brakeTest = 0;
+	pumpState = IDLE;
 }
 
 void resetPressure(void)
@@ -350,7 +331,7 @@ void resetPressure(void)
 
 uint8_t isPressurePumping(void)
 {
-	return((PUMPING == pumpState) || (PUMPING_HALF == pumpState) || (PUMPING_QUARTER == pumpState));
+	return(PUMPING == pumpState);
 }
 
 uint8_t isBrakeTestActive(void)
