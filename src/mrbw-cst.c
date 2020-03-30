@@ -1381,7 +1381,7 @@ int main(void)
 			case ENGINE_SCREEN:
 				enableLCDBacklight();
 				lcd_gotoxy(0,0);
-				lcd_puts("PR.MOVER");
+				lcd_puts(" ENGINE");
 				lcd_gotoxy(0,1);
 				switch(engineState)
 				{
