@@ -271,7 +271,7 @@ void setupPressureChars(void)
 	lcd_setup_custom(PRESSURE_CHAR_B3, canvas[1][3]);
 }
 
-void processPressure(uint8_t notch)
+void processPressure(void)
 {
 	if((DONE != pumpState) && (BRAKE_TEST != pumpState))
 	{
@@ -316,7 +316,7 @@ void enableBrakeTest(void)
 
 void disableBrakeTest(void)
 {
-	pumpState = IDLE;
+	pumpState = PUMPING;
 }
 
 void resetPressure(void)

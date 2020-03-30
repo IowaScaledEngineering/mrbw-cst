@@ -1496,17 +1496,15 @@ int main(void)
 					{
 						setupLCD(LCD_PRESSURE);
 						enableLCDBacklight();
-						processPressure(activeThrottleSetting);
+						processPressure();
 						printPressure();
 						if(brakePcnt > 50)
 							enableBrakeTest();
 						else
 							disableBrakeTest();
 						// Disable normal brake functions to they don't interfere with the brake test sounds as we move the brake lever
-						controls |= BRAKE_OFF_CONTROL;  // Force on the BRAKE OFF function
-						controls &= ~(BRAKE_CONTROL);   // Force off the BRAKE function
-						// Force the throttle unlock function on so that the locomotive stays still; in some cases might be the brake but we need control of the brake lever
-						controls |= THR_UNLK_CONTROL;
+						controls &= ~(BRAKE_OFF_CONTROL);
+						controls &= ~(BRAKE_CONTROL);
 						switch(button)
 						{
 							case UP_BUTTON:
@@ -1515,8 +1513,6 @@ int main(void)
 							case SELECT_BUTTON:
 							case MENU_BUTTON:
 								resetPressure();
-								// Disable throttle unlock when exiting menu
-								controls &= ~(THR_UNLK_CONTROL);
 								break;
 							case NO_BUTTON:
 								break;

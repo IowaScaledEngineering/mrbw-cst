@@ -4,7 +4,7 @@
 void updatePressure10Hz(void);
 
 void setupPressureChars(void);
-void processPressure(uint8_t notch);
+void processPressure(void);
 void printPressure(void);
 void resetPressure(void);
 void enableBrakeTest(void);
