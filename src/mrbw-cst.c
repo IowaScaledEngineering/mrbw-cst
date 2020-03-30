@@ -93,6 +93,7 @@ char baseString[9];
 #define AUX_CONTROL       0x04
 #define BRAKE_CONTROL     0x08
 #define BRAKE_OFF_CONTROL 0x10
+#define THR_UNLK_CONTROL  0x80
 
 #define HORN_HYSTERESIS   5
 #define BRAKE_HYSTERESIS  5
@@ -1501,15 +1502,22 @@ int main(void)
 							enableBrakeTest();
 						else
 							disableBrakeTest();
-						// Disable normal brake functions to they don't interfere with the brake test sounds
-						controls |= BRAKE_OFF_CONTROL;  // Force on BRAKE OFF function
-						controls &= ~(BRAKE_CONTROL);   // Force off BRAKE function
+						// Disable normal brake functions to they don't interfere with the brake test sounds as we move the brake lever
+						controls |= BRAKE_OFF_CONTROL;  // Force on the BRAKE OFF function
+						controls &= ~(BRAKE_CONTROL);   // Force off the BRAKE function
+						// Force the throttle unlock function on so that the locomotive stays still; in some cases might be the brake but we need control of the brake lever
+						controls |= THR_UNLK_CONTROL;
 						switch(button)
 						{
 							case UP_BUTTON:
 							case DOWN_BUTTON:
+								break;
 							case SELECT_BUTTON:
 							case MENU_BUTTON:
+								resetPressure();
+								// Disable throttle unlock when exiting menu
+								controls &= ~(THR_UNLK_CONTROL);
+								break;
 							case NO_BUTTON:
 								break;
 						}
@@ -1550,7 +1558,6 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								// Escape menu system
-								resetPressure();
 								subscreenState = 0;
 								screenState = LAST_SCREEN;
 								setupLCD(LCD_DEFAULT);
@@ -1560,7 +1567,6 @@ int main(void)
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								resetPressure();
 								subscreenState++;
 								lcd_clrscr();
 							}
@@ -3437,6 +3443,9 @@ int main(void)
 			functionMask |= getFunctionMask(COMPRESSOR_FN);
 		if(isBrakeTestActive())
 			functionMask |= getFunctionMask(BRAKE_TEST_FN);
+
+		if(controls & THR_UNLK_CONTROL)
+			functionMask |= getFunctionMask(THR_UNLOCK_FN);
 
 		if(NEUTRAL == activeReverserSetting)
 		{
