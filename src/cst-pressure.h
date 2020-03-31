@@ -9,7 +9,7 @@ void setupPressureChars(void);
 void processPressure(void);
 void printPressure(void);
 void resetPressure(void);
-void enableBrakeTest(void);
+void enableBrakeTest(uint8_t brakePcnt);
 void disableBrakeTest(void);
 uint8_t isPressurePumping(void);
 uint8_t isBrakeTestActive(void);

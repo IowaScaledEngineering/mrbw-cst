@@ -42,13 +42,13 @@ LICENSE:
 #include "cst-pressure.h"
 #include "cst-tonnage.h"
 #include "cst-time.h"
+#include "cst-math.h"
 
 //#define FAST_SLEEP
 #ifdef FAST_SLEEP
 #warning "Fast Sleep Enabled!"
 #endif
 
-#define max(a,b)  ((a)>(b)?(a):(b))
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -1514,9 +1514,9 @@ int main(void)
 							enableLCDBacklight();
 							processPressure();
 							printPressure();
-							if(brakePcnt > 50)
-								enableBrakeTest();
-							else
+							if(brakePcnt > 10)
+								enableBrakeTest(min(brakePcnt,100));
+							else if(brakePcnt < 10)
 								disableBrakeTest();
 							// Disable normal brake functions to they don't interfere with the brake test sounds as we move the brake lever
 							controls &= ~(BRAKE_OFF_CONTROL);

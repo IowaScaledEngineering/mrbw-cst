@@ -37,7 +37,7 @@ LICENSE:
 
 #define MAX_PRESSURE         90
 #define RESET_PRESSURE       65
-#define BRAKE_TEST_DELTA     20
+#define BRAKE_TEST_DELTA     30
 
 // East = 0deg, South = 90deg, West = 180deg, North = 270deg
 #define MIN_ANGLE        112
@@ -61,6 +61,7 @@ static uint8_t pressureCoefficients = 0;
 
 static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
 static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
+static uint32_t milliPressurePipe = (uint32_t)MAX_PRESSURE * 1000;
 
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
@@ -304,16 +305,17 @@ void printPressure(void)
 	lcd_puts(" PSI");
 }
 
-void enableBrakeTest(void)
+void enableBrakeTest(uint8_t brakePcnt)
 {
 	if(!isBrakeTestActive())
 	{
-		if(milliPressure > ((uint32_t)BRAKE_TEST_DELTA * 1000))
-			milliPressure -= ((uint32_t)BRAKE_TEST_DELTA * 1000);
-		else
-			milliPressure = 0;
+		milliPressurePipe = milliPressure;  // Save current pressure
+		pumpState = BRAKE_TEST;
 	}
-	pumpState = BRAKE_TEST;
+	uint32_t milliPressureDelta = ((uint32_t)BRAKE_TEST_DELTA * 1000) * brakePcnt / 100;
+	if(milliPressureDelta > milliPressurePipe)
+		milliPressure = 0;
+	milliPressure = min(milliPressure,  milliPressurePipe - milliPressureDelta);
 }
 
 void disableBrakeTest(void)
