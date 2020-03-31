@@ -57,6 +57,8 @@ static uint8_t brakeTest = 0;
 
 static uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
 
+static uint8_t pressureCoefficients = 0;
+
 static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
 static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
 
@@ -151,7 +153,7 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 void updatePressure10Hz(void)
 {
 	if(PUMPING == pumpState)
-		milliPressure += ((maxMilliPressure - milliPressure) / 150) + 25;
+		milliPressure += ((maxMilliPressure - milliPressure) / ((uint16_t)64 << getPumpRate())) + 10;  // + to keep it going when the first part reaches zero
 
 	if(milliPressure > maxMilliPressure)
 	{
@@ -339,5 +341,44 @@ uint8_t isPressurePumping(void)
 uint8_t isBrakeTestActive(void)
 {
 	return(BRAKE_TEST == pumpState);
+}
+
+uint8_t setPumpRate(uint8_t pumpRate)
+{
+	pressureCoefficients &= ~(0x7);
+	pressureCoefficients |= (pumpRate & 0x07);
+
+	return (pressureCoefficients & 0x7);
+}
+
+uint8_t getPumpRate(void)
+{
+	return (pressureCoefficients & 0x7);
+}
+
+uint8_t incrementPumpRate(void)
+{
+	if(getPumpRate() < 7)
+		setPumpRate(getPumpRate() + 1);
+	return getPumpRate();
+}
+
+uint8_t decrementPumpRate(void)
+{
+	if(getPumpRate() > 0)
+		setPumpRate(getPumpRate() - 1);
+	return getPumpRate();
+}
+
+uint8_t setPressureCoefficients(uint8_t c)
+{
+	pressureCoefficients = c;
+
+	return pressureCoefficients;
+}
+
+uint8_t getPressureCoefficients(void)
+{
+	return pressureCoefficients;
 }
 

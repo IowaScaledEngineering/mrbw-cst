@@ -660,6 +660,12 @@ void readConfig(void)
 
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 
+	// Pressure
+	uint8_t pressureCoefficients = eeprom_read_byte((uint8_t*)EE_PRESSURE_COEF);
+	setPressureCoefficients(pressureCoefficients);
+	if(getPressureCoefficients() != pressureCoefficients)
+		eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, getPressureCoefficients());
+
 	configBits = eeprom_read_byte((uint8_t*)EE_CONFIGBITS);
 
 	// Initialize MRBus address from EEPROM
@@ -767,6 +773,7 @@ void resetConfig(void)
 
 	eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, SLEEP_TMR_RESET_VALUE_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, DEAD_RECKONING_TIME_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, PRESSURE_COEF_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_CONFIGBITS, CONFIGBITS_DEFAULT);
 
 	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, MRBUS_DEV_ADDR_DEFAULT);
@@ -2617,8 +2624,11 @@ int main(void)
 					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					
+
+					// FIXME: These variables serve no real purpose other than indicating which menu is active
+					//         A better solution would be to name the subscreens like in Special Functions
 					uint8_t maxDeadReckoningTime = getMaxDeadReckoningTime();
+					uint8_t pressureCoefficients = getPressureCoefficients();
 					
 					if(1 == subscreenState)
 					{
@@ -2642,17 +2652,25 @@ int main(void)
 					}
 					else if(3 == subscreenState)
 					{
+						lcd_puts("PUMP");
+						lcd_gotoxy(0,1);
+						lcd_puts("RATE:");
+						bitPosition = 0xFF;
+						prefsPtr = &pressureCoefficients;
+					}
+					else if(4 == subscreenState)
+					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(4 == subscreenState)
+					else if(5 == subscreenState)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
 						prefsPtr = &configBits;
 					}
-					else if(5 == subscreenState)
+					else if(6 == subscreenState)
 					{
 						lcd_puts("STRICT");
 						lcd_gotoxy(0,1);
@@ -2683,6 +2701,11 @@ int main(void)
 						lcd_gotoxy(4,1);
 						printDec3Dig(convertMaxDeadReckoningToDecisecs() / 10);
 					}
+					else if(prefsPtr == &pressureCoefficients)
+					{
+						lcd_gotoxy(7,1);
+						lcd_putc('1' + getPumpRate());
+					}
 					else
 					{
 						lcd_gotoxy(4,1);
@@ -2704,6 +2727,10 @@ int main(void)
 									if(prefsPtr == &maxDeadReckoningTime)
 									{
 										incrementMaxDeadReckoningTime();
+									}
+									if(prefsPtr == &pressureCoefficients)
+									{
+										incrementPumpRate();
 									}
 									else
 									{
@@ -2729,6 +2756,10 @@ int main(void)
 									{
 										decrementMaxDeadReckoningTime();
 									}
+									if(prefsPtr == &pressureCoefficients)
+									{
+										decrementPumpRate();
+									}
 									else
 									{
 										if(*prefsPtr > 1)
@@ -2745,6 +2776,7 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, getMaxDeadReckoningTime());
+								eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, getPressureCoefficients());
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								readConfig();
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
