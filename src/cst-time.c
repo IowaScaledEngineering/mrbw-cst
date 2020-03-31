@@ -236,7 +236,7 @@ void processTimePacket(uint8_t* pkt)
 	deadReckoningTime = convertMaxDeadReckoningToDecisecs();
 }
 
-uint8_t incrementMaxDeadReckoningTime()
+uint8_t incrementMaxDeadReckoningTime(void)
 {
 	if(maxDeadReckoningTime < 250)
 	{
@@ -250,7 +250,7 @@ uint8_t incrementMaxDeadReckoningTime()
 	return maxDeadReckoningTime;
 }
 
-uint8_t decrementMaxDeadReckoningTime()
+uint8_t decrementMaxDeadReckoningTime(void)
 {
 	if(maxDeadReckoningTime > 250)
 	{
