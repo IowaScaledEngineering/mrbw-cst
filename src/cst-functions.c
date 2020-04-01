@@ -27,6 +27,7 @@ LICENSE:
 
 #define SOFTWARE_LATCH   0x01
 #define SPECIAL_FUNC     0x02
+#define MENU_FUNC        0x04
 
 typedef struct
 {
@@ -57,8 +58,8 @@ static FunctionData functions[] = {
 	[REAR_DIM2_FN]           = {.name = "R.DIM #2", .eeAddr = EE_REAR_DIM2_FUNCTION},
 	[REAR_HEADLIGHT_FN]      = {.name = "R.HEAD",   .eeAddr = EE_REAR_HEADLIGHT_FUNCTION},
 	[REAR_DITCH_FN]          = {.name = "R.DITCH",  .eeAddr = EE_REAR_DITCH_FUNCTION},
-	[UP_FN]                  = {.name = "UP BTN",   .eeAddr = EE_UP_BUTTON_FUNCTION,        .attributes = SOFTWARE_LATCH|SPECIAL_FUNC},
-	[DOWN_FN]                = {.name = "DOWN BTN", .eeAddr = EE_DOWN_BUTTON_FUNCTION,      .attributes = SOFTWARE_LATCH|SPECIAL_FUNC},
+	[UP_FN]                  = {.name = "UP BTN",   .eeAddr = EE_UP_BUTTON_FUNCTION,        .attributes = SOFTWARE_LATCH|SPECIAL_FUNC|MENU_FUNC},
+	[DOWN_FN]                = {.name = "DOWN BTN", .eeAddr = EE_DOWN_BUTTON_FUNCTION,      .attributes = SOFTWARE_LATCH|SPECIAL_FUNC|MENU_FUNC},
 };
 
 static Functions currentFunction = 0;
@@ -141,7 +142,10 @@ void incrementCurrentFunctionValue(void)
 			functions[currentFunction].fn = F00_MOM;
 			break;
 		case FN_EMRG:
-			functions[currentFunction].fn = FN_BRKTEST;
+			if(functions[currentFunction].attributes & MENU_FUNC)
+			{
+				functions[currentFunction].fn = FN_BRKTEST;
+			}
 			break;
 		case FN_BRKTEST:
 			// Do nothing
