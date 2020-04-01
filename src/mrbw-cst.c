@@ -42,13 +42,13 @@ LICENSE:
 #include "cst-pressure.h"
 #include "cst-tonnage.h"
 #include "cst-time.h"
+#include "cst-math.h"
 
 //#define FAST_SLEEP
 #ifdef FAST_SLEEP
 #warning "Fast Sleep Enabled!"
 #endif
 
-#define max(a,b)  ((a)>(b)?(a):(b))
 
 #define LONG_PRESS_10MS_TICKS             100
 #define BUTTON_AUTOINCREMENT_10MS_TICKS    50
@@ -93,6 +93,7 @@ char baseString[9];
 #define AUX_CONTROL       0x04
 #define BRAKE_CONTROL     0x08
 #define BRAKE_OFF_CONTROL 0x10
+#define THR_UNLK_CONTROL  0x80
 
 #define HORN_HYSTERESIS   5
 #define BRAKE_HYSTERESIS  5
@@ -659,6 +660,12 @@ void readConfig(void)
 
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 
+	// Pressure
+	uint8_t pressureCoefficients = eeprom_read_byte((uint8_t*)EE_PRESSURE_COEF);
+	setPressureCoefficients(pressureCoefficients);
+	if(getPressureCoefficients() != pressureCoefficients)
+		eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, getPressureCoefficients());
+
 	configBits = eeprom_read_byte((uint8_t*)EE_CONFIGBITS);
 
 	// Initialize MRBus address from EEPROM
@@ -766,6 +773,7 @@ void resetConfig(void)
 
 	eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, SLEEP_TMR_RESET_VALUE_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, DEAD_RECKONING_TIME_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, PRESSURE_COEF_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_CONFIGBITS, CONFIGBITS_DEFAULT);
 
 	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, MRBUS_DEV_ADDR_DEFAULT);
@@ -1493,19 +1501,34 @@ int main(void)
 					lcd_gotoxy(0,0);
 					if(SPECFN_SUBSCREEN_PRESSURE == subscreenState)
 					{
-						setupLCD(LCD_PRESSURE);
-						enableLCDBacklight();
-						processPressure(activeThrottleSetting);
-						printPressure();
+						if(!isPressurePumping())
+						{
+							lcd_puts("BRAKE");
+							lcd_gotoxy(0,1);
+							lcd_puts("TEST  -");
+							lcd_putc(0x7E);
+						}
+						else
+						{
+							setupLCD(LCD_PRESSURE);
+							enableLCDBacklight();
+							processPressure();
+							printPressure();
+							if(brakePcnt > 10)
+								enableBrakeTest(min(brakePcnt,100));
+							else if(brakePcnt < 10)
+								disableBrakeTest();
+							// Disable normal brake functions to they don't interfere with the brake test sounds as we move the brake lever
+							controls &= ~(BRAKE_OFF_CONTROL);
+							controls &= ~(BRAKE_CONTROL);
+						}
 						switch(button)
 						{
-							case UP_BUTTON:
-								if(UP_BUTTON != previousButton)
-								{
-									toggleBrakeTest();
-								}
-								break;
 							case DOWN_BUTTON:
+								if(DOWN_BUTTON != previousButton)
+									processPressure();  // Start pumping
+								break;
+							case UP_BUTTON:
 							case SELECT_BUTTON:
 							case MENU_BUTTON:
 							case NO_BUTTON:
@@ -1548,19 +1571,19 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								// Escape menu system
-								resetPressure();
 								subscreenState = 0;
 								screenState = LAST_SCREEN;
 								setupLCD(LCD_DEFAULT);
+								resetPressure();
 							}
 							break;
 						case MENU_BUTTON:
 							if(MENU_BUTTON != previousButton)
 							{
 								// Menu pressed, advance menu
-								resetPressure();
-								subscreenState++;
+								subscreenState = (subscreenState & 0x7F) + 1;
 								lcd_clrscr();
+								resetPressure();
 							}
 							break;
 						case UP_BUTTON:
@@ -2601,8 +2624,11 @@ int main(void)
 					uint8_t bitPosition = 0xFF;  // <8 means boolean
 					enableLCDBacklight();
 					lcd_gotoxy(0,0);
-					
+
+					// FIXME: These variables serve no real purpose other than indicating which menu is active
+					//         A better solution would be to name the subscreens like in Special Functions
 					uint8_t maxDeadReckoningTime = getMaxDeadReckoningTime();
+					uint8_t pressureCoefficients = getPressureCoefficients();
 					
 					if(1 == subscreenState)
 					{
@@ -2626,17 +2652,25 @@ int main(void)
 					}
 					else if(3 == subscreenState)
 					{
+						lcd_puts("PUMP");
+						lcd_gotoxy(0,1);
+						lcd_puts("RATE:");
+						bitPosition = 0xFF;
+						prefsPtr = &pressureCoefficients;
+					}
+					else if(4 == subscreenState)
+					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(4 == subscreenState)
+					else if(5 == subscreenState)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
 						prefsPtr = &configBits;
 					}
-					else if(5 == subscreenState)
+					else if(6 == subscreenState)
 					{
 						lcd_puts("STRICT");
 						lcd_gotoxy(0,1);
@@ -2667,6 +2701,11 @@ int main(void)
 						lcd_gotoxy(4,1);
 						printDec3Dig(convertMaxDeadReckoningToDecisecs() / 10);
 					}
+					else if(prefsPtr == &pressureCoefficients)
+					{
+						lcd_gotoxy(7,1);
+						lcd_putc('1' + getPumpRate());
+					}
 					else
 					{
 						lcd_gotoxy(4,1);
@@ -2688,6 +2727,10 @@ int main(void)
 									if(prefsPtr == &maxDeadReckoningTime)
 									{
 										incrementMaxDeadReckoningTime();
+									}
+									if(prefsPtr == &pressureCoefficients)
+									{
+										incrementPumpRate();
 									}
 									else
 									{
@@ -2713,6 +2756,10 @@ int main(void)
 									{
 										decrementMaxDeadReckoningTime();
 									}
+									if(prefsPtr == &pressureCoefficients)
+									{
+										decrementPumpRate();
+									}
 									else
 									{
 										if(*prefsPtr > 1)
@@ -2729,6 +2776,7 @@ int main(void)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, getMaxDeadReckoningTime());
+								eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, getPressureCoefficients());
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								readConfig();
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
@@ -3435,6 +3483,9 @@ int main(void)
 			functionMask |= getFunctionMask(COMPRESSOR_FN);
 		if(isBrakeTestActive())
 			functionMask |= getFunctionMask(BRAKE_TEST_FN);
+
+		if(controls & THR_UNLK_CONTROL)
+			functionMask |= getFunctionMask(THR_UNLOCK_FN);
 
 		if(NEUTRAL == activeReverserSetting)
 		{

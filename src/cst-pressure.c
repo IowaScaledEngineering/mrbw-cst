@@ -37,7 +37,7 @@ LICENSE:
 
 #define MAX_PRESSURE         90
 #define RESET_PRESSURE       65
-#define BRAKE_TEST_DELTA     20
+#define BRAKE_TEST_DELTA     30
 
 // East = 0deg, South = 90deg, West = 180deg, North = 270deg
 #define MIN_ANGLE        112
@@ -46,8 +46,8 @@ LICENSE:
 typedef enum
 {
 	IDLE,
+	BRAKE_TEST,
 	PUMPING,
-	PUMPING_HALF,
 	DONE
 } PumpState;
 
@@ -57,7 +57,11 @@ static uint8_t brakeTest = 0;
 
 static uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
 
+static uint8_t pressureCoefficients = 0;
+
 static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
+static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
+static uint32_t milliPressurePipe = (uint32_t)MAX_PRESSURE * 1000;
 
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
@@ -149,17 +153,13 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 
 void updatePressure10Hz(void)
 {
-	if(!brakeTest)
+	if(PUMPING == pumpState)
+		milliPressure += ((maxMilliPressure - milliPressure) / ((uint16_t)64 << getPumpRate())) + 10;  // + to keep it going when the first part reaches zero
+
+	if(milliPressure > maxMilliPressure)
 	{
-		if(PUMPING == pumpState)
-			milliPressure += 200;
-		else if(PUMPING_HALF == pumpState)
-			milliPressure += 100;
-		if(milliPressure > ((uint32_t)MAX_PRESSURE * 1000))
-		{
-			milliPressure = (uint32_t)MAX_PRESSURE * 1000;
-			pumpState = DONE;
-		}
+		milliPressure = maxMilliPressure;
+		pumpState = DONE;
 	}
 }
 
@@ -274,22 +274,11 @@ void setupPressureChars(void)
 	lcd_setup_custom(PRESSURE_CHAR_B3, canvas[1][3]);
 }
 
-void processPressure(uint8_t notch)
+void processPressure(void)
 {
-	if(DONE != pumpState)
+	if((DONE != pumpState) && (BRAKE_TEST != pumpState))
 	{
-		if(notch > 2)
-		{
-			pumpState = PUMPING;
-		}
-		else if(notch == 2)
-		{
-			pumpState = PUMPING_HALF;
-		}
-		else
-		{
-			pumpState = IDLE;
-		}
+		pumpState = PUMPING;
 	}
 }
 
@@ -309,54 +298,89 @@ void printPressure(void)
 	lcd_putc(PRESSURE_CHAR_B2);
 	lcd_putc(PRESSURE_CHAR_B3);
 
-	if(brakeTest)
-	{
-		lcd_gotoxy(4,0);
-		lcd_puts(" BRK");
-		lcd_gotoxy(4,1);
-		lcd_puts("TEST");
-	}
-	else
-	{
-		lcd_gotoxy(4,0);
-		lcd_putc(' ');
-		printDec3Dig(milliPressure/1000);
-		lcd_gotoxy(4,1);
-		lcd_puts(" PSI");
-	}
+	lcd_gotoxy(4,0);
+	lcd_putc(' ');
+	printDec3Dig(milliPressure/1000);
+	lcd_gotoxy(4,1);
+	lcd_puts(" PSI");
 }
 
-void toggleBrakeTest(void)
+void enableBrakeTest(uint8_t brakePcnt)
 {
-	if(0 == brakeTest)
+	if(!isBrakeTestActive())
 	{
-		brakeTest = 1;
-		if(milliPressure > ((uint32_t)BRAKE_TEST_DELTA * 1000))
-			milliPressure -= ((uint32_t)BRAKE_TEST_DELTA * 1000);
-		else
-			milliPressure = 0;
-		pumpState = IDLE;
+		milliPressurePipe = milliPressure;  // Save current pressure
+		pumpState = BRAKE_TEST;
 	}
-	else
-	{
-		brakeTest = 0;
-	}
+	uint32_t milliPressureDelta = ((uint32_t)BRAKE_TEST_DELTA * 1000) * brakePcnt / 100;
+	if(milliPressureDelta > milliPressurePipe)
+		milliPressure = 0;
+	milliPressure = min(milliPressure,  milliPressurePipe - milliPressureDelta);
+}
+
+void disableBrakeTest(void)
+{
+	pumpState = PUMPING;
 }
 
 void resetPressure(void)
 {
-	milliPressure = (uint32_t)RESET_PRESSURE * 1000;
+	uint8_t randNum;
+	randNum = (uint8_t)rand();  // Get random number between 0 to 255
+
+	milliPressure = (uint32_t)(RESET_PRESSURE + (randNum&0x0F) - 7) * 1000;  // Randomize the starting pressure, -7 to +8
+	maxMilliPressure = (uint32_t)(MAX_PRESSURE + (randNum&0x03) - 1) * 1000;  // Randomize the max pressure, -1 to +2
+
 	pumpState = IDLE;
 	brakeTest = 0;
 }
 
 uint8_t isPressurePumping(void)
 {
-	return((PUMPING == pumpState) || (PUMPING_HALF == pumpState));
+	return(IDLE != pumpState);
 }
 
 uint8_t isBrakeTestActive(void)
 {
-	return(brakeTest);
+	return(BRAKE_TEST == pumpState);
+}
+
+uint8_t setPumpRate(uint8_t pumpRate)
+{
+	pressureCoefficients &= ~(0x7);
+	pressureCoefficients |= (pumpRate & 0x07);
+
+	return (pressureCoefficients & 0x7);
+}
+
+uint8_t getPumpRate(void)
+{
+	return (pressureCoefficients & 0x7);
+}
+
+uint8_t incrementPumpRate(void)
+{
+	if(getPumpRate() < 7)
+		setPumpRate(getPumpRate() + 1);
+	return getPumpRate();
+}
+
+uint8_t decrementPumpRate(void)
+{
+	if(getPumpRate() > 0)
+		setPumpRate(getPumpRate() - 1);
+	return getPumpRate();
+}
+
+uint8_t setPressureCoefficients(uint8_t c)
+{
+	pressureCoefficients = c;
+
+	return pressureCoefficients;
+}
+
+uint8_t getPressureCoefficients(void)
+{
+	return pressureCoefficients;
 }
 

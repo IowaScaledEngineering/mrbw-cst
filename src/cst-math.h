@@ -3,6 +3,9 @@
 
 #include <math.h>
 
+#define max(a,b)  ((a)>(b)?(a):(b))
+#define min(a,b)  ((a)<(b)?(a):(b))
+
 #define PI           3.1415926535897932384626433
 #define TWOPI        (2.0 * PI)
 #define TWO_OVER_PI  (2.0 / PI)
