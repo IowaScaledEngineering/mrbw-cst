@@ -1336,15 +1336,33 @@ int main(void)
 								subscreenState = 1;
 								lcd_clrscr();
 							}
-							break;
+							// break;  // Roll through the other cases for cleanup
+						case MENU_BUTTON:
 						case NO_BUTTON:
 							// Release buttons if momentary
 							if(!(isFunctionLatching(UP_FN)))
 								optionButtonState &= ~UP_OPTION_BUTTON;
 							if(!(isFunctionLatching(DOWN_FN)))
 								optionButtonState &= ~DOWN_OPTION_BUTTON;
-						case MENU_BUTTON:
 							break;
+					}
+					if(optionButtonState & UP_OPTION_BUTTON)
+					{
+						if(isFunctionBrakeTest(UP_FN))
+						{
+							screenState = SPECFN_SCREEN;
+							subscreenState = SPECFN_SUBSCREEN_PRESSURE;
+							lcd_clrscr();
+						}
+					}
+					if(optionButtonState & DOWN_OPTION_BUTTON)
+					{
+						if(isFunctionBrakeTest(DOWN_FN))
+						{
+							screenState = SPECFN_SCREEN;
+							subscreenState = SPECFN_SUBSCREEN_PRESSURE;
+							lcd_clrscr();
+						}
 					}
 				}
 				else

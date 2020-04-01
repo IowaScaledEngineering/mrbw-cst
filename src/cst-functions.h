@@ -55,6 +55,7 @@ typedef enum
 	F09_LAT = 0x49, F19_LAT = 0x53,
 	FN_OFF  = 0x80,
 	FN_EMRG = 0x81,
+	FN_BRKTEST = 0xC0,
 } FunctionValues;
 
 void printCurrentFunctionName(void);
@@ -67,6 +68,7 @@ void readFunctionConfiguration(void);
 void writeFunctionConfiguration(void);
 uint8_t isFunctionOff(Functions functionName);
 uint8_t isFunctionEstop(Functions functionName);
+uint8_t isFunctionBrakeTest(Functions functionName);
 uint8_t isFunctionLatching(Functions functionName);
 uint32_t getFunctionMask(Functions functionName);
 void resetFunctionConfiguration(void);

@@ -78,6 +78,9 @@ void printCurrentFunctionValue(void)
 		case FN_EMRG:
 			lcd_puts("EMRG BRK");
 			break;
+		case FN_BRKTEST:
+			lcd_puts("BRK TEST");
+			break;
 		case F00_MOM: case F10_MOM: case F20_MOM:
 		case F01_MOM: case F11_MOM: case F21_MOM:
 		case F02_MOM: case F12_MOM: case F22_MOM:
@@ -138,6 +141,9 @@ void incrementCurrentFunctionValue(void)
 			functions[currentFunction].fn = F00_MOM;
 			break;
 		case FN_EMRG:
+			functions[currentFunction].fn = FN_BRKTEST;
+			break;
+		case FN_BRKTEST:
 			// Do nothing
 			break;
 		case F28_MOM:
@@ -204,6 +210,9 @@ void decrementCurrentFunctionValue(void)
 				functions[currentFunction].fn = F28_MOM;
 			}
 			break;
+		case FN_BRKTEST:
+			functions[currentFunction].fn = FN_EMRG;
+			break;
 		case F00_LAT:
 			functions[currentFunction].fn = F28_MOM;
 			break;
@@ -269,6 +278,14 @@ uint8_t isFunctionOff(Functions functionName)
 uint8_t isFunctionEstop(Functions functionName)
 {
 	if(FN_EMRG == functions[functionName].fn)
+		return 1;
+	else
+		return 0;
+}
+
+uint8_t isFunctionBrakeTest(Functions functionName)
+{
+	if(FN_BRKTEST == functions[functionName].fn)
 		return 1;
 	else
 		return 0;
