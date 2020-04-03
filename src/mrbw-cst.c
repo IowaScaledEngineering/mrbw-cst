@@ -161,6 +161,7 @@ volatile uint16_t ticks_autoincrement = BUTTON_AUTOINCREMENT_10MS_TICKS;
 volatile uint8_t ticks;
 volatile uint16_t decisecs = 0;
 volatile uint16_t sleepTimeout_decisecs = 0;
+volatile uint16_t alerterTimeout_decisecs = 0;
 volatile uint8_t txHoldoff = 0;
 volatile uint8_t status = 0;
 
@@ -539,6 +540,15 @@ ISR(TIMER0_COMPA_vect)
 #endif
 		}
 
+		if(alerterTimeout_decisecs)
+		{
+#ifdef FAST_SLEEP
+			alerterTimeout_decisecs-=10;
+#else
+			alerterTimeout_decisecs--;
+#endif
+		}
+
 		ledUpdate();
 
 		if (engineTimer)
@@ -914,6 +924,7 @@ int main(void)
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		sleepTimeout_decisecs = sleep_tmr_reset_value;
+		alerterTimeout_decisecs = alerter_tmr_reset_value;
 	}
 	
 	enableLCD();
@@ -3175,6 +3186,20 @@ int main(void)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
+						lcd_puts("ALERTER");
+						lcd_gotoxy(0,1);
+						ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+						{
+							decisecs_tmp = alerterTimeout_decisecs;
+						}
+						printDec4Dig(decisecs_tmp/10);
+						lcd_gotoxy(5,1);
+						lcd_puts("sec");
+					}
+					else if(4 == subscreenState)
+					{
+						enableLCDBacklight();
+						lcd_gotoxy(0,0);
 						lcd_puts("PKT TIME");
 						lcd_gotoxy(0,1);
 						lcd_putc('[');
@@ -3193,7 +3218,7 @@ int main(void)
 								lcd_putc(' ');
 						}
 					}
-					else if(4 == subscreenState)
+					else if(5 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3225,7 +3250,7 @@ int main(void)
 							lcd_puts("NO SIGNL");
 						}
 					}
-					else if(5 == subscreenState)
+					else if(6 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3242,7 +3267,7 @@ int main(void)
 						lcd_putc('0' + timeScaleFactor%10);
 						lcd_puts(":1");
 					}
-					else if(6 == subscreenState)
+					else if(7 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3254,7 +3279,7 @@ int main(void)
 						lcd_putc('0' + ((getBatteryVoltage()*2)%10));
 						lcd_putc('V');
 					}
-					else if(7 == subscreenState)
+					else if(8 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3262,7 +3287,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(VERSION_STRING);
 					}
-					else if(8 == subscreenState)
+					else if(9 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3272,7 +3297,7 @@ int main(void)
 						printHex((GIT_REV >> 8) & 0xFF);
 						printHex(GIT_REV & 0xFF);
 					}
-					else if(9 == subscreenState)
+					else if(10 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3280,7 +3305,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(baseString);
 					}
-					else if(10 == subscreenState)
+					else if(11 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3290,7 +3315,7 @@ int main(void)
 						printHex((baseVersion >> 8) & 0xFF);
 						printHex(baseVersion & 0xFF);
 					}
-					else if(11 == subscreenState)
+					else if(12 == subscreenState)
 					{
 						if(resetCounter)
 						{
@@ -3576,6 +3601,20 @@ int main(void)
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
 				sleepTimeout_decisecs = sleep_tmr_reset_value;
+			}
+		}
+
+		// Reset alerter timer
+		// Using activeReverserSetting also guarantees the throttle (activeThrottleSetting) was in idle when entering sleep, so it will unsleep in the idle position.
+		if( 
+			(NO_BUTTON != button) || 
+			inputsChanged ||
+			((FORWARD == activeReverserSetting) || (REVERSE == activeReverserSetting))
+			)
+		{
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				alerterTimeout_decisecs = alerter_tmr_reset_value;
 			}
 		}
 
