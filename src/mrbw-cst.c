@@ -59,9 +59,10 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_DEFAULT       5
 #define SLEEP_TMR_RESET_VALUE_MAX          99
 
-#define ALERTER_TMR_RESET_VALUE_MIN         1
-#define ALERTER_TMR_RESET_VALUE_DEFAULT     5
-#define ALERTER_TMR_RESET_VALUE_MAX        99
+// Alerter timer in units of 1/4 minute (15 seconds), zero is off
+#define ALERTER_TMR_RESET_VALUE_MIN         0
+#define ALERTER_TMR_RESET_VALUE_DEFAULT     4
+#define ALERTER_TMR_RESET_VALUE_MAX        20
 
 #define TX_HOLDOFF_MIN                     10
 #define TX_HOLDOFF_DEFAULT                 15
@@ -687,7 +688,7 @@ void readConfig(void)
 		alerter_tmr_reset_value = ALERTER_TMR_RESET_VALUE_MAX;
 		eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, alerter_tmr_reset_value);
 	}
-	alerter_tmr_reset_value *= 600;  // Convert to decisecs
+	alerter_tmr_reset_value *= 600/4;  // Convert to decisecs
 
 	// Fast clock
 	uint8_t maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_DEAD_RECKONING_TIME);
@@ -942,7 +943,7 @@ int main(void)
 	uint8_t newBaseAddr = mrbus_base_addr;
 	uint8_t newTimeAddr = timeSourceAddress;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
-	uint8_t newAlerterTimeout = alerter_tmr_reset_value / 600;
+	uint8_t newAlerterTimeout = alerter_tmr_reset_value / 150;
 	uint8_t newUpdate_seconds = update_decisecs / 10;
 
 	uint8_t *prefsPtr = &newSleepTimeout;
@@ -2705,7 +2706,8 @@ int main(void)
 						lcd_puts("SLEEP");
 						lcd_gotoxy(0,1);
 						lcd_puts("DLY:");
-						lcd_gotoxy(7,1);
+						lcd_gotoxy(4,1);
+						printDec3Dig(*prefsPtr);
 						lcd_puts("M");
 						bitPosition = 0xFF;
 						prefsPtr = &newSleepTimeout;
@@ -2715,8 +2717,16 @@ int main(void)
 						lcd_puts("ALERTER");
 						lcd_gotoxy(0,1);
 						lcd_puts("DLY:");
-						lcd_gotoxy(7,1);
-						lcd_puts("M");
+						lcd_gotoxy(4,1);
+						if(newAlerterTimeout)
+						{
+							printDec3Dig(newAlerterTimeout * 15);
+							lcd_puts("s");
+						}
+						else
+						{
+							lcd_puts(" OFF");
+						}
 						bitPosition = 0xFF;
 						prefsPtr = &newAlerterTimeout;
 					}
@@ -2725,7 +2735,8 @@ int main(void)
 						lcd_puts("TIMEOUT");
 						lcd_gotoxy(0,1);
 						lcd_puts("CLK:");
-						lcd_gotoxy(7,1);
+						lcd_gotoxy(4,1);
+						printDec3Dig(convertMaxDeadReckoningToDecisecs() / 10);
 						lcd_puts("s");
 						bitPosition = 0xFF;
 						prefsPtr = &maxDeadReckoningTime;
@@ -2735,6 +2746,8 @@ int main(void)
 						lcd_puts("PUMP");
 						lcd_gotoxy(0,1);
 						lcd_puts("RATE:");
+						lcd_gotoxy(7,1);
+						lcd_putc('1' + getPumpRate());
 						bitPosition = 0xFF;
 						prefsPtr = &pressureCoefficients;
 					}
@@ -2776,23 +2789,8 @@ int main(void)
 					{
 						// Do nothing
 					}
-					else if(prefsPtr == &maxDeadReckoningTime)
-					{
-						lcd_gotoxy(4,1);
-						printDec3Dig(convertMaxDeadReckoningToDecisecs() / 10);
-					}
-					else if(prefsPtr == &pressureCoefficients)
-					{
-						lcd_gotoxy(7,1);
-						lcd_putc('1' + getPumpRate());
-					}
-					else
-					{
-						lcd_gotoxy(4,1);
-						printDec3Dig(*prefsPtr);
-					}
-
 					
+
 					switch(button)
 					{
 						case UP_BUTTON:
@@ -2818,8 +2816,8 @@ int main(void)
 											(*prefsPtr)++;
 										if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
 											newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
-										if(newAlerterTimeout > SLEEP_TMR_RESET_VALUE_MAX)
-											newAlerterTimeout = SLEEP_TMR_RESET_VALUE_MAX;
+										if(newAlerterTimeout > ALERTER_TMR_RESET_VALUE_MAX)
+											newAlerterTimeout = ALERTER_TMR_RESET_VALUE_MAX;
 									}
 									ticks_autoincrement = 0;
 								}
@@ -2844,10 +2842,10 @@ int main(void)
 									}
 									else
 									{
-										if(*prefsPtr > 1)
+										if(*prefsPtr > 0)
 											(*prefsPtr)--;
-										if(newSleepTimeout < ALERTER_TMR_RESET_VALUE_MIN)
-											newSleepTimeout = ALERTER_TMR_RESET_VALUE_MIN;
+										if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
+											newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
 										if(newAlerterTimeout < ALERTER_TMR_RESET_VALUE_MIN)
 											newAlerterTimeout = ALERTER_TMR_RESET_VALUE_MIN;
 									}
@@ -2867,7 +2865,7 @@ int main(void)
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
 								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
-								newAlerterTimeout = alerter_tmr_reset_value / 600;
+								newAlerterTimeout = alerter_tmr_reset_value / 150;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
