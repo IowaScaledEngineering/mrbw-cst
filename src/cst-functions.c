@@ -48,6 +48,7 @@ static FunctionData functions[] = {
 	[THR_UNLOCK_FN]          = {.name = "THR UNLK", .eeAddr = EE_THR_UNLOCK_FUNCTION},
 	[REV_SWAP_FN]            = {.name = "REV SWAP", .eeAddr = EE_REV_SWAP_FUNCTION},
 	[NEUTRAL_FN]             = {.name = "CENTERED", .eeAddr = EE_NEUTRAL_FUNCTION},
+	[ALERTER_FN]             = {.name = "ALERTER",  .eeAddr = EE_ALERTER_FUNCTION,          .attributes = SPECIAL_FUNC},
 	[COMPRESSOR_FN]          = {.name = "COMPRSR",  .eeAddr = EE_COMPRESSOR_FUNCTION},
 	[BRAKE_TEST_FN]          = {.name = "BRK TEST", .eeAddr = EE_BRAKE_TEST_FUNCTION},
 	[FRONT_DIM1_FN]          = {.name = "F.DIM #1", .eeAddr = EE_FRONT_DIM1_FUNCTION},

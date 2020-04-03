@@ -175,6 +175,7 @@ uint8_t txHoldoff_centisecs = TX_HOLDOFF_DEFAULT;
 static uint8_t timeSourceAddress = 0xFF;
 
 #define THROTTLE_STATUS_SLEEP           0x80
+#define THROTTLE_STATUS_ALERTER         0x40
 #define THROTTLE_STATUS_ALL_STOP        0x02
 #define THROTTLE_STATUS_EMERGENCY       0x01
 
@@ -3632,7 +3633,8 @@ int main(void)
 		uint8_t inputsChanged =	(activeReverserSetting != lastActiveReverserSetting) ||
 									(activeThrottleSetting != lastActiveThrottleSetting) ||
 									(functionMask != lastFunctionMask) ||
-									(throttleStatus != lastThrottleStatus);
+									((throttleStatus & THROTTLE_STATUS_EMERGENCY) != (lastThrottleStatus & THROTTLE_STATUS_EMERGENCY));
+									// Look at just EMERG bit since other bits are used for sleep and alerter
 
 		// Reset sleep timer
 		// Using activeReverserSetting also guarantees the throttle (activeThrottleSetting) was in idle when entering sleep, so it will unsleep in the idle position.
@@ -3662,8 +3664,25 @@ int main(void)
 			}
 		}
 
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			decisecs_tmp = alerterTimeout_decisecs;
+		}
+		throttleStatus &= ~THROTTLE_STATUS_ALERTER;  // Clear here, (re)set below.
+		if(decisecs_tmp < 100)
+		{
+			functionMask |= getFunctionMask(ALERTER_FN);
+			throttleStatus |= THROTTLE_STATUS_ALERTER;
+		}  // Fall through if...
+		if(0 == decisecs_tmp)
+		{
+			// Throttle down to idle and apply brakes
+			activeThrottleSetting = 0;
+			functionMask |= getFunctionMask(BRAKE_FN);
+		}
+
 		wdt_reset();
-		
+
 		// New packet criteria: Stuff changed ...or... it's been more than the transmission timeout
 		//    ...and there's room in the queue
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
