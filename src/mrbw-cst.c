@@ -44,7 +44,7 @@ LICENSE:
 #include "cst-time.h"
 #include "cst-math.h"
 
-#define FAST_SLEEP
+//#define FAST_SLEEP
 #ifdef FAST_SLEEP
 #warning "Fast Sleep Enabled!"
 #endif
@@ -1312,6 +1312,18 @@ int main(void)
 					{
 						lcd_puts("EMRG");
 						enableLCDBacklight();
+					}
+					else if(throttleStatus & THROTTLE_STATUS_ALERTER)
+					{
+						lcd_puts("ALRT");
+						ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+						{
+							decisecs_tmp = alerterTimeout_decisecs;
+						}
+						if((decisecs_tmp/1) % 2)
+							disableLCDBacklight();
+						else
+							enableLCDBacklight();
 					}
 					else if(activeReverserSetting != reverserPosition_tmp)
 					{
@@ -3618,6 +3630,27 @@ int main(void)
 				break;
 		}
 
+		uint16_t alerterTimeout_decisecs_tmp;
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			alerterTimeout_decisecs_tmp = alerterTimeout_decisecs;
+		}
+		throttleStatus &= ~THROTTLE_STATUS_ALERTER;  // Clear here, (re)set below.
+		if(alerterTimeout_decisecs_tmp < 100)
+		{
+			functionMask |= getFunctionMask(ALERTER_FN);
+			lastFunctionMask |= getFunctionMask(ALERTER_FN);  // Fake lastFunctionMask so this doesn't trigger inputsChanged below and reset alerter timer
+			throttleStatus |= THROTTLE_STATUS_ALERTER;
+		}  // Fall through if...
+		if(0 == alerterTimeout_decisecs_tmp)
+		{
+			// Throttle down to idle and apply brakes
+			activeThrottleSetting = 0;
+			lastActiveThrottleSetting = 0;
+			functionMask |= getFunctionMask(BRAKE_FN);
+			lastFunctionMask |= getFunctionMask(BRAKE_FN);  // Fake lastFunctionMask so this doesn't trigger inputsChanged below and reset alerter timer
+		}
+
 		// Force specific functions on or off
 		functionMask |= functionForceOn;
 		functionMask &= ~functionForceOff;
@@ -3658,27 +3691,11 @@ int main(void)
 			(NEUTRAL == activeReverserSetting)
 			)
 		{
+			if(alerterTimeout_decisecs_tmp || ((!alerterTimeout_decisecs_tmp) && (NEUTRAL == activeReverserSetting)))
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
 				alerterTimeout_decisecs = alerter_tmr_reset_value;
 			}
-		}
-
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-		{
-			decisecs_tmp = alerterTimeout_decisecs;
-		}
-		throttleStatus &= ~THROTTLE_STATUS_ALERTER;  // Clear here, (re)set below.
-		if(decisecs_tmp < 100)
-		{
-			functionMask |= getFunctionMask(ALERTER_FN);
-			throttleStatus |= THROTTLE_STATUS_ALERTER;
-		}  // Fall through if...
-		if(0 == decisecs_tmp)
-		{
-			// Throttle down to idle and apply brakes
-			activeThrottleSetting = 0;
-			functionMask |= getFunctionMask(BRAKE_FN);
 		}
 
 		wdt_reset();
