@@ -44,7 +44,7 @@ LICENSE:
 #include "cst-time.h"
 #include "cst-math.h"
 
-//#define FAST_SLEEP
+#define FAST_SLEEP
 #ifdef FAST_SLEEP
 #warning "Fast Sleep Enabled!"
 #endif
@@ -58,6 +58,10 @@ LICENSE:
 #define SLEEP_TMR_RESET_VALUE_MIN           1
 #define SLEEP_TMR_RESET_VALUE_DEFAULT       5
 #define SLEEP_TMR_RESET_VALUE_MAX          99
+
+#define ALERTER_TMR_RESET_VALUE_MIN         1
+#define ALERTER_TMR_RESET_VALUE_DEFAULT     5
+#define ALERTER_TMR_RESET_VALUE_MAX        99
 
 #define TX_HOLDOFF_MIN                     10
 #define TX_HOLDOFF_DEFAULT                 15
@@ -182,6 +186,7 @@ uint8_t estopStatus = 0;
 #define ESTOP_BUTTON   0x02
 
 uint16_t sleep_tmr_reset_value;
+uint16_t alerter_tmr_reset_value;
 
 // Define the menu screens and menu order
 // Must end with LAST_SCREEN
@@ -662,6 +667,27 @@ void readConfig(void)
 	}
 	sleep_tmr_reset_value *= 600;  // Convert to decisecs
 
+	// Read the number of minutes before sleeping from EEP and store it.
+	// If it's not in range, clamp it.
+	// Abuse alerter_tmr_reset_value to read the EEPROM value in minutes before converting to decisecs
+	alerter_tmr_reset_value = eeprom_read_byte((uint8_t*)EE_ALERTER_TIMEOUT);
+	if(alerter_tmr_reset_value < ALERTER_TMR_RESET_VALUE_MIN)
+	{
+		alerter_tmr_reset_value = ALERTER_TMR_RESET_VALUE_MIN;
+		eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, alerter_tmr_reset_value);
+	}
+	else if(0xFF == alerter_tmr_reset_value)
+	{
+		alerter_tmr_reset_value = ALERTER_TMR_RESET_VALUE_DEFAULT;  // Default for unprogrammed EEPROM
+		eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, alerter_tmr_reset_value);
+	}
+	else if(alerter_tmr_reset_value > ALERTER_TMR_RESET_VALUE_MAX)
+	{
+		alerter_tmr_reset_value = ALERTER_TMR_RESET_VALUE_MAX;
+		eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, alerter_tmr_reset_value);
+	}
+	alerter_tmr_reset_value *= 600;  // Convert to decisecs
+
 	// Fast clock
 	uint8_t maxDeadReckoningTime = eeprom_read_byte((uint8_t*)EE_DEAD_RECKONING_TIME);
 	setMaxDeadReckoningTime(maxDeadReckoningTime);
@@ -782,6 +808,7 @@ void resetConfig(void)
 	eeprom_write_byte((uint8_t*)EE_TX_HOLDOFF, TX_HOLDOFF_DEFAULT);
 
 	eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, SLEEP_TMR_RESET_VALUE_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, ALERTER_TMR_RESET_VALUE_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, DEAD_RECKONING_TIME_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, PRESSURE_COEF_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_CONFIGBITS, CONFIGBITS_DEFAULT);
@@ -914,6 +941,7 @@ int main(void)
 	uint8_t newBaseAddr = mrbus_base_addr;
 	uint8_t newTimeAddr = timeSourceAddress;
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
+	uint8_t newAlerterTimeout = alerter_tmr_reset_value / 600;
 	uint8_t newUpdate_seconds = update_decisecs / 10;
 
 	uint8_t *prefsPtr = &newSleepTimeout;
@@ -2671,6 +2699,16 @@ int main(void)
 					}
 					else if(2 == subscreenState)
 					{
+						lcd_puts("ALERTER");
+						lcd_gotoxy(0,1);
+						lcd_puts("DLY:");
+						lcd_gotoxy(7,1);
+						lcd_puts("M");
+						bitPosition = 0xFF;
+						prefsPtr = &newAlerterTimeout;
+					}
+					else if(3 == subscreenState)
+					{
 						lcd_puts("TIMEOUT");
 						lcd_gotoxy(0,1);
 						lcd_puts("CLK:");
@@ -2679,7 +2717,7 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &maxDeadReckoningTime;
 					}
-					else if(3 == subscreenState)
+					else if(4 == subscreenState)
 					{
 						lcd_puts("PUMP");
 						lcd_gotoxy(0,1);
@@ -2687,19 +2725,19 @@ int main(void)
 						bitPosition = 0xFF;
 						prefsPtr = &pressureCoefficients;
 					}
-					else if(4 == subscreenState)
+					else if(5 == subscreenState)
 					{
 						lcd_puts("LED BLNK");
 						bitPosition = CONFIGBITS_LED_BLINK;
 						prefsPtr = &configBits;
 					}
-					else if(5 == subscreenState)
+					else if(6 == subscreenState)
 					{
 						lcd_puts("REV LOCK");
 						bitPosition = CONFIGBITS_REVERSER_LOCK;
 						prefsPtr = &configBits;
 					}
-					else if(6 == subscreenState)
+					else if(7 == subscreenState)
 					{
 						lcd_puts("STRICT");
 						lcd_gotoxy(0,1);
@@ -2767,6 +2805,8 @@ int main(void)
 											(*prefsPtr)++;
 										if(newSleepTimeout > SLEEP_TMR_RESET_VALUE_MAX)
 											newSleepTimeout = SLEEP_TMR_RESET_VALUE_MAX;
+										if(newAlerterTimeout > SLEEP_TMR_RESET_VALUE_MAX)
+											newAlerterTimeout = SLEEP_TMR_RESET_VALUE_MAX;
 									}
 									ticks_autoincrement = 0;
 								}
@@ -2793,8 +2833,10 @@ int main(void)
 									{
 										if(*prefsPtr > 1)
 											(*prefsPtr)--;
-										if(newSleepTimeout < SLEEP_TMR_RESET_VALUE_MIN)
-											newSleepTimeout = SLEEP_TMR_RESET_VALUE_MIN;
+										if(newSleepTimeout < ALERTER_TMR_RESET_VALUE_MIN)
+											newSleepTimeout = ALERTER_TMR_RESET_VALUE_MIN;
+										if(newAlerterTimeout < ALERTER_TMR_RESET_VALUE_MIN)
+											newAlerterTimeout = ALERTER_TMR_RESET_VALUE_MIN;
 									}
 									ticks_autoincrement = 0;
 								}
@@ -2804,6 +2846,7 @@ int main(void)
 							if(SELECT_BUTTON != previousButton)
 							{
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
+								eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, newAlerterTimeout);
 								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, getMaxDeadReckoningTime());
 								eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, getPressureCoefficients());
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
@@ -2811,6 +2854,7 @@ int main(void)
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
 								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
+								newAlerterTimeout = alerter_tmr_reset_value / 600;
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
@@ -3609,7 +3653,7 @@ int main(void)
 		if( 
 			(NO_BUTTON != button) || 
 			inputsChanged ||
-			((FORWARD == activeReverserSetting) || (REVERSE == activeReverserSetting))
+			(NEUTRAL == activeReverserSetting)
 			)
 		{
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -3768,6 +3812,7 @@ int main(void)
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
 				sleepTimeout_decisecs = sleep_tmr_reset_value;
+				alerterTimeout_decisecs = alerter_tmr_reset_value;
 			}
 			throttleStatus &= ~THROTTLE_STATUS_SLEEP;
 		}

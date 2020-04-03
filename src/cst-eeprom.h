@@ -19,6 +19,7 @@
 #define EE_BRAKE_LOW_THRESHOLD        0x22
 #define EE_BRAKE_HIGH_THRESHOLD       0x23
 #define EE_PRESSURE_COEF              0x24
+#define EE_ALERTER_TIMEOUT            0x25
 
 // 20 configs * 128 bytes = 2560 bytes
 //  +128 bytes for global = 2688 bytes
