@@ -62,7 +62,9 @@ LICENSE:
 // Alerter timer in units of 1/4 minute (15 seconds), zero is off
 #define ALERTER_TMR_RESET_VALUE_MIN         0
 #define ALERTER_TMR_RESET_VALUE_DEFAULT     4
-#define ALERTER_TMR_RESET_VALUE_MAX        20
+#define ALERTER_TMR_RESET_VALUE_MAX        60
+
+#define IS_ALERTER_ENABLED                 (0 != alerter_tmr_reset_value)
 
 #define TX_HOLDOFF_MIN                     10
 #define TX_HOLDOFF_DEFAULT                 15
@@ -3247,9 +3249,17 @@ int main(void)
 						{
 							decisecs_tmp = alerterTimeout_decisecs;
 						}
-						printDec4Dig(decisecs_tmp/10);
-						lcd_gotoxy(5,1);
-						lcd_puts("sec");
+						if(IS_ALERTER_ENABLED)
+						{
+							printDec4Dig(decisecs_tmp/10);
+							lcd_gotoxy(5,1);
+							lcd_puts("sec");
+						}
+						else
+						{
+							lcd_gotoxy(5,1);
+							lcd_puts("OFF");
+						}
 					}
 					else if(4 == subscreenState)
 					{
@@ -3634,19 +3644,22 @@ int main(void)
 			alerterTimeout_decisecs_tmp = alerterTimeout_decisecs;
 		}
 		throttleStatus &= ~THROTTLE_STATUS_ALERTER;  // Clear here, (re)set below.
-		if(alerterTimeout_decisecs_tmp < 100)
+		if(IS_ALERTER_ENABLED)
 		{
-			functionMask |= getFunctionMask(ALERTER_FN);
-			lastFunctionMask |= getFunctionMask(ALERTER_FN);  // Fake lastFunctionMask so this doesn't trigger inputsChanged below and reset alerter timer
-			throttleStatus |= THROTTLE_STATUS_ALERTER;
-		}  // Fall through if...
-		if(0 == alerterTimeout_decisecs_tmp)
-		{
-			// Throttle down to idle and apply brakes
-			activeThrottleSetting = 0;
-			lastActiveThrottleSetting = 0;
-			functionMask |= getFunctionMask(BRAKE_FN);
-			lastFunctionMask |= getFunctionMask(BRAKE_FN);  // Fake lastFunctionMask so this doesn't trigger inputsChanged below and reset alerter timer
+			if(alerterTimeout_decisecs_tmp < 100)
+			{
+				functionMask |= getFunctionMask(ALERTER_FN);
+				lastFunctionMask |= getFunctionMask(ALERTER_FN);  // Fake lastFunctionMask so this doesn't trigger inputsChanged below and reset alerter timer
+				throttleStatus |= THROTTLE_STATUS_ALERTER;
+			}  // Fall through if...
+			if(0 == alerterTimeout_decisecs_tmp)
+			{
+				// Throttle down to idle and apply brakes
+				activeThrottleSetting = 0;
+				lastActiveThrottleSetting = 0;
+				functionMask |= getFunctionMask(BRAKE_FN);
+				lastFunctionMask |= getFunctionMask(BRAKE_FN);  // Fake lastFunctionMask so this doesn't trigger inputsChanged below and reset alerter timer
+			}
 		}
 
 		// Force specific functions on or off
