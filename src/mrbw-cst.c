@@ -2868,6 +2868,11 @@ int main(void)
 								// new* values are used because the values used in the program are not the same format as used here.
 								newSleepTimeout = sleep_tmr_reset_value / 600;
 								newAlerterTimeout = alerter_tmr_reset_value / 150;
+								// Reset alerter here so it doesn't trigger the alerter down below when changing from off
+								ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+								{
+									alerterTimeout_decisecs = alerter_tmr_reset_value;
+								}
 								lcd_clrscr();
 								lcd_gotoxy(1,0);
 								lcd_puts("SAVED!");
