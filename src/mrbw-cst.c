@@ -217,7 +217,7 @@ typedef enum
 enum
 {
 	SPECFN_SUBSCREEN_PRESSURE = 1,
-	SPECFN_SUBSCREEN_TONNAGE
+//	SPECFN_SUBSCREEN_TONNAGE
 };
 
 typedef enum
@@ -1608,6 +1608,7 @@ int main(void)
 								break;
 						}
 					}
+/*
 					else if(SPECFN_SUBSCREEN_TONNAGE == subscreenState)
 					{
 						setupLCD(LCD_TONNAGE);
@@ -1633,6 +1634,7 @@ int main(void)
 								break;
 						}
 					}
+*/
 					else
 					{
 						subscreenState = 1;
