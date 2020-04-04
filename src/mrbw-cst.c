@@ -61,7 +61,7 @@ LICENSE:
 
 // Alerter timer in units of 1/4 minute (15 seconds), zero is off
 #define ALERTER_TMR_RESET_VALUE_MIN         0
-#define ALERTER_TMR_RESET_VALUE_DEFAULT     4
+#define ALERTER_TMR_RESET_VALUE_DEFAULT     0
 #define ALERTER_TMR_RESET_VALUE_MAX        60
 
 #define IS_ALERTER_ENABLED                 (0 != alerter_tmr_reset_value)
@@ -3256,7 +3256,7 @@ int main(void)
 						}
 						if(IS_ALERTER_ENABLED)
 						{
-							printDec4Dig(decisecs_tmp/10);
+							printDec4Dig((decisecs_tmp+9)/10);
 							lcd_gotoxy(5,1);
 							lcd_puts("sec");
 						}
