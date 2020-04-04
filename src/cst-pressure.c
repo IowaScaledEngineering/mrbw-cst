@@ -154,7 +154,7 @@ const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][RO
 void updatePressure10Hz(void)
 {
 	if(PUMPING == pumpState)
-		milliPressure += ((maxMilliPressure - milliPressure) / ((uint16_t)64 << getPumpRate())) + 10;  // + to keep it going when the first part reaches zero
+		milliPressure += ((maxMilliPressure - milliPressure) / ((uint16_t)16 << getPumpRate())) + 10;  // + to keep it going when the first part reaches zero
 
 	if(milliPressure > maxMilliPressure)
 	{
