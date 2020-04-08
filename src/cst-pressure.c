@@ -57,7 +57,7 @@ static uint8_t brakeTest = 0;
 
 static uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR];
 
-static uint8_t pressureCoefficients = 0;
+static uint8_t pressureConfig = 0;
 
 static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
 static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
@@ -347,15 +347,15 @@ uint8_t isBrakeTestActive(void)
 
 uint8_t setPumpRate(uint8_t pumpRate)
 {
-	pressureCoefficients &= ~(0x7);
-	pressureCoefficients |= (pumpRate & 0x07);
+	pressureConfig &= ~(0x7);
+	pressureConfig |= (pumpRate & 0x07);
 
-	return (pressureCoefficients & 0x7);
+	return (pressureConfig & 0x7);
 }
 
 uint8_t getPumpRate(void)
 {
-	return (pressureCoefficients & 0x7);
+	return (pressureConfig & 0x7);
 }
 
 uint8_t incrementPumpRate(void)
@@ -372,15 +372,15 @@ uint8_t decrementPumpRate(void)
 	return getPumpRate();
 }
 
-uint8_t setPressureCoefficients(uint8_t c)
+uint8_t setPressureConfig(uint8_t c)
 {
-	pressureCoefficients = c;
+	pressureConfig = c;
 
-	return pressureCoefficients;
+	return pressureConfig;
 }
 
-uint8_t getPressureCoefficients(void)
+uint8_t getPressureConfig(void)
 {
-	return pressureCoefficients;
+	return pressureConfig;
 }
 

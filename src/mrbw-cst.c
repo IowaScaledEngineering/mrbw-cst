@@ -701,10 +701,10 @@ void readConfig(void)
 	timeSourceAddress = eeprom_read_byte((uint8_t*)EE_TIME_SOURCE_ADDRESS);
 
 	// Pressure
-	uint8_t pressureCoefficients = eeprom_read_byte((uint8_t*)EE_PRESSURE_COEF);
-	setPressureCoefficients(pressureCoefficients);
-	if(getPressureCoefficients() != pressureCoefficients)
-		eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, getPressureCoefficients());
+	uint8_t pressureConfig = eeprom_read_byte((uint8_t*)EE_PRESSURE_CONFIG);
+	setPressureConfig(pressureConfig);
+	if(getPressureConfig() != pressureConfig)
+		eeprom_write_byte((uint8_t*)EE_PRESSURE_CONFIG, getPressureConfig());
 
 	configBits = eeprom_read_byte((uint8_t*)EE_CONFIGBITS);
 
@@ -814,7 +814,7 @@ void resetConfig(void)
 	eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, SLEEP_TMR_RESET_VALUE_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, ALERTER_TMR_RESET_VALUE_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, DEAD_RECKONING_TIME_DEFAULT);
-	eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, PRESSURE_COEF_DEFAULT);
+	eeprom_write_byte((uint8_t*)EE_PRESSURE_CONFIG, PRESSURE_CONFIG_DEFAULT);
 	eeprom_write_byte((uint8_t*)EE_CONFIGBITS, CONFIGBITS_DEFAULT);
 
 	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, MRBUS_DEV_ADDR_DEFAULT);
@@ -2703,7 +2703,7 @@ int main(void)
 					// FIXME: These variables serve no real purpose other than indicating which menu is active
 					//         A better solution would be to name the subscreens like in Special Functions
 					uint8_t maxDeadReckoningTime = getMaxDeadReckoningTime();
-					uint8_t pressureCoefficients = getPressureCoefficients();
+					uint8_t pressureCoefficients = getPressureConfig();
 					
 					if(1 == subscreenState)
 					{
@@ -2863,7 +2863,7 @@ int main(void)
 								eeprom_write_byte((uint8_t*)EE_DEVICE_SLEEP_TIMEOUT, newSleepTimeout);
 								eeprom_write_byte((uint8_t*)EE_ALERTER_TIMEOUT, newAlerterTimeout);
 								eeprom_write_byte((uint8_t*)EE_DEAD_RECKONING_TIME, getMaxDeadReckoningTime());
-								eeprom_write_byte((uint8_t*)EE_PRESSURE_COEF, getPressureCoefficients());
+								eeprom_write_byte((uint8_t*)EE_PRESSURE_CONFIG, getPressureConfig());
 								eeprom_write_byte((uint8_t*)EE_CONFIGBITS, configBits);
 								readConfig();
 								// The only way to escape the prefs menu is by saving the values, so the new* variables don't serve the purpose of allowing the user to cancel a change in this case.
