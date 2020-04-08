@@ -84,7 +84,7 @@ LICENSE:
 #define TIME_SOURCE_ADDRESS_DEFAULT        0x00
 
 #define RESET_COUNTER_RESET_VALUE   5
-uint8_t resetCounter;
+uint8_t resetCounter = RESET_COUNTER_RESET_VALUE;
 
 // 5 sec timeout for packets from base, base transmits every 1 sec
 #define PKT_TIMEOUT_DECISECS   50
@@ -936,6 +936,18 @@ int main(void)
 
 	ReverserPosition direction = FORWARD;
 
+	// Check if the EEPROM is initialized, check first config for all 0xFF
+	for(i=0; i< 0x80; i++)
+	{
+		if(0xFF != eeprom_read_byte((uint8_t *)CONFIG_OFFSET(1) + i) )
+			break;
+	}
+	if(0x80 == i)
+	{
+		screenState = DIAG_SCREEN;
+		subscreenState = 12;
+	}
+	
 	init();
 
 	// Assign after init() so values are read from EEPROM first
@@ -989,7 +1001,7 @@ int main(void)
 	inputButtons = PINB & (0xF6);
 
 	BatteryState lastBatteryState = getBatteryState();
-	
+
 	while(1)
 	{
 		wdt_reset();

@@ -39,6 +39,7 @@ MRBUS_LIB=./mrbus/src/
 DEVICE  = atmega1284p
 F_CPU   = 11059200  # Hz
 FUSE_L  = 0xFF
+#FUSE_H  = 0xD9  # Erase EEPROM after programming
 FUSE_H  = 0xD1
 FUSE_E  = 0xFD
 
