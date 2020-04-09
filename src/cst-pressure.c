@@ -337,7 +337,17 @@ void resetPressure(void)
 
 uint8_t isPressurePumping(void)
 {
-	return(IDLE != pumpState);
+	return(PUMPING == pumpState);
+}
+
+uint8_t isPressureIdle(void)
+{
+	return(IDLE == pumpState);
+}
+
+uint8_t isPressureDone(void)
+{
+	return(DONE == pumpState);
 }
 
 uint8_t isBrakeTestActive(void)

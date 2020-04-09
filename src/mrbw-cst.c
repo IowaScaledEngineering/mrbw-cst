@@ -126,8 +126,9 @@ uint8_t configBits = CONFIGBITS_DEFAULT;
 #define OPTIONBITS_REVERSER_SWAP     1
 #define OPTIONBITS_VARIABLE_BRAKE    2
 #define OPTIONBITS_STEPPED_BRAKE     3
+#define OPTIONBITS_COMPRESSOR_STOP   4
 
-#define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE))
+#define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE) | _BV(OPTIONBITS_COMPRESSOR_STOP))
 uint8_t optionBits = OPTIONBITS_DEFAULT;
 
 // Boolean system bits (volatile, global)
@@ -1586,7 +1587,7 @@ int main(void)
 					lcd_gotoxy(0,0);
 					if(SPECFN_SUBSCREEN_PRESSURE == subscreenState)
 					{
-						if(!isPressurePumping())
+						if(isPressureIdle())
 						{
 							lcd_puts("BRAKE");
 							lcd_gotoxy(0,1);
@@ -2268,6 +2269,12 @@ int main(void)
 					{
 						lcd_puts("REV SWAP");
 						bitPosition = OPTIONBITS_REVERSER_SWAP;
+						optionsPtr = &optionBits;
+					}
+					else if(6 == subscreenState)
+					{
+						lcd_puts("COMP STP");
+						bitPosition = OPTIONBITS_COMPRESSOR_STOP;
 						optionsPtr = &optionBits;
 					}
 					else
@@ -3606,7 +3613,7 @@ int main(void)
 				estopStatus |= ESTOP_BUTTON;
 		}
 
-		if(isPressurePumping())
+		if(isPressurePumping() || isBrakeTestActive() || (!(optionBits & _BV(OPTIONBITS_COMPRESSOR_STOP)) && isPressureDone()))
 			functionMask |= getFunctionMask(COMPRESSOR_FN);
 		if(isBrakeTestActive())
 			functionMask |= getFunctionMask(BRAKE_TEST_FN);

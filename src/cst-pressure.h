@@ -12,6 +12,8 @@ void resetPressure(void);
 void enableBrakeTest(uint8_t brakePcnt);
 void disableBrakeTest(void);
 uint8_t isPressurePumping(void);
+uint8_t isPressureIdle(void);
+uint8_t isPressureDone(void);
 uint8_t isBrakeTestActive(void);
 uint8_t setPumpRate(uint8_t pumpRate);
 uint8_t getPumpRate(void);
