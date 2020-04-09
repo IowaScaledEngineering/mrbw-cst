@@ -75,7 +75,9 @@ help:
 	@echo "make flash ..... flash the firmware"
 	@echo "make fuse ...... flash the fuses"
 	@echo "make program ... flash fuses and firmware"
+	@echo "make firmware .. flash firmware from file"
 	@echo "make read ...... read the fuses"
+	@echo "make eeprom .... write eeprom"
 	@echo "make size ...... memory usage"
 	@echo "make clean ..... delete objects and hex file"
 	@echo "make release.... produce release tarball"
@@ -119,6 +121,9 @@ flash: $(BASE_NAME).hex
 
 firmware:
 	$(AVRDUDE) -U flash:w:$(HEX):i
+
+eeprom:
+	$(AVRDUDE) -U eeprom:w:$(EEP):i
 
 # rule for deleting dependent files (those which can be built by Make):
 clean:
