@@ -855,6 +855,8 @@ void resetConfig(void)
 	for (i=1; i<=MAX_CONFIGS; i++)
 	{
 		wdt_reset();
+		lcd_gotoxy(3,1);
+		printDec2Dig(MAX_CONFIGS-i+1);
 		copyConfig(WORKING_CONFIG, i);
 	}
 	
