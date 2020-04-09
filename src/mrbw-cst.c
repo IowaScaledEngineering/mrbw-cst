@@ -271,6 +271,9 @@ typedef enum
 #define ENGINE_TIMER_DECISECS      20
 volatile uint8_t engineTimer = 0;
 
+#define ENGINE_SCREEN_TIMER       100
+volatile uint8_t engineScreenTimer = 0;
+
 uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
 {
 	static uint8_t clock_A=0, clock_B=0;
@@ -563,6 +566,9 @@ ISR(TIMER0_COMPA_vect)
 
 		if (engineTimer)
 			engineTimer--;
+		
+		if (engineScreenTimer)
+			engineScreenTimer++;
 		
 		brakeCounter++;
 		if(brakeCounter >= (4*brakePulseWidth))
@@ -1516,6 +1522,7 @@ int main(void)
 								engineTimer = ENGINE_TIMER_DECISECS;
 							}
 						}
+						engineScreenTimer = 1;
 						break;
 					case DOWN_BUTTON:
 						if(isFunctionOff(ENGINE_OFF_FN))
@@ -1540,19 +1547,33 @@ int main(void)
 								engineState = ENGINE_NOT_IDLE;
 							}
 						}
+						engineScreenTimer = 1;
 						break;
 					case SELECT_BUTTON:
-						screenState = LAST_SCREEN;
-						// Fall through
+						// Do cleanup below
 					case MENU_BUTTON:
-						if(ENGINE_NOT_IDLE == engineState)
-						{
-							// Clear Not Idle state if exiting the menu
-							engineState = ENGINE_RUNNING;
-						}
+						// Do cleanup below
 					case NO_BUTTON:
 						break;
 				}
+
+				if((SELECT_BUTTON == button) || (MENU_BUTTON == button) || (engineScreenTimer > ENGINE_SCREEN_TIMER))
+				{
+					// Clean up
+					if(ENGINE_NOT_IDLE == engineState)
+					{
+						// Clear Not Idle state if exiting the menu
+						engineState = ENGINE_RUNNING;
+					}
+					engineScreenTimer = 0;
+					
+					if(MENU_BUTTON != button)
+					{
+						// Exit to main screen
+						screenState = LAST_SCREEN;
+					}
+				}
+
 				break;
 
 
