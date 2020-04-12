@@ -352,6 +352,7 @@ void resetFunctionConfiguration(void)
 	functions[THR_UNLOCK_FN].fn = FN_OFF;
 	functions[REV_SWAP_FN].fn = FN_OFF;
 	functions[NEUTRAL_FN].fn = FN_OFF;
+	functions[ALERTER_FN].fn = FN_OFF;
 	functions[COMPRESSOR_FN].fn = FN_OFF;
 	functions[BRAKE_TEST_FN].fn = FN_OFF;
 }

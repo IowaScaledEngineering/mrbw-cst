@@ -1,7 +1,7 @@
 #ifndef _CST_PRESSURE_H_
 #define _CST_PRESSURE_H_
 
-#define PRESSURE_CONFIG_DEFAULT    2
+#define PRESSURE_CONFIG_DEFAULT    0x03
 
 void updatePressure10Hz(void);
 
