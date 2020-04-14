@@ -61,7 +61,7 @@ static uint8_t pressureConfig = 0;
 
 static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
 static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
-static uint32_t milliPressurePipe = (uint32_t)MAX_PRESSURE * 1000;
+static uint32_t milliPressureReservoir = (uint32_t)MAX_PRESSURE * 1000;
 
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
@@ -155,12 +155,6 @@ void updatePressure10Hz(void)
 {
 	if(PUMPING == pumpState)
 		milliPressure += ((maxMilliPressure - milliPressure) / ((uint16_t)16 << getPumpRate())) + 10;  // + to keep it going when the first part reaches zero
-
-	if(milliPressure > maxMilliPressure)
-	{
-		milliPressure = maxMilliPressure;
-		pumpState = DONE;
-	}
 }
 
 void plot(uint8_t x, uint8_t y)
@@ -274,11 +268,40 @@ void setupPressureChars(void)
 	lcd_setup_custom(PRESSURE_CHAR_B3, canvas[1][3]);
 }
 
-void processPressure(void)
+void processPressure(uint8_t brakePcnt)
 {
-	if((DONE != pumpState) && (BRAKE_TEST != pumpState))
+	switch(pumpState)
 	{
-		pumpState = PUMPING;
+		case IDLE:
+			pumpState = PUMPING;
+			break;
+		case PUMPING:
+			if(milliPressure >= maxMilliPressure)
+			{
+				milliPressure = maxMilliPressure;
+				pumpState = DONE;
+			}
+			// Fall through to process brakePcnt in both cases
+		case DONE:
+			if(brakePcnt > 10)
+			{
+				milliPressureReservoir = milliPressure;  // Save current pressure
+				pumpState = BRAKE_TEST;
+			}
+			break;
+		case BRAKE_TEST:
+			if(brakePcnt < 10)
+			{
+				pumpState = PUMPING;
+			}
+			else
+			{
+				uint32_t milliPressureDelta = ((uint32_t)BRAKE_TEST_DELTA * 1000) * brakePcnt / 100;
+				if(milliPressureDelta > milliPressureReservoir)
+					milliPressure = 0;
+				milliPressure = min(milliPressure,  milliPressureReservoir - milliPressureDelta);
+			}
+			break;
 	}
 }
 
@@ -303,24 +326,6 @@ void printPressure(void)
 	printDec3Dig(milliPressure/1000);
 	lcd_gotoxy(4,1);
 	lcd_puts(" PSI");
-}
-
-void enableBrakeTest(uint8_t brakePcnt)
-{
-	if(!isBrakeTestActive())
-	{
-		milliPressurePipe = milliPressure;  // Save current pressure
-		pumpState = BRAKE_TEST;
-	}
-	uint32_t milliPressureDelta = ((uint32_t)BRAKE_TEST_DELTA * 1000) * brakePcnt / 100;
-	if(milliPressureDelta > milliPressurePipe)
-		milliPressure = 0;
-	milliPressure = min(milliPressure,  milliPressurePipe - milliPressureDelta);
-}
-
-void disableBrakeTest(void)
-{
-	pumpState = PUMPING;
 }
 
 void resetPressure(void)

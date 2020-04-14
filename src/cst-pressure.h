@@ -6,11 +6,9 @@
 void updatePressure10Hz(void);
 
 void setupPressureChars(void);
-void processPressure(void);
+void processPressure(uint8_t brakePcnt);
 void printPressure(void);
 void resetPressure(void);
-void enableBrakeTest(uint8_t brakePcnt);
-void disableBrakeTest(void);
 uint8_t isPressurePumping(void);
 uint8_t isPressureIdle(void);
 uint8_t isPressureDone(void);

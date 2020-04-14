@@ -1621,12 +1621,8 @@ int main(void)
 						{
 							setupLCD(LCD_PRESSURE);
 							enableLCDBacklight();
-							processPressure();
+							processPressure(min(brakePcnt,100));
 							printPressure();
-							if(brakePcnt > 10)
-								enableBrakeTest(min(brakePcnt,100));
-							else if(brakePcnt < 10)
-								disableBrakeTest();
 							// Disable normal brake functions to they don't interfere with the brake test sounds as we move the brake lever
 							controls &= ~(BRAKE_OFF_CONTROL);
 							controls &= ~(BRAKE_CONTROL);
@@ -1635,7 +1631,7 @@ int main(void)
 						{
 							case DOWN_BUTTON:
 								if(DOWN_BUTTON != previousButton)
-									processPressure();  // Start pumping
+									processPressure(0);  // Start pumping
 								break;
 							case UP_BUTTON:
 							case SELECT_BUTTON:
