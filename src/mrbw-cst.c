@@ -3632,10 +3632,18 @@ int main(void)
 				estopStatus |= ESTOP_BUTTON;
 		}
 
-		if(isPressurePumping() || isBrakeTestActive() || (!(optionBits & _BV(OPTIONBITS_COMPRESSOR_STOP)) && isPressureDone()))
+		if(isCompressorRunning(optionBits & _BV(OPTIONBITS_COMPRESSOR_STOP)))
+		{
+//			lcd_gotoxy(4,0);
+//			lcd_putc('C');
 			functionMask |= getFunctionMask(COMPRESSOR_FN);
+		}
 		if(isBrakeTestActive())
+		{
+//			lcd_gotoxy(4,1);
+//			lcd_putc('B');
 			functionMask |= getFunctionMask(BRAKE_TEST_FN);
+		}
 
 		if(controls & THR_UNLK_CONTROL)
 			functionMask |= getFunctionMask(THR_UNLOCK_FN);

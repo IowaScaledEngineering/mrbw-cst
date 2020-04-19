@@ -63,6 +63,8 @@ static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
 static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
 static uint32_t milliPressureReservoir = (uint32_t)MAX_PRESSURE * 1000;
 
+static volatile uint8_t compressorStopTimer = 0;
+
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
 	{
@@ -155,6 +157,9 @@ void updatePressure10Hz(void)
 {
 	if(PUMPING == pumpState)
 		milliPressure += ((maxMilliPressure - milliPressure) / ((uint16_t)16 << getPumpRate())) + 10;  // + to keep it going when the first part reaches zero
+	
+	if(compressorStopTimer)
+		compressorStopTimer--;
 }
 
 void plot(uint8_t x, uint8_t y)
@@ -287,6 +292,7 @@ void processPressure(uint8_t brakePcnt)
 			{
 				milliPressureReservoir = milliPressure;  // Save current pressure
 				pumpState = BRAKE_TEST;
+				compressorStopTimer = 10;  // 1 second
 			}
 			break;
 		case BRAKE_TEST:
@@ -340,19 +346,26 @@ void resetPressure(void)
 	brakeTest = 0;
 }
 
-uint8_t isPressurePumping(void)
+uint8_t isCompressorRunning(uint8_t compressorStop)
 {
-	return(PUMPING == pumpState);
+	// Compressor active when:
+	//    Pumping
+	//    Compressor Stop OFF:
+	//       Brake Test
+	//       Done
+	//    Compressor Stop ON:
+	//       Brake Test and timer done
+
+	return( (PUMPING == pumpState) || 
+	         (!compressorStop && (BRAKE_TEST == pumpState)) ||
+	         (!compressorStop && (DONE == pumpState)) ||
+	         (compressorStop && !compressorStopTimer && (BRAKE_TEST == pumpState))
+	       );
 }
 
 uint8_t isPressureIdle(void)
 {
 	return(IDLE == pumpState);
-}
-
-uint8_t isPressureDone(void)
-{
-	return(DONE == pumpState);
 }
 
 uint8_t isBrakeTestActive(void)
