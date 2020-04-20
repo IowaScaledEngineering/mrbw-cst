@@ -39,6 +39,7 @@ LICENSE:
 #include "cst-eeprom.h"
 #include "cst-functions.h"
 #include "cst-battery.h"
+#include "cst-engine.h"
 #include "cst-pressure.h"
 #include "cst-tonnage.h"
 #include "cst-time.h"
@@ -257,16 +258,6 @@ uint32_t functionForceOff = 0;
 #define DOWN_OPTION_BUTTON 0x02
 
 uint8_t controls = 0;
-
-typedef enum
-{
-	ENGINE_OFF = 0,
-	ENGINE_START,
-	ENGINE_ON,
-	ENGINE_RUNNING,
-	ENGINE_NOT_IDLE,
-	ENGINE_STOP,
-} EngineState;
 
 #define ENGINE_TIMER_DECISECS      20
 volatile uint8_t engineTimer = 0;
@@ -900,6 +891,7 @@ void init(void)
 	enableThrottle();
 	initialize100HzTimer();
 
+	engineStatesQueueInitialize();
 	resetPressure();
 
 	DDRB |= _BV(PB3);
@@ -1485,25 +1477,7 @@ int main(void)
 				lcd_gotoxy(0,0);
 				lcd_puts(" ENGINE");
 				lcd_gotoxy(0,1);
-				switch(engineState)
-				{
-					case ENGINE_OFF:
-						lcd_puts("   OFF  ");
-						break;
-					case ENGINE_ON:
-					case ENGINE_RUNNING:
-						lcd_puts("   ON   ");
-						break;
-					case ENGINE_NOT_IDLE:
-						lcd_puts("NOT IDLE");
-						break;
-					case ENGINE_START:
-						lcd_puts("STARTING");
-						break;
-					case ENGINE_STOP:
-						lcd_puts("STOPPING");
-						break;
-				}
+				printEngineState(engineState);
 				switch(button)
 				{
 					case UP_BUTTON:
@@ -1781,18 +1755,24 @@ int main(void)
 							{
 								lcd_clrscr();
 								lcd_gotoxy(0,0);
-								if(LOAD_CONFIG_SCREEN == screenState)
-									lcd_puts("LOADING");
-								else
-									lcd_puts("SAVING");
 
 								// Copy selected config into working config
 								if(LOAD_CONFIG_SCREEN == screenState)
 								{
+									lcd_puts("LOADING");
+									EngineState tmpEngineState = engineState;
+									// Get new engine state before potentially bumping it off the queue when we save the old one
+									uint16_t eepromAddressDelta = CONFIG_OFFSET(WORKING_CONFIG) - CONFIG_OFFSET(newConfigNumber);
+									uint16_t tmpLocoAddress = eeprom_read_word((uint16_t*)(EE_LOCO_ADDRESS - eepromAddressDelta));  // Read loco address of newConfigNumber
+									engineState = engineStatesQueueGetState(tmpLocoAddress);
+									if(ENGINE_NOT_INITIALIZED == engineState)
+										engineState = tmpEngineState;  // Restore old state if new locomotive not found
+									engineStatesQueueUpdate(locoAddress, tmpEngineState);  // Save current engine state
 									copyConfig(newConfigNumber, WORKING_CONFIG);
 								}
 								else
 								{
+									lcd_puts("SAVING");
 									copyConfig(WORKING_CONFIG, newConfigNumber);
 								}
 
@@ -3249,6 +3229,8 @@ int main(void)
 						}
 						else
 						{
+							if(subscreenCount > 3)
+								subscreenCount = 3;
 							enableLCDBacklight();
 							lcd_gotoxy(0,0);
 							lcd_puts("FN:");
@@ -3308,6 +3290,28 @@ int main(void)
 					}
 					else if(4 == subscreenState)
 					{
+						if(!subscreenCount)
+						{
+							enableLCDBacklight();
+							lcd_gotoxy(0,0);
+							lcd_puts("ENGINE");
+							lcd_gotoxy(0,1);
+							lcd_puts("HISTORY");
+						}
+						else
+						{
+							if(subscreenCount > ENGINE_STATE_QUEUE_SIZE)
+								subscreenCount = ENGINE_STATE_QUEUE_SIZE;
+							lcd_gotoxy(0,0);
+							printDec2Dig(subscreenCount);
+							lcd_putc(':');
+							printLocomotiveAddress(engineStatesQueuePeekLocoAddress(subscreenCount-1));
+							lcd_gotoxy(0,1);
+							printEngineState(engineStatesQueuePeekState(subscreenCount-1));
+						}
+					}
+					else if(5 == subscreenState)
+					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
 						lcd_puts("PKT TIME");
@@ -3328,7 +3332,7 @@ int main(void)
 								lcd_putc(' ');
 						}
 					}
-					else if(5 == subscreenState)
+					else if(6 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3360,7 +3364,7 @@ int main(void)
 							lcd_puts("NO SIGNL");
 						}
 					}
-					else if(6 == subscreenState)
+					else if(7 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3377,7 +3381,7 @@ int main(void)
 						lcd_putc('0' + timeScaleFactor%10);
 						lcd_puts(":1");
 					}
-					else if(7 == subscreenState)
+					else if(8 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3389,7 +3393,7 @@ int main(void)
 						lcd_putc('0' + ((getBatteryVoltage()*2)%10));
 						lcd_putc('V');
 					}
-					else if(8 == subscreenState)
+					else if(9 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3397,7 +3401,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(VERSION_STRING);
 					}
-					else if(9 == subscreenState)
+					else if(10 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3407,7 +3411,7 @@ int main(void)
 						printHex((GIT_REV >> 8) & 0xFF);
 						printHex(GIT_REV & 0xFF);
 					}
-					else if(10 == subscreenState)
+					else if(11 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3415,7 +3419,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts(baseString);
 					}
-					else if(11 == subscreenState)
+					else if(12 == subscreenState)
 					{
 						enableLCDBacklight();
 						lcd_gotoxy(0,0);
@@ -3425,7 +3429,7 @@ int main(void)
 						printHex((baseVersion >> 8) & 0xFF);
 						printHex(baseVersion & 0xFF);
 					}
-					else if(12 == subscreenState)
+					else if(13 == subscreenState)
 					{
 						if(resetCounter)
 						{
@@ -3493,8 +3497,9 @@ int main(void)
 								// It will be reset anyway prior to entering reset screen
 								resetCounter--;
 								
-								if(subscreenCount < 3)
+								if(subscreenCount < 255)
 								{
+									// Will be limited where used above
 									subscreenCount++;
 									lcd_clrscr();
 								}

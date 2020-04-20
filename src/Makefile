@@ -50,7 +50,7 @@ MRBEE_DEFINES = -DMRBEE -DMRBEE_IGNORE_FLOW
 MRBEE_PINS = 
 
 DEFINES := -DGIT_REV=0x$(GITREV)L -D'VERSION_STRING="$(REV)"' -DENABLE_WATCHDOG -DWATCHDOG_TIMEOUT=WDTO_1S -DHWREV_MAJOR=1 -DHWREV_MINOR=2 $(MRBEE_DEFINES) $(MRBEE_PINS)
-SRCS = $(BASE_NAME).c lcd.c cst-common.c cst-lcd.c cst-math.c cst-hardware.c cst-functions.c cst-pressure.c cst-tonnage.c cst-time.c cst-battery.c $(MRBUS_LIB)/mrbee-avr.c $(MRBUS_LIB)/mrbus-crc.c $(MRBUS_LIB)/mrbus-queue.c
+SRCS = $(BASE_NAME).c lcd.c cst-common.c cst-lcd.c cst-math.c cst-hardware.c cst-functions.c cst-engine.c cst-pressure.c cst-tonnage.c cst-time.c cst-battery.c $(MRBUS_LIB)/mrbee-avr.c $(MRBUS_LIB)/mrbus-crc.c $(MRBUS_LIB)/mrbus-queue.c
 INCS = $(MRBUS_LIB)/mrbee.h $(MRBUS_LIB)/mrbee-avr.h lcd.h cst-hardware.h
 
 AVRDUDE = avrdude -P $(PROGRAMMER_PORT) -c $(PROGRAMMER_TYPE) -p $(DEVICE) -B1
