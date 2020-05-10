@@ -1917,6 +1917,14 @@ int main(void)
 									newLocoAddress = ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) | LOCO_ADDRESS_SHORT;
 								else
 									newLocoAddress = (decimalNumber[0] * 1000) + (decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3];
+
+								EngineState tmpEngineState = engineState;
+								// Get new engine state before potentially bumping it off the queue when we save the old one
+								engineState = engineStatesQueueGetState(newLocoAddress);
+								if(ENGINE_NOT_INITIALIZED == engineState)
+									engineState = tmpEngineState;  // Restore old state if new locomotive not found
+								engineStatesQueueUpdate(locoAddress, tmpEngineState);  // Save current engine state
+
 								eeprom_write_word((uint16_t*)EE_LOCO_ADDRESS, newLocoAddress);
 								readConfig();
 								newLocoAddress = locoAddress;
