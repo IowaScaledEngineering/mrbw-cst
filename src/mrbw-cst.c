@@ -1605,7 +1605,7 @@ int main(void)
 						{
 							case DOWN_BUTTON:
 								if(DOWN_BUTTON != previousButton)
-									processPressure(0);  // Start pumping
+									processPressure(min(brakePcnt,100));  // Start pumping
 								break;
 							case UP_BUTTON:
 							case SELECT_BUTTON:

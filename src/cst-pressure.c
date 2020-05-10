@@ -47,6 +47,7 @@ typedef enum
 {
 	IDLE,
 	BRAKE_TEST,
+	PUMPING_WAIT,
 	PUMPING,
 	DONE
 } PumpState;
@@ -278,7 +279,16 @@ void processPressure(uint8_t brakePcnt)
 	switch(pumpState)
 	{
 		case IDLE:
-			pumpState = PUMPING;
+			if(brakePcnt > 10)
+				pumpState = PUMPING_WAIT;  // Wait for brake to be released
+			else
+				pumpState = PUMPING;
+			break;
+		case PUMPING_WAIT:
+			if(brakePcnt < 10)
+			{
+				pumpState = PUMPING;
+			}
 			break;
 		case PUMPING:
 			if(milliPressure >= maxMilliPressure)
