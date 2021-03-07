@@ -316,9 +316,7 @@ void processPressure(uint8_t brakePcnt)
 			}
 			if(brakePcnt > 10)
 			{
-				if(brakePcnt > 60)
-					brakePcnt = 60;  // Cap at 60% for full service
-				milliPressureNew = maxMilliPressure - (((brakePcnt-10) * FULL_SERVICE * 1000) / 50);  // Map 10% to 60% range to full service amount
+				milliPressureNew = maxMilliPressure - (((brakePcnt-10) * (uint32_t)FULL_SERVICE * 1000) / 50);  // Map 10% to 60% range to full service amount
 
 				if(milliPressureNew < milliPressureTemp)
 				{
