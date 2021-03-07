@@ -3608,7 +3608,16 @@ int main(void)
 		functionMask = 0;
 		estopStatus &= ~ESTOP_BUTTON;
 		if(controls & HORN_CONTROL)
-			functionMask |= getFunctionMask(HORN_FN);
+		{
+			if(FORCE_FUNC_SCREEN == screenState)
+			{
+				functionMask |= (uint32_t)1 << (functionNumber);
+			}
+			else
+			{
+				functionMask |= getFunctionMask(HORN_FN);
+			}
+		}
 		if(controls & BELL_CONTROL)
 			functionMask |= getFunctionMask(BELL_FN);
 		if(controls & AUX_CONTROL)
@@ -3638,7 +3647,6 @@ int main(void)
 				estopStatus |= ESTOP_BUTTON;
 		}
 
-#define COMPRESSOR_TM
 		if(isCompressorRunning())
 		{
 #ifdef COMPRESSOR_TM
@@ -3667,8 +3675,8 @@ int main(void)
 #ifdef COMPRESSOR_TM
 			lcd_gotoxy(4,1);
 			lcd_putc(' ');
-		}
 #endif
+		}
 
 		if(controls & THR_UNLK_CONTROL)
 			functionMask |= getFunctionMask(THR_UNLOCK_FN);
