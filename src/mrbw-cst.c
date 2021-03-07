@@ -127,9 +127,8 @@ uint8_t configBits = CONFIGBITS_DEFAULT;
 #define OPTIONBITS_REVERSER_SWAP     1
 #define OPTIONBITS_VARIABLE_BRAKE    2
 #define OPTIONBITS_STEPPED_BRAKE     3
-#define OPTIONBITS_COMPRESSOR_STOP   4
 
-#define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE) | _BV(OPTIONBITS_COMPRESSOR_STOP))
+#define OPTIONBITS_DEFAULT                 (_BV(OPTIONBITS_ESTOP_ON_BRAKE))
 uint8_t optionBits = OPTIONBITS_DEFAULT;
 
 // Boolean system bits (volatile, global)
@@ -2278,12 +2277,6 @@ int main(void)
 						bitPosition = OPTIONBITS_REVERSER_SWAP;
 						optionsPtr = &optionBits;
 					}
-					else if(6 == subscreenState)
-					{
-						lcd_puts("COMP STP");
-						bitPosition = OPTIONBITS_COMPRESSOR_STOP;
-						optionsPtr = &optionBits;
-					}
 					else
 					{
 						bitPosition = 8;
@@ -3645,18 +3638,37 @@ int main(void)
 				estopStatus |= ESTOP_BUTTON;
 		}
 
-		if(isCompressorRunning(optionBits & _BV(OPTIONBITS_COMPRESSOR_STOP)))
+#define COMPRESSOR_TM
+		if(isCompressorRunning())
 		{
-//			lcd_gotoxy(4,0);
-//			lcd_putc('C');
+#ifdef COMPRESSOR_TM
+			lcd_gotoxy(4,0);
+			lcd_putc('C');
+#endif
 			functionMask |= getFunctionMask(COMPRESSOR_FN);
 		}
+#ifdef COMPRESSOR_TM
+		else
+		{
+			lcd_gotoxy(4,0);
+			lcd_putc(' ');
+		}
+#endif
 		if(isBrakeTestActive())
 		{
-//			lcd_gotoxy(4,1);
-//			lcd_putc('B');
+#ifdef COMPRESSOR_TM
+			lcd_gotoxy(4,1);
+			lcd_putc('B');
+#endif
 			functionMask |= getFunctionMask(BRAKE_TEST_FN);
 		}
+		else
+		{
+#ifdef COMPRESSOR_TM
+			lcd_gotoxy(4,1);
+			lcd_putc(' ');
+		}
+#endif
 
 		if(controls & THR_UNLK_CONTROL)
 			functionMask |= getFunctionMask(THR_UNLOCK_FN);

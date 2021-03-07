@@ -24,6 +24,7 @@ LICENSE:
 
 #include <util/delay.h>
 #include <avr/wdt.h>
+#include <util/atomic.h>
 
 #include "lcd.h"
 #include "cst-common.h"
@@ -37,7 +38,7 @@ LICENSE:
 
 #define MAX_PRESSURE         90
 #define RESET_PRESSURE       65
-#define BRAKE_TEST_DELTA     30
+#define FULL_SERVICE         26
 
 // East = 0deg, South = 90deg, West = 180deg, North = 270deg
 #define MIN_ANGLE        112
@@ -46,7 +47,7 @@ LICENSE:
 typedef enum
 {
 	IDLE,
-	BRAKE_TEST,
+//	BRAKE_TEST,
 	PUMPING_WAIT,
 	PUMPING,
 	DONE
@@ -60,11 +61,10 @@ static uint8_t canvas[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][
 
 static uint8_t pressureConfig = 0;
 
-static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
+volatile static uint32_t milliPressure = (uint32_t)RESET_PRESSURE * 1000;
 static uint32_t maxMilliPressure = (uint32_t)MAX_PRESSURE * 1000;
-static uint32_t milliPressureReservoir = (uint32_t)MAX_PRESSURE * 1000;
 
-static volatile uint8_t compressorStopTimer = 0;
+static volatile uint8_t brakePipeReductionTimer = 0;
 
 const uint8_t Gauge[CANVAS_ROWS / ROWS_PER_CHAR][CANVAS_COLS / COLS_PER_CHAR][ROWS_PER_CHAR] = 
 {
@@ -159,8 +159,8 @@ void updatePressure10Hz(void)
 	if(PUMPING == pumpState)
 		milliPressure += ((maxMilliPressure - milliPressure) / ((uint16_t)16 << getPumpRate())) + 10;  // + to keep it going when the first part reaches zero
 	
-	if(compressorStopTimer)
-		compressorStopTimer--;
+	if(brakePipeReductionTimer)
+		brakePipeReductionTimer--;
 }
 
 void plot(uint8_t x, uint8_t y)
@@ -276,6 +276,10 @@ void setupPressureChars(void)
 
 void processPressure(uint8_t brakePcnt)
 {
+	uint32_t milliPressureTemp;
+	uint32_t milliPressureNew;
+	static uint32_t milliPressureOld;
+	
 	switch(pumpState)
 	{
 		case IDLE:
@@ -291,31 +295,51 @@ void processPressure(uint8_t brakePcnt)
 			}
 			break;
 		case PUMPING:
-			if(milliPressure >= maxMilliPressure)
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 			{
-				milliPressure = maxMilliPressure;
+				milliPressureTemp = milliPressure;
+			}
+
+			if(milliPressureTemp >= maxMilliPressure)
+			{
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+				{
+					milliPressure = maxMilliPressure;
+				}
 				pumpState = DONE;
 			}
-			// Fall through to process brakePcnt in both cases
+			// Fall through in order to process brakePcnt in both cases
 		case DONE:
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				milliPressureTemp = milliPressure;
+			}
 			if(brakePcnt > 10)
 			{
-				milliPressureReservoir = milliPressure;  // Save current pressure
-				pumpState = BRAKE_TEST;
-				compressorStopTimer = 10;  // 1 second
-			}
-			break;
-		case BRAKE_TEST:
-			if(brakePcnt < 10)
-			{
-				pumpState = PUMPING;
+				if(brakePcnt > 60)
+					brakePcnt = 60;  // Cap at 60% for full service
+				milliPressureNew = maxMilliPressure - (((brakePcnt-10) * FULL_SERVICE * 1000) / 50);  // Map 10% to 60% range to full service amount
+
+				if(milliPressureNew < milliPressureTemp)
+				{
+					// Brake pipe reduction
+					ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+					{
+						milliPressure = milliPressureNew;
+					}
+
+					if(milliPressureNew < (milliPressureOld - 2000))
+					{
+						// 2+ PSI reduction
+						brakePipeReductionTimer = 10;  // pulse brake test functon
+						milliPressureOld = milliPressureNew;
+						pumpState = PUMPING;
+					}
+				}
 			}
 			else
 			{
-				uint32_t milliPressureDelta = ((uint32_t)BRAKE_TEST_DELTA * 1000) * brakePcnt / 100;
-				if(milliPressureDelta > milliPressureReservoir)
-					milliPressure = 0;
-				milliPressure = min(milliPressure,  milliPressureReservoir - milliPressureDelta);
+				milliPressureOld = milliPressureTemp;
 			}
 			break;
 	}
@@ -356,21 +380,9 @@ void resetPressure(void)
 	brakeTest = 0;
 }
 
-uint8_t isCompressorRunning(uint8_t compressorStop)
+uint8_t isCompressorRunning(void)
 {
-	// Compressor active when:
-	//    Pumping
-	//    Compressor Stop OFF:
-	//       Brake Test
-	//       Done
-	//    Compressor Stop ON:
-	//       Brake Test and timer done
-
-	return( (PUMPING == pumpState) || 
-	         (!compressorStop && (BRAKE_TEST == pumpState)) ||
-	         (!compressorStop && (DONE == pumpState)) ||
-	         (compressorStop && !compressorStopTimer && (BRAKE_TEST == pumpState))
-	       );
+	return(PUMPING == pumpState);
 }
 
 uint8_t isPressureIdle(void)
@@ -380,7 +392,7 @@ uint8_t isPressureIdle(void)
 
 uint8_t isBrakeTestActive(void)
 {
-	return(BRAKE_TEST == pumpState);
+	return(brakePipeReductionTimer > 0);
 }
 
 uint8_t setPumpRate(uint8_t pumpRate)

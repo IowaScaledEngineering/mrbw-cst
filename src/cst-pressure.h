@@ -9,7 +9,7 @@ void setupPressureChars(void);
 void processPressure(uint8_t brakePcnt);
 void printPressure(void);
 void resetPressure(void);
-uint8_t isCompressorRunning(uint8_t compressorStop);
+uint8_t isCompressorRunning(void);
 uint8_t isPressureIdle(void);
 uint8_t isBrakeTestActive(void);
 uint8_t setPumpRate(uint8_t pumpRate);
