@@ -25,8 +25,6 @@ LICENSE:
 
 #include "cst-engine.h"
 
-#define ENGINE_STATE_QUEUE_SIZE   8
-
 typedef struct
 {
 	uint16_t addr;
