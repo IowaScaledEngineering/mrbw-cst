@@ -363,7 +363,7 @@ void PktHandler(void)
 	{
 		// EEPROM Extended WRITE Packet
 		// [dest][src][len][crcL][crcH]['P'] [addrL][addrH] [data0] ... [dataN]
-		// Write up to 8 bytes to EEPROM starting at {addrH,addtL}
+		// Write up to 12 bytes to EEPROM starting at {addrH,addtL}
 		// Number of bytes actually written determined by len
 		// Background write - values not automatically reloaded
 		uint8_t pktPtr;
