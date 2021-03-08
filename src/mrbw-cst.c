@@ -363,9 +363,10 @@ void PktHandler(void)
 	{
 		// EEPROM Extended WRITE Packet
 		// [dest][src][len][crcL][crcH]['P'] [addrL][addrH] [data0] ... [dataN]
-		// Write up to 12 bytes to EEPROM starting at {addrH,addtL}
+		//  - Silent, no response packet
+		// Write up to 12 bytes to EEPROM starting at {addrH,addrL}
 		// Number of bytes actually written determined by len
-		// Background write - values not automatically reloaded
+		// Background write, values are not automatically reloaded
 		uint8_t pktPtr;
 		uint16_t eepAddr = ((uint16_t)rxBuffer[7] * 256) + rxBuffer[6];
 		for(pktPtr = 0; pktPtr < (rxBuffer[2] - 8); pktPtr++)
@@ -378,7 +379,7 @@ void PktHandler(void)
 	{
 		// EEPROM Extended READ Packet
 		// [dest][src][len][crcL][crcH]['Q'] [addrL][addrH] [bytes]
-		// [dest][src][len][crcL][crcH]['1'] [addrL][addrH] [rdData0] ... [rdDataN]
+		// [dest][src][len][crcL][crcH]['q'] [addrL][addrH] [rdData0] ... [rdDataN]
 		uint8_t pktPtr;
 		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
 		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
