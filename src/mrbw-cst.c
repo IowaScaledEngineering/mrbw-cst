@@ -1907,44 +1907,62 @@ int main(void)
 						case UP_BUTTON:
 							if((UP_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
-								if( (0 == decimalNumberIndex) && (decimalNumber[decimalNumberIndex] > 9) )
-									decimalNumber[decimalNumberIndex] = 0;  // Short to Long
+								if(0 == decimalNumberIndex)
+								{
+									// First digit
+									if(decimalNumber[decimalNumberIndex] > 9)
+										decimalNumber[decimalNumberIndex] = 0;       // short to long
+									else if(9 == decimalNumber[decimalNumberIndex])
+									{
+										// Check if valid short address
+										if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) < 128)
+										{
+											decimalNumber[decimalNumberIndex] = 's' - '0';   // Change to short
+										}
+										else
+										{
+											decimalNumber[decimalNumberIndex] = 0;
+										}
+									}
+									else
+										decimalNumber[decimalNumberIndex]++;
+								}
 								else if(decimalNumber[decimalNumberIndex] < 9)
 									decimalNumber[decimalNumberIndex]++;
+								else
+									decimalNumber[decimalNumberIndex] = 0;
 								
-								// Validate number
-								if(decimalNumber[0] > 9)
-								{
-									// Short Address
-									if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) > 127)
-									{
-										decimalNumber[1] = 1;
-										decimalNumber[2] = 2;
-										decimalNumber[3] = 7;
-									}
-								}
 								ticks_autoincrement = 0;
 							}
 							break;
 						case DOWN_BUTTON:
 							if((DOWN_BUTTON != previousButton) || (ticks_autoincrement >= button_autoincrement_10ms_ticks))
 							{
-								if( (0 == decimalNumberIndex) && (0 == decimalNumber[decimalNumberIndex]) )
-									decimalNumber[decimalNumberIndex] = 's' - '0';  // Long to Short
-								else if( (decimalNumber[decimalNumberIndex] > 0) && (decimalNumber[decimalNumberIndex] <= 9))
-									decimalNumber[decimalNumberIndex]--;
-
-								// Validate number
-								if(decimalNumber[0] > 9)
+								if(0 == decimalNumberIndex)
 								{
-									// Short Address
-									if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) > 127)
+									// First digit
+									if(decimalNumber[decimalNumberIndex] > 9)
+										decimalNumber[decimalNumberIndex] = 9;       // short to long
+									else if(0 == decimalNumber[decimalNumberIndex])
 									{
-										decimalNumber[1] = 1;
-										decimalNumber[2] = 2;
-										decimalNumber[3] = 7;
+										// Check if valid short address
+										if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) < 128)
+										{
+											decimalNumber[decimalNumberIndex] = 's' - '0';   // Change to short
+										}
+										else
+										{
+											decimalNumber[decimalNumberIndex] = 9;
+										}
 									}
+									else
+										decimalNumber[decimalNumberIndex]--;
 								}
+								else if(decimalNumber[decimalNumberIndex] > 0)
+									decimalNumber[decimalNumberIndex]--;
+								else
+									decimalNumber[decimalNumberIndex] = 9;
+
 								ticks_autoincrement = 0;
 							}
 							break;
