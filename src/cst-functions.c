@@ -149,7 +149,7 @@ void incrementCurrentFunctionValue(void)
 			}
 			break;
 		case FN_BRKTEST:
-			// Do nothing
+			functions[currentFunction].fn = FN_OFF;
 			break;
 		case F28_MOM:
 			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
@@ -162,11 +162,18 @@ void incrementCurrentFunctionValue(void)
 			}
 			else
 			{
-				// Do nothing
+				functions[currentFunction].fn = FN_OFF;
 			}
 			break;
 		case F28_LAT:
-			functions[currentFunction].fn = FN_EMRG;
+			if(functions[currentFunction].attributes & SPECIAL_FUNC)
+			{
+				functions[currentFunction].fn = FN_EMRG;
+			}
+			else
+			{
+				functions[currentFunction].fn = FN_OFF;
+			}
 			break;
 		case F00_MOM: case F10_MOM: case F20_MOM:
 		case F01_MOM: case F11_MOM: case F21_MOM:
@@ -203,7 +210,18 @@ void decrementCurrentFunctionValue(void)
 	switch(functions[currentFunction].fn)
 	{
 		case FN_OFF:
-			// Do nothing
+			if(functions[currentFunction].attributes & SPECIAL_FUNC)
+			{
+				functions[currentFunction].fn = FN_BRKTEST;
+			}
+			else if(functions[currentFunction].attributes & SOFTWARE_LATCH)
+			{
+				functions[currentFunction].fn = F28_LAT;
+			}
+			else
+			{
+				functions[currentFunction].fn = F28_MOM;
+			}
 			break;
 		case FN_EMRG:
 			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
