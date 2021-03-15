@@ -189,6 +189,7 @@ uint8_t estopStatus = 0;
 
 #define ESTOP_BRAKE    0x01
 #define ESTOP_BUTTON   0x02
+#define ESTOP_ALERTER  0x04
 
 uint16_t sleep_tmr_reset_value;
 uint16_t alerter_tmr_reset_value;
@@ -3787,6 +3788,7 @@ int main(void)
 			alerterTimeout_decisecs_tmp = alerterTimeout_decisecs;
 		}
 		throttleStatus &= ~THROTTLE_STATUS_ALERTER;  // Clear here, (re)set below.
+		estopStatus &= ~ESTOP_ALERTER;
 		if(IS_ALERTER_ENABLED)
 		{
 			if(alerterTimeout_decisecs_tmp < 100)
@@ -3801,6 +3803,8 @@ int main(void)
 				activeThrottleSetting = 0;
 				lastActiveThrottleSetting = 0;
 				functionMask |= getFunctionMask(BRAKE_FN);
+				if(isFunctionEstop(ALERTER_FN))
+					estopStatus |= ESTOP_ALERTER;
 				lastFunctionMask |= getFunctionMask(BRAKE_FN);  // Fake lastFunctionMask so this doesn't trigger inputsChanged below and reset alerter timer
 			}
 		}
