@@ -135,21 +135,26 @@ void resetCurrentFunction(void)
 	currentFunction = 0;
 }
 
+
+/*
+
+                                  +-------------------------------------->
+                                  |-------------------------->
+   FN_OFF ---> F00_MOM ... F28_MOM --> F00_LAT ... F28_LAT --> FN_EMRG --> FN_BRKTEST
+   ^  ^ <-------------------------+                       |-------------->      |
+   |  |---------------------------------------------------+           |         |
+   |  +---------------------------------------------------------------+         |
+   +----------------------------------------------------------------------------+
+
+*/
+
+
 void incrementCurrentFunctionValue(void)
 {
 	switch(functions[currentFunction].fn)
 	{
 		case FN_OFF:
 			functions[currentFunction].fn = F00_MOM;
-			break;
-		case FN_EMRG:
-			if(functions[currentFunction].attributes & MENU_FUNC)
-			{
-				functions[currentFunction].fn = FN_BRKTEST;
-			}
-			break;
-		case FN_BRKTEST:
-			functions[currentFunction].fn = FN_OFF;
 			break;
 		case F28_MOM:
 			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
@@ -159,6 +164,10 @@ void incrementCurrentFunctionValue(void)
 			else if(functions[currentFunction].attributes & SPECIAL_FUNC)
 			{
 				functions[currentFunction].fn = FN_EMRG;
+			}
+			else if(functions[currentFunction].attributes & MENU_FUNC)
+			{
+				functions[currentFunction].fn = FN_BRKTEST;
 			}
 			else
 			{
@@ -170,10 +179,27 @@ void incrementCurrentFunctionValue(void)
 			{
 				functions[currentFunction].fn = FN_EMRG;
 			}
+			else if(functions[currentFunction].attributes & MENU_FUNC)
+			{
+				functions[currentFunction].fn = FN_BRKTEST;
+			}
 			else
 			{
 				functions[currentFunction].fn = FN_OFF;
 			}
+			break;
+		case FN_EMRG:
+			if(functions[currentFunction].attributes & MENU_FUNC)
+			{
+				functions[currentFunction].fn = FN_BRKTEST;
+			}
+			else
+			{
+				functions[currentFunction].fn = FN_OFF;
+			}
+			break;
+		case FN_BRKTEST:
+			functions[currentFunction].fn = FN_OFF;
 			break;
 		case F00_MOM: case F10_MOM: case F20_MOM:
 		case F01_MOM: case F11_MOM: case F21_MOM:
@@ -205,23 +231,22 @@ void incrementCurrentFunctionValue(void)
 	}
 }
 
+
+/*
+
+   FN_OFF <--- F00_MOM ... F28_MOM <--- F00_LAT ... F28_LAT <--- FN_EMRG <--- FN_BRKTEST
+
+*/
+
 void decrementCurrentFunctionValue(void)
 {
 	switch(functions[currentFunction].fn)
 	{
-		case FN_OFF:
-			if(functions[currentFunction].attributes & SPECIAL_FUNC)
-			{
-				functions[currentFunction].fn = FN_BRKTEST;
-			}
-			else if(functions[currentFunction].attributes & SOFTWARE_LATCH)
-			{
-				functions[currentFunction].fn = F28_LAT;
-			}
-			else
-			{
-				functions[currentFunction].fn = F28_MOM;
-			}
+		case F00_MOM:
+			functions[currentFunction].fn = FN_OFF;
+			break;
+		case F00_LAT:
+			functions[currentFunction].fn = F28_MOM;
 			break;
 		case FN_EMRG:
 			if(functions[currentFunction].attributes & SOFTWARE_LATCH)
@@ -234,13 +259,36 @@ void decrementCurrentFunctionValue(void)
 			}
 			break;
 		case FN_BRKTEST:
-			functions[currentFunction].fn = FN_EMRG;
+			if(functions[currentFunction].attributes & SPECIAL_FUNC)
+			{
+				functions[currentFunction].fn = FN_EMRG;
+			}
+			else if(functions[currentFunction].attributes & SOFTWARE_LATCH)
+			{
+				functions[currentFunction].fn = F28_LAT;
+			}
+			else
+			{
+				functions[currentFunction].fn = F28_MOM;
+			}
 			break;
-		case F00_LAT:
-			functions[currentFunction].fn = F28_MOM;
-			break;
-		case F00_MOM:
-			functions[currentFunction].fn = FN_OFF;
+		case FN_OFF:
+			if(functions[currentFunction].attributes & MENU_FUNC)
+			{
+				functions[currentFunction].fn = FN_BRKTEST;
+			}
+			else if(functions[currentFunction].attributes & SPECIAL_FUNC)
+			{
+				functions[currentFunction].fn = FN_EMRG;
+			}
+			else if(functions[currentFunction].attributes & SOFTWARE_LATCH)
+			{
+				functions[currentFunction].fn = F28_LAT;
+			}
+			else
+			{
+				functions[currentFunction].fn = F28_MOM;
+			}
 			break;
 		/*case F00_MOM:*/ case F10_MOM: case F20_MOM:
 		case F01_MOM: case F11_MOM: case F21_MOM:
