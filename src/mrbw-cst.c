@@ -378,26 +378,6 @@ void PktHandler(void)
 	}
 	else if ('Q' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
-		// EEPROM Extended READ Packet
-		// [dest][src][len][crcL][crcH]['Q'] [addrL][addrH] [bytes]
-		// [dest][src][len][crcL][crcH]['q'] [addrL][addrH] [rdData0] ... [rdDataN]
-		uint8_t pktPtr;
-		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
-		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
-		uint8_t bytesToRead = rxBuffer[8];
-		if(bytesToRead > (MRBUS_BUFFER_SIZE - 8))
-			bytesToRead = MRBUS_BUFFER_SIZE - 8;
-		txBuffer[MRBUS_PKT_LEN] = 8 + bytesToRead;
-		txBuffer[MRBUS_PKT_TYPE] = 'q';
-		txBuffer[6] = rxBuffer[6];  // Reflect starting addr
-		txBuffer[7] = rxBuffer[7];
-		uint16_t eepAddr = ((uint16_t)rxBuffer[7] * 256) + rxBuffer[6];
-		for(pktPtr = 0; pktPtr < bytesToRead; pktPtr++)
-		{
-			txBuffer[8+pktPtr] = eeprom_read_byte((uint8_t*)(eepAddr + pktPtr));
-		}
-		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-		goto PktIgnore;
 	}
 	else if ('W' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
@@ -416,15 +396,41 @@ void PktHandler(void)
 	}
 	else if ('R' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
-		// EEPROM READ Packet
 		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
 		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
-		txBuffer[MRBUS_PKT_LEN] = 8;			
-		txBuffer[MRBUS_PKT_TYPE] = 'r';
-		txBuffer[6] = rxBuffer[6];
-		txBuffer[7] = eeprom_read_byte((uint8_t*)(uint16_t)rxBuffer[6]);			
-		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-		goto PktIgnore;
+		if(7 == rxBuffer[MRBUS_PKT_LEN])
+		{
+			// EEPROM READ Packet
+			// [dest][src][len][crcL][crcH]['R'] [addrL]
+			// [dest][src][len][crcL][crcH]['r'] [addrL][rdData0]
+			txBuffer[MRBUS_PKT_LEN] = 8;			
+			txBuffer[MRBUS_PKT_TYPE] = 'r';
+			txBuffer[6] = rxBuffer[6];
+			txBuffer[7] = eeprom_read_byte((uint8_t*)(uint16_t)rxBuffer[6]);			
+			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+			goto PktIgnore;
+		}
+		else
+		{
+			// EEPROM Extended READ Packet
+			// [dest][src][len][crcL][crcH]['Q'] [addrL][addrH] [bytes]
+			// [dest][src][len][crcL][crcH]['q'] [addrL][addrH] [rdData0] ... [rdDataN]
+			uint8_t pktPtr;
+			uint8_t bytesToRead = rxBuffer[8];
+			if(bytesToRead > (MRBUS_BUFFER_SIZE - 8))
+				bytesToRead = MRBUS_BUFFER_SIZE - 8;
+			txBuffer[MRBUS_PKT_LEN] = 8 + bytesToRead;
+			txBuffer[MRBUS_PKT_TYPE] = 'q';
+			txBuffer[6] = rxBuffer[6];  // Reflect starting addr
+			txBuffer[7] = rxBuffer[7];
+			uint16_t eepAddr = ((uint16_t)rxBuffer[7] * 256) + rxBuffer[6];
+			for(pktPtr = 0; pktPtr < bytesToRead; pktPtr++)
+			{
+				txBuffer[8+pktPtr] = eeprom_read_byte((uint8_t*)(eepAddr + pktPtr));
+			}
+			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+			goto PktIgnore;
+		}
 	}
 	else if ('V' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
