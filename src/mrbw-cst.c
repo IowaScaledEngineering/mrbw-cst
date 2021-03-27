@@ -376,9 +376,6 @@ void PktHandler(void)
 		}
 		goto PktIgnore;	
 	}
-	else if ('Q' == rxBuffer[MRBUS_PKT_TYPE]) 
-	{
-	}
 	else if ('W' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
 		// EEPROM WRITE Packet
