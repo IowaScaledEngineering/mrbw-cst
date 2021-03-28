@@ -360,74 +360,55 @@ void PktHandler(void)
 		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 		goto PktIgnore;
 	} 
-	else if ('P' == rxBuffer[MRBUS_PKT_TYPE]) 
+	else if ('W' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
 		// EEPROM Extended WRITE Packet
-		// [dest][src][len][crcL][crcH]['P'] [addrL][addrH] [data0] ... [dataN]
-		//  - Silent, no response packet
+		// [dest][src][len][crcL][crcH]['W'] [addrL][addrH] [data0] ... [dataN]
+		// [dest][src][len][crcL][crcH]['w'] [addrL][addrH] [data0] ... [dataN]
 		// Write up to 12 bytes to EEPROM starting at {addrH,addrL}
 		// Number of bytes actually written determined by len
 		// Background write, values are not automatically reloaded
 		uint8_t pktPtr;
 		uint16_t eepAddr = ((uint16_t)rxBuffer[7] * 256) + rxBuffer[6];
+		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
+		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
+		txBuffer[MRBUS_PKT_LEN] = rxBuffer[MRBUS_PKT_LEN];
+		txBuffer[MRBUS_PKT_TYPE] = 'w';
 		for(pktPtr = 0; pktPtr < (rxBuffer[2] - 8); pktPtr++)
 		{
 			eeprom_write_byte((uint8_t*)(eepAddr + pktPtr), rxBuffer[8+pktPtr]);
 		}
-		goto PktIgnore;	
-	}
-	else if ('W' == rxBuffer[MRBUS_PKT_TYPE]) 
-	{
-		// EEPROM WRITE Packet
-		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
-		txBuffer[MRBUS_PKT_LEN] = 8;			
-		txBuffer[MRBUS_PKT_TYPE] = 'w';
-		eeprom_write_byte((uint8_t*)(uint16_t)rxBuffer[6], rxBuffer[7]);
-		txBuffer[6] = rxBuffer[6];
+		txBuffer[6] = rxBuffer[6];  // Reflect starting addr
 		txBuffer[7] = rxBuffer[7];
-		if (MRBUS_EE_DEVICE_ADDR == rxBuffer[6])
-			mrbus_dev_addr = eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR);
-		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
+		for(pktPtr = 0; pktPtr < (rxBuffer[2] - 8); pktPtr++)
+		{
+			txBuffer[8+pktPtr] = eeprom_read_byte((uint8_t*)(eepAddr + pktPtr));
+		}
 		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
 		goto PktIgnore;	
 	}
 	else if ('R' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
+		// EEPROM Extended READ Packet
+		// [dest][src][len][crcL][crcH]['R'] [addrL][addrH] [bytes]
+		// [dest][src][len][crcL][crcH]['r'] [addrL][addrH] [rdData0] ... [rdDataN]
+		uint8_t pktPtr;
+		uint8_t bytesToRead = rxBuffer[8];
 		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
 		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
-		if(7 == rxBuffer[MRBUS_PKT_LEN])
+		if(bytesToRead > (MRBUS_BUFFER_SIZE - 8))
+			bytesToRead = MRBUS_BUFFER_SIZE - 8;
+		txBuffer[MRBUS_PKT_LEN] = 8 + bytesToRead;
+		txBuffer[MRBUS_PKT_TYPE] = 'r';
+		txBuffer[6] = rxBuffer[6];  // Reflect starting addr
+		txBuffer[7] = rxBuffer[7];
+		uint16_t eepAddr = ((uint16_t)rxBuffer[7] * 256) + rxBuffer[6];
+		for(pktPtr = 0; pktPtr < bytesToRead; pktPtr++)
 		{
-			// EEPROM READ Packet
-			// [dest][src][len][crcL][crcH]['R'] [addrL]
-			// [dest][src][len][crcL][crcH]['r'] [addrL][rdData0]
-			txBuffer[MRBUS_PKT_LEN] = 8;			
-			txBuffer[MRBUS_PKT_TYPE] = 'r';
-			txBuffer[6] = rxBuffer[6];
-			txBuffer[7] = eeprom_read_byte((uint8_t*)(uint16_t)rxBuffer[6]);			
-			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-			goto PktIgnore;
+			txBuffer[8+pktPtr] = eeprom_read_byte((uint8_t*)(eepAddr + pktPtr));
 		}
-		else
-		{
-			// EEPROM Extended READ Packet
-			// [dest][src][len][crcL][crcH]['Q'] [addrL][addrH] [bytes]
-			// [dest][src][len][crcL][crcH]['q'] [addrL][addrH] [rdData0] ... [rdDataN]
-			uint8_t pktPtr;
-			uint8_t bytesToRead = rxBuffer[8];
-			if(bytesToRead > (MRBUS_BUFFER_SIZE - 8))
-				bytesToRead = MRBUS_BUFFER_SIZE - 8;
-			txBuffer[MRBUS_PKT_LEN] = 8 + bytesToRead;
-			txBuffer[MRBUS_PKT_TYPE] = 'q';
-			txBuffer[6] = rxBuffer[6];  // Reflect starting addr
-			txBuffer[7] = rxBuffer[7];
-			uint16_t eepAddr = ((uint16_t)rxBuffer[7] * 256) + rxBuffer[6];
-			for(pktPtr = 0; pktPtr < bytesToRead; pktPtr++)
-			{
-				txBuffer[8+pktPtr] = eeprom_read_byte((uint8_t*)(eepAddr + pktPtr));
-			}
-			mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
-			goto PktIgnore;
-		}
+		mrbusPktQueuePush(&mrbeeTxQueue, txBuffer, txBuffer[MRBUS_PKT_LEN]);
+		goto PktIgnore;
 	}
 	else if ('V' == rxBuffer[MRBUS_PKT_TYPE]) 
 	{
