@@ -150,6 +150,8 @@ uint8_t mrbus_base_addr = 0;
 
 uint8_t lastRSSI = 0xFF;
 
+uint8_t enableEepromWrite = 0;
+
 uint16_t locoAddress = 0;
 
 #define BRAKE_DEAD_ZONE 5
@@ -374,9 +376,13 @@ void PktHandler(void)
 		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
 		txBuffer[MRBUS_PKT_LEN] = rxBuffer[MRBUS_PKT_LEN];
 		txBuffer[MRBUS_PKT_TYPE] = 'w';
-		for(pktPtr = 0; pktPtr < (rxBuffer[2] - 8); pktPtr++)
+
+		if(enableEepromWrite)
 		{
-			eeprom_write_byte((uint8_t*)(eepAddr + pktPtr), rxBuffer[8+pktPtr]);
+			for(pktPtr = 0; pktPtr < (rxBuffer[2] - 8); pktPtr++)
+			{
+				eeprom_write_byte((uint8_t*)(eepAddr + pktPtr), rxBuffer[8+pktPtr]);
+			}
 		}
 		txBuffer[6] = rxBuffer[6];  // Reflect starting addr
 		txBuffer[7] = rxBuffer[7];
@@ -983,6 +989,8 @@ int main(void)
 	uint8_t newSleepTimeout = sleep_tmr_reset_value / 600;
 	uint8_t newAlerterTimeout = alerter_tmr_reset_value / 150;
 	uint8_t newUpdate_seconds = update_decisecs / 10;
+
+	uint8_t dummyPref = 0;
 
 	uint8_t *prefsPtr = &newSleepTimeout;
 	uint8_t *optionsPtr = &optionBits;
@@ -2644,6 +2652,14 @@ int main(void)
 						lcd_gotoxy(7,1);
 						lcd_puts("s");
 					}
+					else if(6 == subscreenState)
+					{
+						lcd_puts("ACCEPT");
+						lcd_gotoxy(0,1);
+						lcd_puts("DOWNLOAD");
+						prefsPtr = &dummyPref;
+						enableEepromWrite = 1;
+					}
 					else
 					{
 						subscreenState = 1;
@@ -2722,6 +2738,7 @@ int main(void)
 								// Menu pressed, advance menu
 								subscreenState++;
 								lcd_clrscr();
+								enableEepromWrite = 0;
 							}
 							break;
 						case NO_BUTTON:
