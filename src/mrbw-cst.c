@@ -372,6 +372,13 @@ void PktHandler(void)
 		// Background write, values are not automatically reloaded
 		uint8_t pktPtr;
 		uint16_t eepAddr = ((uint16_t)rxBuffer[7] * 256) + rxBuffer[6];
+
+		// Reset the timeout if we're doing read/write stuff
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			sleepTimeout_decisecs = sleep_tmr_reset_value;
+		}
+
 		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
 		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
 		txBuffer[MRBUS_PKT_LEN] = rxBuffer[MRBUS_PKT_LEN];
@@ -400,6 +407,13 @@ void PktHandler(void)
 		// [dest][src][len][crcL][crcH]['r'] [addrL][addrH] [rdData0] ... [rdDataN]
 		uint8_t pktPtr;
 		uint8_t bytesToRead = rxBuffer[8];
+
+		// Reset the timeout if we're doing read/write stuff
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			sleepTimeout_decisecs = sleep_tmr_reset_value;
+		}
+
 		txBuffer[MRBUS_PKT_DEST] = rxBuffer[MRBUS_PKT_SRC];
 		txBuffer[MRBUS_PKT_SRC] = mrbus_dev_addr;
 		if(bytesToRead > (MRBUS_BUFFER_SIZE - 8))
