@@ -1895,27 +1895,56 @@ int main(void)
 								if(0 == decimalNumberIndex)
 								{
 									// First digit
-									if(decimalNumber[decimalNumberIndex] > 9)
-										decimalNumber[decimalNumberIndex] = 0;       // short to long
-									else if(9 == decimalNumber[decimalNumberIndex])
+									if(decimalNumber[0] > 9)
+										decimalNumber[0] = 0;       // short to long
+									else if(9 == decimalNumber[0])
 									{
 										// Check if valid short address
 										if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) < 128)
 										{
-											decimalNumber[decimalNumberIndex] = 's' - '0';   // Change to short
+											decimalNumber[0] = 's' - '0';   // Change to short
 										}
 										else
 										{
-											decimalNumber[decimalNumberIndex] = 0;
+											decimalNumber[0] = 0;
 										}
 									}
 									else
-										decimalNumber[decimalNumberIndex]++;
+										decimalNumber[0]++;
 								}
-								else if(decimalNumber[decimalNumberIndex] < 9)
-									decimalNumber[decimalNumberIndex]++;
+								else if(decimalNumber[0] > 9)
+								{
+									// Short address, so do special checking
+									switch(decimalNumberIndex)
+									{
+										case 1:
+											if( (((decimalNumber[1]+1) * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) < 128)
+												decimalNumber[1] = 1;
+											else
+												decimalNumber[1] = 0;
+											break;
+										case 2:
+											if( (((decimalNumber[1] * 100) + ((decimalNumber[2]+1) * 10) + decimalNumber[3]) < 128) && (decimalNumber[2] < 9) )
+												decimalNumber[2]++;
+											else
+												decimalNumber[2] = 0;
+											break;
+										case 3:
+											if( (((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3] + 1) < 128) && (decimalNumber[3] < 9) )
+												decimalNumber[3]++;
+											else
+												decimalNumber[3] = 0;
+											break;
+									}
+								}
 								else
-									decimalNumber[decimalNumberIndex] = 0;
+								{
+									// Long address
+									if(decimalNumber[decimalNumberIndex] < 9)
+										decimalNumber[decimalNumberIndex]++;
+									else
+										decimalNumber[decimalNumberIndex] = 0;
+								}
 								
 								ticks_autoincrement = 0;
 							}
@@ -1926,27 +1955,70 @@ int main(void)
 								if(0 == decimalNumberIndex)
 								{
 									// First digit
-									if(decimalNumber[decimalNumberIndex] > 9)
-										decimalNumber[decimalNumberIndex] = 9;       // short to long
-									else if(0 == decimalNumber[decimalNumberIndex])
+									if(decimalNumber[0] > 9)
+										decimalNumber[0] = 9;       // short to long
+									else if(0 == decimalNumber[0])
 									{
 										// Check if valid short address
 										if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) < 128)
 										{
-											decimalNumber[decimalNumberIndex] = 's' - '0';   // Change to short
+											decimalNumber[0] = 's' - '0';   // Change to short
 										}
 										else
 										{
-											decimalNumber[decimalNumberIndex] = 9;
+											decimalNumber[0] = 9;
 										}
 									}
 									else
-										decimalNumber[decimalNumberIndex]--;
+										decimalNumber[0]--;
 								}
-								else if(decimalNumber[decimalNumberIndex] > 0)
-									decimalNumber[decimalNumberIndex]--;
+								else if(decimalNumber[0] > 9)
+								{
+									// Short address, so do special checking
+									switch(decimalNumberIndex)
+									{
+										case 1:
+											if(decimalNumber[1] > 0)
+												decimalNumber[1]--;
+											else if( ((1 * 100) + (decimalNumber[2] * 10) + decimalNumber[3]) < 128)
+												decimalNumber[1] = 1;
+											else
+												decimalNumber[1] = 0;
+											break;
+										case 2:
+											if(decimalNumber[2] > 0)
+												decimalNumber[2]--;
+											else
+											{
+												if( ((decimalNumber[1] * 100) + (9 * 10) + decimalNumber[3]) < 128)
+													decimalNumber[2] = 9;
+												else if( ((decimalNumber[1] * 100) + (2 * 10) + decimalNumber[3]) < 128)
+													decimalNumber[2] = 2;
+												else
+													decimalNumber[2] = 1;
+											}
+											break;
+										case 3:
+											if(decimalNumber[3] > 0)
+												decimalNumber[3]--;
+											else
+											{
+												if( ((decimalNumber[1] * 100) + (decimalNumber[2] * 10) + 9) < 128)
+													decimalNumber[3] = 9;
+												else
+													decimalNumber[3] = 7;
+											}
+											break;
+									}
+								}
 								else
-									decimalNumber[decimalNumberIndex] = 9;
+								{
+									// Long address
+									if(decimalNumber[decimalNumberIndex] > 0)
+										decimalNumber[decimalNumberIndex]--;
+									else
+										decimalNumber[decimalNumberIndex] = 9;
+								}
 
 								ticks_autoincrement = 0;
 							}
