@@ -28,6 +28,7 @@ LICENSE:
 #include <avr/sleep.h>
 #include <util/delay.h>
 #include <util/atomic.h>
+#include <ctype.h>
 
 #include "mrbee.h"
 
@@ -285,11 +286,60 @@ uint8_t debounce(uint8_t debouncedState, uint8_t newInputs)
 }
 
 
+void parseVersionStr(uint8_t* major, uint8_t* minor, uint8_t* delta)
+{
+	char version_string[] = VERSION_STRING;
+	char *ptr = version_string;
+	uint8_t version = 0;
+	
+	*major = *minor = *delta = 0;
+	
+	while(('.' != *ptr) && ('\0' != *ptr))
+	{
+		version *= 10;
+		version += *ptr - '0';
+		ptr++;
+	}
+	*major = version;
+	version = 0;
+
+	if('.' == *ptr)
+	{
+		ptr++;
+	}
+
+	while(('.' != *ptr) && ('\0' != *ptr))
+	{
+		version *= 10;
+		version += *ptr - '0';
+		ptr++;
+	}
+
+	*minor = version;
+	version = 0;
+
+	if('.' == *ptr)
+	{
+		ptr++;
+	}
+
+	while(isdigit(*ptr))
+	{
+		version *= 10;
+		version += *ptr - '0';
+		ptr++;
+	}
+
+	*delta = version;
+
+}
+
+
 void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 {
 	buf[MRBUS_PKT_DEST] = destAddr;
 	buf[MRBUS_PKT_SRC] = mrbus_dev_addr;
-	buf[MRBUS_PKT_LEN] = 15;
+	buf[MRBUS_PKT_LEN] = 18;
 	buf[MRBUS_PKT_TYPE] = 'v';
 	buf[6]  = MRBUS_VERSION_WIRELESS;
 	// Software Revision
@@ -301,6 +351,7 @@ void createVersionPacket(uint8_t destAddr, uint8_t *buf)
 	buf[12] = 'C';
 	buf[13] = 'S';
 	buf[14] = 'T';
+	parseVersionStr(&buf[15], &buf[16], &buf[17]);
 }
 
 void PktHandler(void)
@@ -622,40 +673,15 @@ ISR(TIMER0_COMPA_vect)
 void readConfig(void)
 {
 	uint8_t i;
-	
-	// Parse version string
-	char version_string[] = VERSION_STRING;
-	char *ptr = version_string;
-	uint8_t version = 0;
-	while(('.' != *ptr) && ('\0' != *ptr))
-	{
-		version *= 10;
-		version += *ptr - '0';
-		ptr++;
-	}
-	uint8_t ee_version = eeprom_read_byte((uint8_t*)EE_VERSION_MAJOR);
-	if(ee_version != version)
-	{
-		eeprom_write_byte((uint8_t*)EE_VERSION_MAJOR, version);
-	}
+	uint8_t major = 0, minor = 0, delta = 0;
 
-	if('.' == *ptr)
-	{
-		ptr++;
-	}
+	parseVersionStr(&major, &minor, &delta);
 
-	version = 0;
-	while(('.' != *ptr) && ('\0' != *ptr))
-	{
-		version *= 10;
-		version += *ptr - '0';
-		ptr++;
-	}
-	ee_version = eeprom_read_byte((uint8_t*)EE_VERSION_MINOR);
-	if(ee_version != version)
-	{
-		eeprom_write_byte((uint8_t*)EE_VERSION_MINOR, version);
-	}
+	if(eeprom_read_byte((uint8_t*)EE_VERSION_MAJOR) != major)
+		eeprom_write_byte((uint8_t*)EE_VERSION_MAJOR, major);
+
+	if(eeprom_read_byte((uint8_t*)EE_VERSION_MINOR) != minor)
+		eeprom_write_byte((uint8_t*)EE_VERSION_MAJOR, minor);
 
 
 	update_decisecs = (uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L) | (((uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H)) << 8);
