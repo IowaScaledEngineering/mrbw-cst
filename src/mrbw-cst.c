@@ -681,7 +681,7 @@ void readConfig(void)
 		eeprom_write_byte((uint8_t*)EE_VERSION_MAJOR, major);
 
 	if(eeprom_read_byte((uint8_t*)EE_VERSION_MINOR) != minor)
-		eeprom_write_byte((uint8_t*)EE_VERSION_MAJOR, minor);
+		eeprom_write_byte((uint8_t*)EE_VERSION_MINOR, minor);
 
 
 	update_decisecs = (uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_L) | (((uint16_t)eeprom_read_byte((uint8_t*)MRBUS_EE_DEVICE_UPDATE_H)) << 8);
