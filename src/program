@@ -1,7 +1,7 @@
 #!/bin/bash
 
 espeak "Programming"
-make fuse firmware HEX=hex/mrbw-cst_v1.2.0_1bdebe.hex
+make fuse firmware HEX=hex/mrbw-cst_v1.2.2_4ec009.hex
 
 if [ $? -eq 0 ]
 then espeak "Complete"
