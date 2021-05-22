@@ -29,7 +29,7 @@ PROFILE_XB3 = xb3_2003_cst.xpro
 
 BAUD = 9600
 NEWBAUD = 115200
-PORT = /dev/ttyUSB0
+PORT = /dev/ttyUSB1
 
 help:
 	@echo "make profile ..... upload profile"
