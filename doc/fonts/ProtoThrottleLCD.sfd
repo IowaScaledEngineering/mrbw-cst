@@ -4,23 +4,24 @@ FullName: ProtoThrottleLCD
 FamilyName: ProtoThrottleLCD
 Weight: Medium
 Copyright: Created by Michael Petersen,,, with FontForge 2.0 (http://fontforge.sf.net)
-UComments: "2017-9-22: Created." 
+UComments: "2017-9-22: Created."
 Version: 001.000
 ItalicAngle: 0
 UnderlinePosition: -115.093
 UnderlineWidth: 18.7143
 Ascent: 1120
 Descent: 190
+InvalidEm: 0
 LayerCount: 2
-Layer: 0 0 "Back"  1
-Layer: 1 0 "Fore"  0
+Layer: 0 0 "Back" 1
+Layer: 1 0 "Fore" 0
 XUID: [1021 96 293617612 9210177]
 FSType: 0
 OS2Version: 0
 OS2_WeightWidthSlopeOnly: 0
 OS2_UseTypoMetrics: 1
 CreationTime: 1506095843
-ModificationTime: 1615612012
+ModificationTime: 1636581666
 PfmFamily: 17
 TTFWeight: 500
 TTFWidth: 5
@@ -42,7 +43,7 @@ HheadDOffset: 1
 OS2Vendor: 'PfEd'
 MarkAttachClasses: 1
 DEI: 91125
-LangName: 1033 
+LangName: 1033
 MATH:ScriptPercentScaleDown: 80
 MATH:ScriptScriptPercentScaleDown: 60
 MATH:DelimitedSubFormulaMinHeight: 1965
@@ -7674,10 +7675,33 @@ EndChar
 
 StartChar: uni009B
 Encoding: 155 155 82
-Width: 1310
-VWidth: 0
-Flags: HW
+Width: 801
+VWidth: 1834
+Flags: HWO
 LayerCount: 2
+Fore
+SplineSet
+209 351 m 1
+ 209 480 l 1
+ 338 480 l 1
+ 338 351 l 1
+ 209 351 l 1
+351 351 m 1
+ 351 480 l 1
+ 479 480 l 1
+ 479 351 l 1
+ 351 351 l 1
+209 493 m 1
+ 209 622 l 1
+ 338 622 l 1
+ 338 493 l 1
+ 209 493 l 1
+351 493 m 1
+ 351 622 l 1
+ 479 622 l 1
+ 479 493 l 1
+ 351 493 l 1
+EndSplineSet
 EndChar
 
 StartChar: a
