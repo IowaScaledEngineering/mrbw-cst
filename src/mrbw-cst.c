@@ -1,5 +1,5 @@
 /*************************************************************************
-Title:    Control Stand Throttle
+t934itle:    Control Stand Throttle
 Authors:  Michael D. Petersen <railfan@drgw.net>
           Nathan D. Holmes <maverick@drgw.net>
 File:     mrbw-cst.c
@@ -868,6 +868,19 @@ void copyConfig(uint8_t srcConfig, uint8_t destConfig)
 	eeprom_write_block((void *)configTemp, (void *)CONFIG_OFFSET(destConfig), CONFIG_SIZE);
 }
 
+
+#ifdef DEMO_8290
+const unsigned char customConfigData[40] PROGMEM =
+{
+	0x62, 0x20, 0x02, 0x01, 0x1C, 0x09, 0x08, 0x80,
+	0x03, 0x80, 0x00, 0x16, 0x06, 0x80, 0x05, 0x07, 
+	0x58, 0x57, 0x09, 0x80, 0xFF, 0xFF, 0x02, 0xF4,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+	0x06, 0x0E, 0x1A, 0x25, 0x2E, 0x38, 0x41, 0x46
+};
+#endif
+
+
 void resetConfig(void)
 {
 	uint8_t i;
@@ -925,9 +938,21 @@ void resetConfig(void)
 		printDec2Dig(MAX_CONFIGS-i+1);
 		copyConfig(WORKING_CONFIG, i);
 	}
-	
+
+#ifdef DEMO_8290
+	// Write working config first, then copy to all the others
 	wdt_reset();
-	
+
+	eeprom_write_byte((uint8_t*)MRBUS_EE_DEVICE_ADDR, MRBUS_DEV_ADDR_DEFAULT + ('S' - 'A'));
+	eeprom_write_byte((uint8_t*)EE_BASE_ADDR, MRBUS_BASE_ADDR_DEFAULT+28);
+
+	for(i=0; i<sizeof(customConfigData); i++)
+		eeprom_write_byte((uint8_t*)(i + CONFIG_OFFSET(WORKING_CONFIG)), pgm_read_byte(&(customConfigData[i])));
+	copyConfig(WORKING_CONFIG, MAX_CONFIGS);
+#endif
+
+	wdt_reset();
+
 	// Read everything again
 	readConfig();
 }
