@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<data>
+  <profile>
+    <profile_version>1</profile_version>
+    <description_file>XB3-24A/XB3-24A_200D-th.xml</description_file>
+    <flash_fw_action>1</flash_fw_action>
+    <description xml:space="preserve"></description>
+    <reset_settings>false</reset_settings>
+    <format_file_system>false</format_file_system>
+    <settings>
+      <setting command="ID">225</setting>
+      <setting command="RR">6</setting>
+      <setting command="RN">3</setting>
+      <setting command="SM">1</setting>
+      <setting command="AP">2</setting>
+      <setting command="BD">7</setting>
+    </settings>
+  </profile>
+</data>

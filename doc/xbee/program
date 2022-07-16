@@ -13,7 +13,7 @@ do
     echo Programming...
     espeak "Programming"
 
-    make profileXB3 verify
+    make firmware profileXB3 verify
 
     if [ $? -eq 0 ]
     then espeak "Complete"
