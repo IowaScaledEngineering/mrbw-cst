@@ -11,13 +11,13 @@ do
     done
     echo
     echo Programming...
-    espeak "Programming"
+    espeak "X B Programming"
 
     make firmware profileXB3 verify
 
     if [ $? -eq 0 ]
-    then espeak "Complete"
-    else espeak "Failed"
+    then espeak "X B Complete"
+    else espeak "X B Failed"
     fi
 
 done
