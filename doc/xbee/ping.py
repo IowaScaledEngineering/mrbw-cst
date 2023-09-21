@@ -13,11 +13,10 @@ try:
 	ser.close()
 	ser.open()
 	time.sleep(1)
-	ser.write("+++")
+	ser.write(b'+++')
 	time.sleep(1)
 	read_val = ser.read(size=64).rstrip()
-	sys.stdout.write(read_val + "" + "\n")
+	sys.stdout.write(read_val.decode() + "" + "\n")
 
 except serial.SerialException:
-	print "Error opening serial port"
-
+	print("Error opening serial port")
