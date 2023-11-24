@@ -7,7 +7,7 @@ do
     while [[ "$pingoutput" != "OK" ]]
     do
     	echo -n .
-    	pingoutput=$(/usr/bin/python ping.py /dev/ttyUSB1 9600)
+    	pingoutput=$(/usr/bin/python3 ping.py /dev/ttyUSB1 9600)
     done
     echo
     echo Programming...

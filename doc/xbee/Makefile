@@ -48,4 +48,4 @@ profilePro: $(PROFILE)
 	/opt/Digi/XCTU-NG/XCTUcmd load_profile -f $(PROFILE_XBP24) -p $(PORT) -b $(BAUD) -F -v
 
 verify: 
-	/usr/bin/python verify.py $(PORT) $(NEWBAUD)
+	/usr/bin/python3 verify.py $(PORT) $(NEWBAUD)
