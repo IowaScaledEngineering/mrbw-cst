@@ -108,7 +108,7 @@ fuse:
 	$(AVRDUDE_SLOW) -U hfuse:w:$(FUSE_H):m -U lfuse:w:$(FUSE_L):m -U efuse:w:$(FUSE_E):m
 
 read:
-	$(AVRDUDE) -v
+	$(AVRDUDE_SLOW) -v
 
 size:
 	avr-size -C --mcu=$(DEVICE) $(BASE_NAME).elf
