@@ -61,6 +61,8 @@ static FunctionData functions[] = {
 	[REAR_DITCH_FN]          = {.name = "R.DITCH",  .eeAddr = EE_REAR_DITCH_FUNCTION},
 	[UP_FN]                  = {.name = "UP BTN",   .eeAddr = EE_UP_BUTTON_FUNCTION,        .attributes = SOFTWARE_LATCH|SPECIAL_FUNC|MENU_FUNC},
 	[DOWN_FN]                = {.name = "DOWN BTN", .eeAddr = EE_DOWN_BUTTON_FUNCTION,      .attributes = SOFTWARE_LATCH|SPECIAL_FUNC|MENU_FUNC},
+	[UP2_FN]                 = {.name = "UP #2",    .eeAddr = EE_UP2_BUTTON_FUNCTION},
+	[DOWN2_FN]               = {.name = "DOWN #2" , .eeAddr = EE_DOWN2_BUTTON_FUNCTION},
 };
 
 static Functions currentFunction = 0;

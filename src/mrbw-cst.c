@@ -3848,12 +3848,14 @@ int main(void)
 		if(optionButtonState & UP_OPTION_BUTTON)
 		{
 			functionMask |= getFunctionMask(UP_FN);
+			functionMask |= getFunctionMask(UP2_FN);
 			if(isFunctionEstop(UP_FN))
 				estopStatus |= ESTOP_BUTTON;
 		}
 		if(optionButtonState & DOWN_OPTION_BUTTON)
 		{
 			functionMask |= getFunctionMask(DOWN_FN);
+			functionMask |= getFunctionMask(DOWN2_FN);
 			if(isFunctionEstop(DOWN_FN))
 				estopStatus |= ESTOP_BUTTON;
 		}
