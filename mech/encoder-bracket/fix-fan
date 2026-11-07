@@ -1,3 +1,0 @@
-#!/bin/bash
-
-python override-fan.py -a 11.5 -b 50 -s 200 -f $1 > fan.gcode
